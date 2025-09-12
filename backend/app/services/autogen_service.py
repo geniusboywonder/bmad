@@ -1,10 +1,10 @@
-"""AutoGen agent service for multi-agent orchestration."""
+"AutoGen agent service for multi-agent orchestration."
 
 import asyncio
 from typing import Dict, List, Any, Optional
 from uuid import UUID
 import structlog
-import autogen_agentchat as autogen
+from autogen_agentchat.agents import ConversableAgent, GroupChat, GroupChatManager
 
 from app.models.task import Task
 from app.models.handoff import HandoffSchema
@@ -18,11 +18,11 @@ class AutoGenService:
     """Service for managing AutoGen agents and conversations."""
     
     def __init__(self):
-        self.agents: Dict[str, autogen.ConversableAgent] = {}
-        self.group_chats: Dict[str, autogen.GroupChat] = {}
-        self.managers: Dict[str, autogen.GroupChatManager] = {}
+        self.agents: Dict[str, ConversableAgent] = {}
+        self.group_chats: Dict[str, GroupChat] = {}
+        self.managers: Dict[str, GroupChatManager] = {}
         
-    def create_agent(self, agent_type: str, system_message: str, llm_config: dict) -> autogen.ConversableAgent:
+    def create_agent(self, agent_type: str, system_message: str, llm_config: dict) -> ConversableAgent:
         """Create an AutoGen agent based on agent type."""
         
         agent_name = f"{agent_type}_agent"
@@ -37,7 +37,7 @@ class AutoGenService:
         
         # Create the agent
         if agent_type == AgentType.ANALYST.value:
-            agent = autogen.ConversableAgent(
+            agent = ConversableAgent(
                 name=agent_name,
                 system_message=f"""You are a business analyst agent. {system_message}
                 
@@ -53,7 +53,7 @@ class AutoGenService:
                 max_consecutive_auto_reply=3,
             )
         elif agent_type == AgentType.ARCHITECT.value:
-            agent = autogen.ConversableAgent(
+            agent = ConversableAgent(
                 name=agent_name,
                 system_message=f"""You are a software architect agent. {system_message}
                 
@@ -69,7 +69,7 @@ class AutoGenService:
                 max_consecutive_auto_reply=3,
             )
         elif agent_type == AgentType.CODER.value:
-            agent = autogen.ConversableAgent(
+            agent = ConversableAgent(
                 name=agent_name,
                 system_message=f"""You are a software developer agent. {system_message}
                 
@@ -85,7 +85,7 @@ class AutoGenService:
                 max_consecutive_auto_reply=3,
             )
         elif agent_type == AgentType.TESTER.value:
-            agent = autogen.ConversableAgent(
+            agent = ConversableAgent(
                 name=agent_name,
                 system_message=f"""You are a quality assurance tester agent. {system_message}
                 
@@ -101,7 +101,7 @@ class AutoGenService:
                 max_consecutive_auto_reply=3,
             )
         elif agent_type == AgentType.DEPLOYER.value:
-            agent = autogen.ConversableAgent(
+            agent = ConversableAgent(
                 name=agent_name,
                 system_message=f"""You are a deployment and DevOps agent. {system_message}
                 
@@ -118,7 +118,7 @@ class AutoGenService:
             )
         else:
             # Generic agent for other types
-            agent = autogen.ConversableAgent(
+            agent = ConversableAgent(
                 name=agent_name,
                 system_message=system_message,
                 llm_config=default_llm_config,
@@ -201,7 +201,7 @@ class AutoGenService:
         
         return "\n".join(context_parts)
     
-    async def run_single_agent_conversation(self, agent: autogen.ConversableAgent, message: str, task: Task) -> str:
+    async def run_single_agent_conversation(self, agent: ConversableAgent, message: str, task: Task) -> str:
         """Run a conversation with a single agent."""
         
         # For now, we'll simulate the conversation
