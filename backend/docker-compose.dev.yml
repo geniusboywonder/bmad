@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: botarmy_db
+      POSTGRES_USER: botarmy
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botarmy -d botarmy_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache and Message Broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # BotArmy Backend API (Development)
+  backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://botarmy:password@postgres:5432/botarmy_db
+      - REDIS_URL=redis://redis:6379/0
+      - REDIS_CELERY_URL=redis://redis:6379/1
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        pip install -r requirements-minimal.txt &&
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
