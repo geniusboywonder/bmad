@@ -1,0 +1,215 @@
+# Python Bytecode and Compiled Files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*$py.class
+
+# C Extensions
+*.so
+
+# Python Packaging and Distribution
+.Python
+build/
+dist/
+eggs/
+*.egg
+*.egg-info/
+.installed.cfg
+develop-eggs/
+downloads/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+MANIFEST
+
+# Virtual Environments
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+*/venv/*
+*/env/*
+
+# Python Tools and Installers
+pip-log.txt
+pip-delete-this-directory.txt
+__pypackages__/
+.pdm.toml
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Testing and Coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+coverage/
+*.cover
+*.py,cover
+nosetests.xml
+coverage.xml
+.hypothesis/
+*.lcov
+.nyc_output
+
+# Type Checkers and Analyzers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+
+# Documentation
+docs/_build/
+/site
+.DS_Store
+
+# Framework-Specific Files
+# Django
+db.sqlite3
+db.sqlite3-journal
+local_settings.py
+
+# Flask
+instance/
+.webassets-cache
+
+# Scrapy
+.scrapy
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Jupyter/IPython
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# PyBuilder
+.pybuilder/
+target/
+
+# SageMath
+*.sage.py
+
+# Logs
+*.log
+logs/*.log
+/logs/
+data/logs/
+backend/logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+.ropeproject
+
+# System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Web Development
+node_modules/
+node_modules_backup/
+jspm_packages/
+*.tgz
+.yarn-integrity
+.cache
+.parcel-cache
+.next
+.next.backup/
+.nuxt
+.out
+.storybook-out
+.eslintcache
+.npm
+
+# Temporary Files
+tmp/
+temp/
+
+# Database Files
+*.db
+*.sqlite
+
+# API Keys and Secrets
+secrets/
+*.key
+*.pem
+
+# Translations
+*.mo
+*.potstartapp.txt
+
+# Environment files (contain API keys)
+.env
+.env.local
+.env.*.local
+*.env
+.env.*
+
+# But allow example files
+!.env.example
+
+# CRITICAL: API Keys and Secret Files
+**/api-keys.*
+**/secrets.*
+**/*secret*
+**/*SECRET*
+**/*SECRETS*
+*SECRETS_SETUP*
+*secrets_setup*
+*API_KEYS*
+*api_keys*
+
+# Backup files that might contain secrets
+**/*backup*.txt
+**/*backup*.env
+**/*backup*secret*
+**/*backup*SECRET*
+
+# Replit secret files
+*REPLIT_SECRETS*
+*replit_secrets*
+.replit_secrets*
+replit_secrets*
+
+# Backup directories (exclude from git) - be more specific
+# Note: backups/ contains important project backup files, so only exclude sensitive content
+backups/**/*env*
+backups/**/node_modules/
+backups/**/*secret*
+backups/**/*SECRET*
+
+.gemini/
+gha-creds-*.json

@@ -227,6 +227,8 @@ async def get_project_hitl_requests(
 async def emit_hitl_response_event(hitl_request: HitlRequestDB, action: HitlAction):
     """Emit WebSocket event for HITL response."""
     
+    from app.websocket.manager import websocket_manager
+    
     event = WebSocketEvent(
         event_type=EventType.HITL_RESPONSE,
         project_id=hitl_request.project_id,
@@ -240,7 +242,15 @@ async def emit_hitl_response_event(hitl_request: HitlRequestDB, action: HitlActi
         }
     )
     
-    # In a full implementation, this would emit the event to WebSocket clients
-    logger.info("HITL response event emitted", 
-                request_id=hitl_request.id, 
-                action=action.value)
+    # Broadcast the event to WebSocket clients
+    try:
+        await websocket_manager.broadcast_to_project(event, str(hitl_request.project_id))
+        logger.info("HITL response event broadcasted", 
+                    request_id=hitl_request.id, 
+                    action=action.value,
+                    project_id=hitl_request.project_id)
+    except Exception as e:
+        logger.error("Failed to broadcast HITL response event",
+                    request_id=hitl_request.id,
+                    error=str(e),
+                    exc_info=True)

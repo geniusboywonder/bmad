@@ -1,0 +1,20 @@
+schema: 1
+story: 'Sprint 3: Backend Real-Time Integration'
+gate: CONCERNS
+status_reason: 'Sprint 3 backend implementation meets requirements but has deprecated datetime usage and hardcoded paths that should be addressed.'
+reviewer: 'Quinn'
+updated: '2025-09-12T19:47:00Z'
+top_issues:
+  - id: 'MNT-001'
+    severity: medium
+    finding: 'Widespread use of deprecated datetime.utcnow() throughout codebase'
+    suggested_action: 'Replace with datetime.now(datetime.UTC) for Python 3.12+ compatibility'
+  - id: 'SEC-001'
+    severity: low
+    finding: 'Hardcoded /tmp/bmad_artifacts path in artifact service'
+    suggested_action: 'Make artifact storage path configurable via environment variable'
+  - id: 'REL-001'
+    severity: low
+    finding: 'No explicit rate limiting on artifact generation endpoints'
+    suggested_action: 'Add rate limiting to prevent abuse of resource-intensive operations'
+waiver: { active: false }

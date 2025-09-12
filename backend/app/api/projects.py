@@ -4,9 +4,12 @@ from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_orchestrator_service
 from app.services.orchestrator import OrchestratorService
+from app.services.project_completion_service import project_completion_service
+from app.database.connection import get_session
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -98,4 +101,66 @@ async def create_task(
         "task_id": task.task_id,
         "celery_task_id": celery_task_id,
         "status": "submitted"
+    }
+
+
+@router.get("/{project_id}/completion")
+async def get_project_completion_status(
+    project_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Get detailed project completion status."""
+    
+    completion_status = await project_completion_service.get_project_completion_status(
+        project_id, db
+    )
+    
+    if "error" in completion_status:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=completion_status["error"]
+        )
+    
+    return completion_status
+
+
+@router.post("/{project_id}/check-completion")
+async def check_project_completion(
+    project_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Check if project is complete and trigger completion if so."""
+    
+    is_complete = await project_completion_service.check_project_completion(
+        project_id, db
+    )
+    
+    return {
+        "project_id": project_id,
+        "is_complete": is_complete,
+        "message": "Project completion checked" + (" and completed" if is_complete else "")
+    }
+
+
+@router.post("/{project_id}/force-complete")
+async def force_project_completion(
+    project_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Force project completion (admin function)."""
+    
+    success = await project_completion_service.force_project_completion(
+        project_id, db
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to force project completion"
+        )
+    
+    return {
+        "project_id": project_id,
+        "message": "Project forced to completion",
+        "status": "completed"
     }

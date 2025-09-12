@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from app.config import settings
-from app.api import projects, hitl, health, websocket
+from app.api import projects, hitl, health, websocket, agents, artifacts
 from app.database.connection import engine, Base
 
 # Configure structured logging
@@ -55,6 +55,8 @@ app.include_router(projects.router, prefix=settings.api_v1_prefix)
 app.include_router(hitl.router)
 app.include_router(health.router)
 app.include_router(websocket.router)
+app.include_router(agents.router)
+app.include_router(artifacts.router)
 
 
 @app.on_event("startup")
