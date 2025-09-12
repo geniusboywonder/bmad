@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 import structlog
-import autogen
+import autogen_agentchat as autogen
 
 from app.models.task import Task, TaskStatus
 from app.models.agent import AgentType, AgentStatus
