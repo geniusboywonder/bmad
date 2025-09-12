@@ -17,3 +17,8 @@ def get_context_store_service(db: Session = Depends(get_session)) -> ContextStor
 def get_orchestrator_service(db: Session = Depends(get_session)) -> OrchestratorService:
     """Get OrchestratorService instance."""
     return OrchestratorService(db)
+
+
+def get_db_session() -> Generator[Session, None, None]:
+    """Get database session."""
+    return get_session()

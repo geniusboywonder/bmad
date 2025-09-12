@@ -15,6 +15,7 @@ from app.tasks.agent_tasks import process_agent_task
 from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
 from app.services.context_store import ContextStoreService
+from app.services.autogen_service import AutoGenService
 
 logger = structlog.get_logger(__name__)
 
@@ -51,20 +52,22 @@ class OrchestratorService:
     def __init__(self, db: Session):
         self.db = db
         self.context_store = ContextStoreService(db)
+        self.autogen_service = AutoGenService()
 
     async def run_project_workflow(self, project_id: UUID, user_idea: str):
-        """Runs the full SDLC workflow for a project."""
+        """Runs the full SDLC workflow for a project using HandoffSchema."""
         logger.info("Starting project workflow", project_id=project_id)
 
         # Initial context is the user's idea
         current_context = {"user_idea": user_idea}
         context_artifact = self.context_store.create_artifact(
             project_id=project_id,
-            source_agent=AgentType.ORCHESTRATOR,
+            source_agent=AgentType.ORCHESTRATOR.value,
             artifact_type="user_input",
             content=current_context
         )
         last_artifact_id = context_artifact.context_id
+        previous_agent = AgentType.ORCHESTRATOR.value
 
         for phase, tasks in SDLC_PROCESS_FLOW.items():
             logger.info(f"Starting {phase}", project_id=project_id)
@@ -72,36 +75,53 @@ class OrchestratorService:
                 task_name = task_info["task_name"]
                 agent_type = task_info["agent"]
                 
-                task = self.create_task(
+                # Create HandoffSchema for structured agent communication
+                handoff = HandoffSchema(
+                    handoff_id=uuid4(),
+                    from_agent=previous_agent,
+                    to_agent=agent_type.value,
                     project_id=project_id,
-                    agent_type=agent_type.value,
-                    instructions=f"Perform task: {task_name}",
-                    context_ids=[last_artifact_id]
+                    phase=phase,
+                    context_ids=[last_artifact_id],
+                    instructions=f"Execute {task_name}. Expected input: {task_info.get('input', 'previous_output')}. Expected output: {task_info.get('output', 'task_result')}.",
+                    expected_outputs=[task_info.get('output', 'task_result')],
+                    priority=1
                 )
-
-                # Placeholder for autogen integration
-                logger.info("Delegating task to AutoGen agent", task_id=task.task_id, agent=agent_type.value)
                 
-                # Simulate agent execution and artifact creation
-                output_content = {"result": f"completed {task_name}"}
+                task = self.create_task_from_handoff(handoff)
                 
+                # Process the task through AutoGen
+                task_result = await self.process_task_with_autogen(task, handoff)
+                
+                # Create output artifact
                 output_artifact = self.context_store.create_artifact(
                     project_id=project_id,
                     source_agent=agent_type.value,
-                    artifact_type="agent_output",
-                    content=output_content
+                    artifact_type=task_info.get('output', 'agent_output'),
+                    content=task_result
                 )
                 last_artifact_id = output_artifact.context_id
-                self.update_task_status(task.task_id, TaskStatus.COMPLETED, output=output_content)
+                previous_agent = agent_type.value
+                
+                self.update_task_status(task.task_id, TaskStatus.COMPLETED, output=task_result)
 
+                # Handle HITL checkpoint if required
                 if task_info.get("hitl"):
-                    hitl_request = self.create_hitl_request(project_id, task.task_id, f"Approve {task_name}?")
-                    await self.wait_for_hitl_response(hitl_request.request_id)
+                    hitl_response = await self.handle_hitl_checkpoint(
+                        project_id, 
+                        task.task_id, 
+                        f"Review and approve {task_name}",
+                        task_result
+                    )
                     
-                    updated_hitl_request = self.db.query(HitlRequestDB).filter(HitlRequestDB.id == hitl_request.request_id).first()
-                    if updated_hitl_request.status == HitlStatus.REJECTED:
-                        logger.warning("Workflow halted by user rejection.", project_id=project_id)
+                    if hitl_response == "rejected":
+                        logger.warning("Workflow halted by user rejection", project_id=project_id)
                         return
+                    elif hitl_response == "amended":
+                        # Re-process task with amended input
+                        amended_artifact = self.get_latest_amended_artifact(project_id, task.task_id)
+                        if amended_artifact:
+                            last_artifact_id = amended_artifact.context_id
 
         logger.info("Project workflow completed", project_id=project_id)
 
@@ -335,3 +355,148 @@ class OrchestratorService:
             tasks.append(task)
         
         return tasks
+    
+    def create_task_from_handoff(self, handoff: HandoffSchema) -> Task:
+        """Create a task from a HandoffSchema."""
+        
+        task = self.create_task(
+            project_id=handoff.project_id,
+            agent_type=handoff.to_agent,
+            instructions=handoff.instructions,
+            context_ids=handoff.context_ids
+        )
+        
+        # Store the handoff metadata with the task
+        self.update_task_status(
+            task.task_id, 
+            TaskStatus.PENDING, 
+            output={
+                "handoff_id": str(handoff.handoff_id),
+                "from_agent": handoff.from_agent,
+                "phase": handoff.phase,
+                "expected_outputs": handoff.expected_outputs,
+                "metadata": handoff.metadata
+            }
+        )
+        
+        logger.info("Task created from handoff",
+                   task_id=task.task_id,
+                   handoff_id=handoff.handoff_id,
+                   from_agent=handoff.from_agent,
+                   to_agent=handoff.to_agent)
+        
+        return task
+    
+    async def process_task_with_autogen(self, task: Task, handoff: HandoffSchema) -> dict:
+        """Process a task using the AutoGen framework."""
+        
+        # Get context artifacts for the task
+        context_artifacts = self.context_store.get_artifacts_by_ids(task.context_ids)
+        
+        # Update agent status to working
+        self.update_agent_status(task.agent_type, AgentStatus.WORKING, task.task_id)
+        
+        logger.info("Processing task with AutoGen", 
+                   task_id=task.task_id, 
+                   agent_type=task.agent_type)
+        
+        # Execute the task using AutoGen service
+        result = await self.autogen_service.execute_task(task, handoff, context_artifacts)
+        
+        # Update agent status based on result
+        if result.get("success", True):
+            self.update_agent_status(task.agent_type, AgentStatus.IDLE)
+        else:
+            self.update_agent_status(task.agent_type, AgentStatus.ERROR, error_message=result.get("error"))
+        
+        return result
+    
+    async def handle_hitl_checkpoint(self, project_id: UUID, task_id: UUID, question: str, task_result: dict) -> str:
+        """Handle a Human-in-the-Loop checkpoint."""
+        
+        hitl_request = self.create_hitl_request(project_id, task_id, question)
+        
+        # Add task result to HITL request for user review
+        self.update_hitl_request_content(hitl_request.id, task_result)
+        
+        # Emit WebSocket event for real-time notification
+        await self.notify_hitl_request_created(hitl_request.id)
+        
+        # Wait for user response (in real implementation, this would be event-driven)
+        response = await self.wait_for_hitl_response(hitl_request.id)
+        
+        return response
+    
+    def update_hitl_request_content(self, request_id: UUID, content: dict):
+        """Update HITL request with content for user review."""
+        
+        hitl_request = self.db.query(HitlRequestDB).filter(HitlRequestDB.id == request_id).first()
+        if hitl_request:
+            hitl_request.amended_content = content
+            self.db.commit()
+    
+    async def notify_hitl_request_created(self, request_id: UUID):
+        """Notify frontend of new HITL request via WebSocket."""
+        
+        event = WebSocketEvent(
+            event_type=EventType.HITL_REQUEST_CREATED,
+            data={"hitl_request_id": str(request_id)}
+        )
+        
+        # In a full implementation, this would emit the event to connected WebSocket clients
+        logger.info("HITL request notification sent", request_id=request_id)
+    
+    def get_latest_amended_artifact(self, project_id: UUID, task_id: UUID) -> Optional['ContextArtifact']:
+        """Get the latest amended artifact for a task."""
+        
+        hitl_request = self.db.query(HitlRequestDB).filter(
+            HitlRequestDB.task_id == task_id,
+            HitlRequestDB.status == HitlStatus.AMENDED
+        ).first()
+        
+        if hitl_request and hitl_request.amended_content:
+            # Create new context artifact with amended content
+            amended_artifact = self.context_store.create_artifact(
+                project_id=project_id,
+                source_agent="user_amendment",
+                artifact_type="hitl_response",
+                content=hitl_request.amended_content
+            )
+            return amended_artifact
+        
+        return None
+    
+    async def resume_workflow_after_hitl(self, project_id: UUID, task_id: UUID):
+        """Resume workflow after HITL response."""
+        
+        logger.info("Resuming workflow after HITL response", 
+                   project_id=project_id, 
+                   task_id=task_id)
+        
+        # Get the task that was waiting for HITL
+        task = self.db.query(TaskDB).filter(TaskDB.id == task_id).first()
+        if not task:
+            logger.error("Task not found for HITL resume", task_id=task_id)
+            return
+        
+        # Update agent status to idle (ready for next task)
+        self.update_agent_status(task.agent_type, AgentStatus.IDLE)
+        
+        # Emit workflow resume event
+        event = WebSocketEvent(
+            event_type=EventType.WORKFLOW_RESUMED,
+            project_id=project_id,
+            task_id=task_id,
+            data={
+                "message": "Workflow resumed after HITL response",
+                "task_id": str(task_id),
+                "agent_type": task.agent_type
+            }
+        )
+        
+        logger.info("Workflow resume event emitted", project_id=project_id, task_id=task_id)
+        
+        # In a full implementation, you might want to:
+        # 1. Continue to the next phase of the workflow
+        # 2. Re-process the current task if amended
+        # 3. Update project status accordingly

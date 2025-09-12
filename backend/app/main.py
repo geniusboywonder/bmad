@@ -52,7 +52,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(projects.router, prefix=settings.api_v1_prefix)
-app.include_router(hitl.router, prefix=settings.api_v1_prefix)
+app.include_router(hitl.router)
 app.include_router(health.router)
 app.include_router(websocket.router)
 
