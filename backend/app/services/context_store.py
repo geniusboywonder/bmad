@@ -79,6 +79,10 @@ class ContextStoreService:
             updated_at=db_artifact.updated_at
         )
     
+    def get_artifact_by_id(self, artifact_id: UUID) -> Optional[ContextArtifact]:
+        """Get a context artifact by ID (alias for get_artifact)."""
+        return self.get_artifact(artifact_id)
+    
     def get_artifacts_by_project(
         self, 
         project_id: UUID,
@@ -114,6 +118,10 @@ class ContextStoreService:
     def get_artifacts_by_ids(self, context_ids: List[UUID]) -> List[ContextArtifact]:
         """Get multiple context artifacts by their IDs."""
         
+        # Handle empty or None input
+        if not context_ids:
+            return []
+        
         db_artifacts = self.db.query(ContextArtifactDB).filter(
             ContextArtifactDB.id.in_(context_ids)
         ).all()
@@ -136,14 +144,20 @@ class ContextStoreService:
     
     def update_artifact(
         self,
-        context_id: UUID,
+        context_id: UUID = None,
+        artifact_id: UUID = None,
         content: Optional[Dict[str, Any]] = None,
         artifact_metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[ContextArtifact]:
         """Update an existing context artifact."""
         
+        # Support both context_id and artifact_id parameter names
+        target_id = context_id or artifact_id
+        if target_id is None:
+            raise ValueError("Either context_id or artifact_id must be provided")
+        
         db_artifact = self.db.query(ContextArtifactDB).filter(
-            ContextArtifactDB.id == context_id
+            ContextArtifactDB.id == target_id
         ).first()
         
         if not db_artifact:
@@ -169,7 +183,7 @@ class ContextStoreService:
             updated_at=db_artifact.updated_at
         )
         
-        logger.info("Context artifact updated", artifact_id=context_id)
+        logger.info("Context artifact updated", artifact_id=target_id)
         
         return artifact
     

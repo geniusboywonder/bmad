@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 
 
@@ -21,8 +21,9 @@ class HandoffSchema(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional handoff metadata")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Handoff creation timestamp")
     
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v),
         }
+    )

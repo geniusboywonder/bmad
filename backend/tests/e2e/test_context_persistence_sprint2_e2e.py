@@ -23,7 +23,8 @@ class TestAgentWorkflowWithContextPersistence:
     @pytest.mark.p1
     @pytest.mark.context
     @pytest.mark.workflow
-    def test_complete_agent_workflow_with_persistent_context(
+    @pytest.mark.asyncio
+    async def test_complete_agent_workflow_with_persistent_context(
         self, client: TestClient, db_session, orchestrator_service, 
         context_store_service, mock_autogen_service, performance_timer
     ):

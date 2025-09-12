@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID, uuid4
 
 
@@ -48,9 +48,28 @@ class HitlRequest(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     expires_at: Optional[datetime] = Field(default=None, description="Request expiration timestamp")
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v),
         }
+    )
+
+
+class HitlResponse(BaseModel):
+    """Model for Human-in-the-Loop responses."""
+    
+    request_id: UUID = Field(description="Request identifier this response belongs to")
+    action: HitlAction = Field(description="Action taken in response")
+    response_content: Optional[str] = Field(default=None, description="Response content")
+    amended_data: Optional[Dict[str, Any]] = Field(default=None, description="Amended data if action is amend")
+    comment: Optional[str] = Field(default=None, description="Additional comment")
+    user_id: Optional[str] = Field(default=None, description="User who provided the response")
+    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
+    
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat(),
+            UUID: lambda v: str(v),
+        }
+    )

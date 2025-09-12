@@ -97,6 +97,7 @@ async def respond_to_hitl_request(
     elif request.action == HitlAction.REJECT:
         hitl_request.status = HitlStatus.REJECTED
         hitl_request.user_response = "rejected"
+        workflow_resumed = True  # Workflow continues with rejection handling
         message = "Request rejected. Workflow will be halted."
         
     elif request.action == HitlAction.AMEND:
@@ -111,6 +112,10 @@ async def respond_to_hitl_request(
         hitl_request.amended_content = {"amended_content": request.content, "comment": request.comment}
         workflow_resumed = True
         message = "Request amended. Workflow will resume with updated content."
+    
+    # Set the response comment and responded timestamp
+    hitl_request.response_comment = request.comment
+    hitl_request.responded_at = datetime.utcnow()
     
     # Add history entry
     if not hitl_request.history:

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Dict, Any, Optional
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID, uuid4
 
 
@@ -12,9 +12,11 @@ class ArtifactType(str, Enum):
     PROJECT_PLAN = "project_plan"
     SOFTWARE_SPECIFICATION = "software_specification"
     IMPLEMENTATION_PLAN = "implementation_plan"
+    SYSTEM_ARCHITECTURE = "system_architecture"
     SOURCE_CODE = "source_code"
     TEST_RESULTS = "test_results"
     DEPLOYMENT_LOG = "deployment_log"
+    DEPLOYMENT_PACKAGE = "deployment_package"
     USER_INPUT = "user_input"
     AGENT_OUTPUT = "agent_output"
     HITL_RESPONSE = "hitl_response"
@@ -32,9 +34,9 @@ class ContextArtifact(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v),
         }
+    )

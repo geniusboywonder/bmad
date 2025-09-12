@@ -131,19 +131,115 @@ class OrchestratorService:
         # This is a simplified placeholder.
         pass
 
-    def create_hitl_request(self, project_id: UUID, task_id: UUID, question: str) -> HitlRequestDB:
-        """Create a new HITL request."""
+    def create_hitl_request(
+        self, 
+        project_id: UUID, 
+        task_id: UUID, 
+        question: str, 
+        options: Optional[List[str]] = None,
+        ttl_hours: Optional[int] = None
+    ) -> HitlRequestDB:
+        """Create a new HITL request with optional TTL."""
+        
+        # Validation
+        if not question or question.strip() == "":
+            raise ValueError("Question cannot be empty")
+        
+        if options is None:
+            options = []
+            
+        # Calculate expiration time if TTL is provided
+        expires_at = None
+        expiration_time = None
+        if ttl_hours is not None:
+            from datetime import datetime, timedelta
+            expires_at = datetime.utcnow() + timedelta(hours=ttl_hours)
+            expiration_time = expires_at
+        
         hitl_request = HitlRequestDB(
             project_id=project_id,
             task_id=task_id,
             question=question,
-            status=HitlStatus.PENDING
+            options=options,
+            status=HitlStatus.PENDING,
+            expires_at=expires_at,
+            expiration_time=expiration_time
         )
         self.db.add(hitl_request)
         self.db.commit()
         self.db.refresh(hitl_request)
-        logger.info("HITL request created", hitl_request_id=hitl_request.id)
+        logger.info("HITL request created", hitl_request_id=hitl_request.id, ttl_hours=ttl_hours)
         return hitl_request
+    
+    def process_hitl_response(
+        self,
+        hitl_request_id: UUID,
+        action: str,
+        comment: Optional[str] = None,
+        amended_data: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Process a HITL response (approve, reject, or amend)."""
+        
+        # Get the HITL request
+        hitl_request = self.db.query(HitlRequestDB).filter(
+            HitlRequestDB.id == hitl_request_id
+        ).first()
+        
+        if not hitl_request:
+            raise ValueError(f"HITL request {hitl_request_id} not found")
+        
+        if hitl_request.status != HitlStatus.PENDING:
+            raise ValueError(f"HITL request {hitl_request_id} is not in pending status")
+        
+        from datetime import datetime
+        
+        # Update the request based on action
+        response_data = {"action": action, "workflow_resumed": True}
+        
+        if action == "approve":
+            hitl_request.status = HitlStatus.APPROVED
+            hitl_request.user_response = "approved"
+            
+        elif action == "reject":
+            hitl_request.status = HitlStatus.REJECTED
+            hitl_request.user_response = "rejected"
+            
+        elif action == "amend":
+            hitl_request.status = HitlStatus.AMENDED
+            hitl_request.user_response = "amended"
+            if amended_data:
+                hitl_request.amended_content = amended_data
+                
+        else:
+            raise ValueError(f"Invalid action: {action}")
+        
+        # Common updates
+        hitl_request.response_comment = comment
+        hitl_request.responded_at = datetime.utcnow()
+        
+        # Add to history
+        history_entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "action": action,
+            "user_id": user_id,
+            "comment": comment,
+            "amended_data": amended_data
+        }
+        
+        if hitl_request.history is None:
+            hitl_request.history = []
+        hitl_request.history.append(history_entry)
+        
+        self.db.commit()
+        self.db.refresh(hitl_request)
+        
+        logger.info("HITL response processed", 
+                   hitl_request_id=hitl_request_id,
+                   action=action,
+                   new_status=hitl_request.status)
+        
+        return response_data
 
     def create_project(self, name: str, description: str = None) -> UUID:
         """Create a new project."""
@@ -174,23 +270,29 @@ class OrchestratorService:
         if context_ids is None:
             context_ids = []
         
+        # Convert UUIDs to strings for JSON serialization
+        context_ids_str = [str(cid) for cid in context_ids]
+        
         db_task = TaskDB(
             project_id=project_id,
             agent_type=agent_type,
             instructions=instructions,
-            context_ids=context_ids
+            context_ids=context_ids_str
         )
         
         self.db.add(db_task)
         self.db.commit()
         self.db.refresh(db_task)
         
+        # Convert context_ids back to UUIDs for the Pydantic model
+        context_ids_uuid = [UUID(cid) if isinstance(cid, str) else cid for cid in db_task.context_ids]
+        
         task = Task(
             task_id=db_task.id,
             project_id=db_task.project_id,
             agent_type=db_task.agent_type,
             status=db_task.status,
-            context_ids=db_task.context_ids,
+            context_ids=context_ids_uuid,
             instructions=db_task.instructions,
             output=db_task.output,
             error_message=db_task.error_message,
@@ -338,12 +440,15 @@ class OrchestratorService:
         
         tasks = []
         for db_task in db_tasks:
+            # Convert context_ids back to UUIDs for the Pydantic model
+            context_ids_uuid = [UUID(cid) if isinstance(cid, str) else cid for cid in db_task.context_ids]
+            
             task = Task(
                 task_id=db_task.id,
                 project_id=db_task.project_id,
                 agent_type=db_task.agent_type,
                 status=db_task.status,
-                context_ids=db_task.context_ids,
+                context_ids=context_ids_uuid,
                 instructions=db_task.instructions,
                 output=db_task.output,
                 error_message=db_task.error_message,
@@ -356,34 +461,82 @@ class OrchestratorService:
         
         return tasks
     
-    def create_task_from_handoff(self, handoff: HandoffSchema) -> Task:
-        """Create a task from a HandoffSchema."""
+    def create_task_from_handoff(
+        self, 
+        handoff: HandoffSchema = None,
+        project_id: UUID = None, 
+        handoff_schema: Dict[str, Any] = None
+    ) -> Task:
+        """Create a task from a HandoffSchema or raw handoff data."""
         
-        task = self.create_task(
-            project_id=handoff.project_id,
-            agent_type=handoff.to_agent,
-            instructions=handoff.instructions,
-            context_ids=handoff.context_ids
-        )
+        if handoff is not None:
+            # Original interface - HandoffSchema object
+            task = self.create_task(
+                project_id=handoff.project_id,
+                agent_type=handoff.to_agent,
+                instructions=handoff.instructions,
+                context_ids=handoff.context_ids
+            )
+        elif project_id is not None and handoff_schema is not None:
+            # New interface - raw dictionary data
+            from uuid import UUID as UUID_type
+            context_ids_uuid = []
+            if handoff_schema.get("context_ids"):
+                context_ids_uuid = [
+                    UUID_type(cid) if isinstance(cid, str) else cid 
+                    for cid in handoff_schema["context_ids"]
+                ]
+            
+            task = self.create_task(
+                project_id=project_id,
+                agent_type=handoff_schema["to_agent"],
+                instructions=handoff_schema.get("task_instructions", handoff_schema.get("instructions", "")),
+                context_ids=context_ids_uuid
+            )
+        else:
+            raise ValueError("Either handoff object or (project_id, handoff_schema) must be provided")
         
-        # Store the handoff metadata with the task
-        self.update_task_status(
-            task.task_id, 
-            TaskStatus.PENDING, 
-            output={
+        # Store the handoff metadata with the task - ensure all data is JSON serializable
+        if handoff is not None:
+            handoff_metadata = {
                 "handoff_id": str(handoff.handoff_id),
                 "from_agent": handoff.from_agent,
                 "phase": handoff.phase,
                 "expected_outputs": handoff.expected_outputs,
                 "metadata": handoff.metadata
             }
-        )
-        
-        logger.info("Task created from handoff",
-                   task_id=task.task_id,
-                   handoff_id=handoff.handoff_id,
-                   from_agent=handoff.from_agent,
-                   to_agent=handoff.to_agent)
+            
+            self.update_task_status(
+                task.task_id, 
+                TaskStatus.PENDING, 
+                output=handoff_metadata
+            )
+            
+            logger.info("Task created from handoff",
+                       task_id=task.task_id,
+                       handoff_id=handoff.handoff_id,
+                       from_agent=handoff.from_agent,
+                       to_agent=handoff.to_agent)
+        else:
+            # For raw handoff schema, store what we have
+            handoff_metadata = {
+                "handoff_source": "raw_schema",
+                "from_agent": handoff_schema.get("from_agent"),
+                "to_agent": handoff_schema.get("to_agent"),
+                "expected_output": handoff_schema.get("expected_output"),
+                "metadata": handoff_schema
+            }
+            
+            self.update_task_status(
+                task.task_id, 
+                TaskStatus.PENDING, 
+                output=handoff_metadata
+            )
+            
+            logger.info("Task created from raw handoff schema",
+                       task_id=task.task_id,
+                       from_agent=handoff_schema.get("from_agent"),
+                       to_agent=handoff_schema.get("to_agent"))
         
         return task
     

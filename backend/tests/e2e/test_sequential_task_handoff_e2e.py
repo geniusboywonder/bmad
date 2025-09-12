@@ -25,7 +25,8 @@ class TestCompleteSDLCWorkflowExecution:
     @pytest.mark.p0
     @pytest.mark.workflow
     @pytest.mark.sdlc
-    def test_complete_sdlc_workflow_execution(
+    @pytest.mark.asyncio
+    async def test_complete_sdlc_workflow_execution(
         self, client: TestClient, db_session, orchestrator_service, 
         context_store_service, mock_autogen_service, performance_timer
     ):

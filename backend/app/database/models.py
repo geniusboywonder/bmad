@@ -98,11 +98,14 @@ class HitlRequestDB(Base):
     options = Column(JSON, default=list)
     status = Column(SQLEnum(HitlStatus), default=HitlStatus.PENDING)
     user_response = Column(Text)
+    response_comment = Column(Text)
     amended_content = Column(JSON)
     history = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     expires_at = Column(DateTime)
+    expiration_time = Column(DateTime)  # Alias for expires_at for compatibility
+    responded_at = Column(DateTime)
     
     # Relationships
     project = relationship("ProjectDB", back_populates="hitl_requests")
