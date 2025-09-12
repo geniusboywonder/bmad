@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from uuid import UUID
 
 
@@ -32,9 +32,12 @@ class WebSocketEvent(BaseModel):
     data: Dict[str, Any] = Field(default_factory=dict, description="Event data payload")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
+    model_config = ConfigDict(use_enum_values=True)
+    
+    @field_serializer('project_id', 'task_id')
+    def serialize_uuid(self, value: Optional[UUID]) -> Optional[str]:
+        return str(value) if value is not None else None
+    
+    @field_serializer('timestamp')
+    def serialize_datetime(self, value: datetime) -> str:
+        return value.isoformat()

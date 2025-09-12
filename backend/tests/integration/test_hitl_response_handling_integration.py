@@ -662,7 +662,7 @@ class TestWebSocketEventEmissionForHitl:
         task = task_factory.create(db_session, project_id=project.id)
         
         # Mock the WebSocket manager in orchestrator
-        with patch.object(orchestrator_service, 'websocket_manager', mock_websocket_manager):
+        with patch('app.services.orchestrator.websocket_manager', mock_websocket_manager):
             # Create HITL request
             hitl_request = orchestrator_service.create_hitl_request(
                 project_id=project.id,
@@ -785,7 +785,7 @@ class TestWebSocketEventEmissionForHitl:
         performance_timer.start()
         
         # Create multiple HITL requests with WebSocket events
-        with patch.object(orchestrator_service, 'websocket_manager', mock_websocket_manager):
+        with patch('app.services.orchestrator.websocket_manager', mock_websocket_manager):
             hitl_requests = []
             for i, task in enumerate(tasks):
                 hitl_request = orchestrator_service.create_hitl_request(

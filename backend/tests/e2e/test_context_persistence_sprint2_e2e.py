@@ -6,6 +6,7 @@ Test scenarios:
 """
 
 import pytest
+import unittest.mock
 from uuid import UUID
 from fastapi.testclient import TestClient
 from fastapi import status
@@ -44,7 +45,7 @@ class TestAgentWorkflowWithContextPersistence:
         # Step 2: Create initial user requirements artifact
         user_requirements = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "project_type": "E-commerce Platform",
@@ -85,7 +86,7 @@ class TestAgentWorkflowWithContextPersistence:
         )
         
         # Execute analysis with context
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             # Simulate context retrieval and processing
             context_artifacts = context_store_service.get_artifacts_by_ids(analysis_task.context_ids)
             assert len(context_artifacts) == 1
@@ -97,7 +98,7 @@ class TestAgentWorkflowWithContextPersistence:
             assert "scalable" in user_context.content["technical_constraints"][0]
             
             # Execute analysis task
-            analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
+            analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task, dummy_analysis_handoff)
             
             # Complete analysis
             orchestrator_service.update_task_status(
@@ -189,7 +190,7 @@ class TestAgentWorkflowWithContextPersistence:
         )
         
         # Execute architecture phase with accumulated context
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             # Verify architect has access to both user requirements and analysis
             arch_context_artifacts = context_store_service.get_artifacts_by_ids(architecture_task.context_ids)
             assert len(arch_context_artifacts) == 2
@@ -214,7 +215,32 @@ class TestAgentWorkflowWithContextPersistence:
             assert "FastAPI" in plan_artifact.content["technology_recommendations"]["backend"]
             
             # Execute architecture task
-            await orchestrator_service.process_task_with_autogen(architecture_task.task_id)
+            # Create a dummy HandoffSchema object for the call
+            dummy_architecture_handoff = HandoffSchema(
+                handoff_id=UUID(str(architecture_task.task_id)),
+                from_agent=architecture_handoff["from_agent"],
+                to_agent=architecture_handoff["to_agent"],
+                project_id=architecture_task.project_id,
+                phase="Architecture",
+                context_ids=architecture_task.context_ids,
+                instructions=architecture_handoff["task_instructions"],
+                expected_outputs=architecture_handoff["expected_output"],
+                priority=1
+            )
+            # Execute architecture task
+            # Create a dummy HandoffSchema object for the call
+            dummy_architecture_handoff = HandoffSchema(
+                handoff_id=UUID(str(architecture_task.task_id)),
+                from_agent=architecture_handoff["from_agent"],
+                to_agent=architecture_handoff["to_agent"],
+                project_id=architecture_task.project_id,
+                phase="Architecture",
+                context_ids=architecture_task.context_ids,
+                instructions=architecture_handoff["task_instructions"],
+                expected_outputs=architecture_handoff["expected_output"],
+                priority=1
+            )
+            await orchestrator_service.process_task_with_autogen(architecture_task, dummy_architecture_handoff)
             
             orchestrator_service.update_task_status(
                 architecture_task.task_id,
@@ -311,7 +337,7 @@ class TestAgentWorkflowWithContextPersistence:
         )
         
         # Execute implementation with full context history
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             # Verify coder has access to complete context chain
             impl_context_artifacts = context_store_service.get_artifacts_by_ids(implementation_task.context_ids)
             assert len(impl_context_artifacts) == 3
@@ -334,7 +360,19 @@ class TestAgentWorkflowWithContextPersistence:
             assert any(service["name"] == "catalog-service" for service in services)
             
             # Execute implementation
-            await orchestrator_service.process_task_with_autogen(implementation_task.task_id)
+            # Create a dummy HandoffSchema object for the call
+            dummy_implementation_handoff = HandoffSchema(
+                handoff_id=UUID(implementation_task.task_id),
+                from_agent=implementation_handoff["from_agent"],
+                to_agent=implementation_handoff["to_agent"],
+                project_id=implementation_task.project_id,
+                phase="Implementation",
+                context_ids=implementation_task.context_ids,
+                instructions=implementation_handoff["task_instructions"],
+                expected_outputs=implementation_handoff["expected_output"],
+                priority=1
+            )
+            await orchestrator_service.process_task_with_autogen(implementation_task, dummy_implementation_handoff)
             
             orchestrator_service.update_task_status(
                 implementation_task.task_id,
@@ -517,7 +555,7 @@ class TestAgentWorkflowWithContextPersistence:
         # Create initial requirements
         initial_requirements = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "features": ["user_auth", "product_catalog"],
@@ -557,7 +595,7 @@ class TestAgentWorkflowWithContextPersistence:
         # User updates requirements
         updated_requirements = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "features": ["user_auth", "product_catalog", "shopping_cart", "payments"],

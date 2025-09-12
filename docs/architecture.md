@@ -493,42 +493,321 @@ Response: 200 OK / 503 Service Unavailable
 
 ***
 
-### **5. Implementation Plan**
+### **5. Agent Architecture and Behavior Specifications**
 
-1. **Phase 1: Foundation (Backend)**
-    * Set up a FastAPI project with a PostgreSQL database and Redis.
-    * Implement the Pydantic data models, including the new `amended` status for `HitlRequest`.
-    * Build the core WebSocket service for real-time communication.
-    * Create a simple task queue with Celery and Redis.
-2. **Phase 2: Core Logic (Backend)**
-    * Integrate and configure the **AutoGen** framework.
-    * Implement the Orchestrator service, adhering to the specified workflow and SOLID principles.
-    * Develop the individual agent classes (Analyst, Architect, etc.) as AutoGen agents.
-    * Implement the Context Store Pattern with a service layer that manages data access, abstracting the database details from the agents.
-3. **Phase 3: Frontend Integration (React)**
-    * Set up a Next.js project with Zustand for state management and Tailwind CSS for styling.
-    * Build a WebSocket client to connect to the backend and handle real-time events.
-    * Develop the main chat interface and UI components for displaying agent status and the workflow.
-    * Create the HITL interface component that renders based on incoming WebSocket events and posts responses back to the REST API, now with explicit support for an `amend` action.
-4. **Phase 4: Refinement & Testing**
-    * Implement JSONL logging and ensure a full audit trail, including tracking `amended` requests.
-    * Conduct end-to-end testing to ensure the entire workflow, including the new HITL amendment process, functions as designed.
-    * Perform performance and security testing.
+#### **5.1 Orchestrator Agent (AB-01 to AB-05)**
+
+The Orchestrator serves as the central coordinator managing the 6-phase SDLC workflow:
+
+**Core Responsibilities:**
+- **Phase Management**: Coordinates Discovery → Plan → Design → Build → Validate → Launch workflow
+- **Context Passing**: Manages structured HandoffSchema between agents with proper validation
+- **Conflict Resolution**: Detects and mediates conflicts between agent outputs after 3 automated attempts
+- **State Management**: Maintains project state and progress tracking throughout workflow execution
+- **Time-Conscious Orchestration**: Front-loads detail gathering to minimize iterative refinements
+
+**AutoGen Integration:**
+```python
+class OrchestratorAgent(ConversableAgent):
+    def __init__(self, llm_config: Dict[str, Any]):
+        super().__init__(
+            name="orchestrator",
+            llm_config=llm_config,
+            system_message="You are the Orchestrator managing multi-agent SDLC workflows..."
+        )
+        self.context_store = ContextStoreService()
+        self.hitl_service = HitlService()
+```
+
+#### **5.2 Analyst Agent (AB-06 to AB-10)**
+
+Specialized for requirements analysis and PRD generation:
+
+**Core Responsibilities:**
+- **Requirements Analysis**: Generate structured Product Requirements Document from user input
+- **Completeness Validation**: Identify missing requirements and create targeted clarifying questions
+- **Stakeholder Interaction**: Engage users through chat interface for comprehensive requirement gathering
+- **User Persona Creation**: Develop detailed user personas and business requirement mapping
+- **Success Criteria Definition**: Define measurable acceptance conditions and success metrics
+
+**LLM Assignment**: Anthropic Claude (optimized for requirements analysis and documentation)
+
+#### **5.3 Architect Agent (AB-11 to AB-15)**
+
+Technical architecture and system design specialist:
+
+**Core Responsibilities:**
+- **Technical Architecture**: Create comprehensive system architecture from Analyst's PRD
+- **API Design**: Generate detailed API specifications and data model definitions
+- **Risk Assessment**: Identify technical risks, constraints, and dependency mapping
+- **Implementation Planning**: Create task breakdown with clear deliverables and timelines
+- **Integration Design**: Define database schema and system integration points
+
+**LLM Assignment**: OpenAI GPT-4 (optimized for technical reasoning and architecture)
+
+#### **5.4 Developer Agent (AB-16 to AB-20)**
+
+Code generation and implementation specialist:
+
+**Core Responsibilities:**
+- **Code Generation**: Produce functional, production-ready code from Architect specifications
+- **Quality Assurance**: Follow established coding standards with proper error handling
+- **Test Creation**: Generate comprehensive unit tests for all generated code
+- **Edge Case Handling**: Implement proper validation logic and edge case management
+- **Documentation**: Create clear code comments and API documentation
+
+**AutoGen Code Execution**: Integrated with code execution environment for validation
+
+#### **5.5 Tester Agent (AB-21 to AB-25)**
+
+Quality assurance and validation specialist:
+
+**Core Responsibilities:**
+- **Test Planning**: Create comprehensive test plans covering functional and edge cases
+- **Automated Testing**: Execute testing scenarios and validate against requirements
+- **Defect Reporting**: Identify and report bugs with detailed reproduction steps
+- **Quality Validation**: Verify code quality and performance characteristics
+- **Accessibility Compliance**: Validate user experience and accessibility standards
+
+**Integration**: Connects to testing frameworks and CI/CD pipelines
+
+#### **5.6 Deployer Agent (AB-26 to AB-30)**
+
+Deployment automation and environment management:
+
+**Core Responsibilities:**
+- **Deployment Automation**: Handle application deployment to target environments
+- **Pipeline Configuration**: Configure deployment pipelines and environment variables
+- **Health Validation**: Validate deployment success and perform comprehensive health checks
+- **Documentation**: Create deployment documentation and rollback procedures
+- **Monitoring**: Monitor post-deployment system performance and stability
+
+**Target Environments**: GitHub Codespaces (initial), Vercel (production path)
+
+### **6. Enhanced HITL System Architecture**
+
+#### **6.1 HITL Trigger Conditions (HL-01 to HL-06)**
+
+**Automatic Triggers:**
+- **Phase Completion**: Pause after each major SDLC phase (Discovery, Plan, Design, Build, Validate, Launch)
+- **Confidence Threshold**: Request human input when agent confidence < 80%
+- **Conflict Escalation**: Escalate agent conflicts after 3 automated resolution attempts
+- **Critical Decisions**: Pause for architectural or design decision approval
+- **Error Recovery**: Create HITL requests when agents encounter unresolvable errors
+
+**User Configuration:**
+- **Oversight Levels**: High (approval for all major decisions), Medium (critical decisions only), Low (conflicts and errors only)
+- **Project-Specific Settings**: Configurable per-project supervision requirements
+
+#### **6.2 HITL Response Processing (HL-07 to HL-12)**
+
+**Response Actions:**
+```python
+class HitlResponseProcessor:
+    def process_response(self, request_id: UUID, action: HitlAction, data: Dict[str, Any]):
+        """Process HITL responses with complete audit trail."""
+        if action == HitlAction.APPROVE:
+            return self._resume_workflow(request_id, approved=True)
+        elif action == HitlAction.REJECT:
+            return self._handle_rejection(request_id, data.get('comment'))
+        elif action == HitlAction.AMEND:
+            return self._apply_amendments(request_id, data.get('amended_content'))
+```
+
+**Features:**
+- **Complete History**: Maintain full audit trail with timestamps and user attribution
+- **Bulk Operations**: Support batch approval of similar items for efficiency
+- **Context-Aware Interface**: Provide relevant artifact previews for informed decisions
+- **Expiration Management**: Configurable timeouts with automatic escalation
+- **Real-Time Notifications**: Immediate alerts via WebSocket for new requests
+
+#### **6.3 Conflict Resolution Process (HL-13 to HL-16)**
+
+**Resolution Workflow:**
+1. **Automated Mediation**: Orchestrator attempts resolution using project context
+2. **Evidence Gathering**: Collect agent reasoning and supporting evidence
+3. **Human Escalation**: Present structured conflict with resolution options
+4. **Decision Tracking**: Capture rationale and apply resolution across system
+
+### **7. Error Handling and Recovery Architecture**
+
+#### **7.1 Agent Failure Recovery (EH-01 to EH-05)**
+
+**Multi-Tier Recovery:**
+```python
+class TaskRecoveryService:
+    async def handle_task_failure(self, task_id: UUID, error: Exception):
+        """Implement graduated recovery strategy."""
+        # Tier 1: Automatic Retry (3 attempts with exponential backoff)
+        if self.retry_count < 3:
+            return await self._retry_task(task_id, backoff_seconds=2**self.retry_count)
+        
+        # Tier 2: Orchestrator Reassignment
+        if await self.orchestrator.can_reassign_task(task_id):
+            return await self.orchestrator.reassign_task(task_id)
+        
+        # Tier 3: HITL Intervention
+        return await self.hitl_service.create_failure_request(task_id, error)
+```
+
+#### **7.2 Timeout and Progress Management (EH-06 to EH-10)**
+
+**Timeout Handling:**
+- **Task Timeouts**: 5-minute automatic timeout with status updates
+- **Progress Updates**: 30-second heartbeat via WebSocket for long-running tasks
+- **Network Resilience**: Auto-reconnect with exponential backoff for WebSocket connections
+- **Session Preservation**: Maintain user session state during temporary disconnections
+
+#### **7.3 Data Integrity and Validation (EH-11 to EH-14)**
+
+**Data Protection:**
+- **Transaction Management**: All database operations use proper transaction rollback
+- **Schema Validation**: Context artifacts validated before storage
+- **Backup Procedures**: Automated backup with point-in-time recovery
+- **Corruption Detection**: Automatic detection and repair attempts for data corruption
 
 ***
 
-### **6. System Health Checks (First Pass)**
+### **8. Enhanced Implementation Plan**
 
-For the initial pass, we will implement a dedicated health endpoint to confirm that the key system components are online and communicating correctly. This will provide a clear, machine-readable status of the system's health.
+#### **Phase 1: Foundation & Infrastructure (4-6 weeks)**
 
-* **Endpoint**: A simple `GET` endpoint at `/healthz` will return a JSON response with a status for each core component.
+**Backend Core Setup:**
+- FastAPI project with PostgreSQL (Alembic migrations) and Redis
+- Pydantic v2 models with ConfigDict for all data structures
+- WebSocket service for real-time communication with auto-reconnect
+- Celery task queue with retry logic and progress tracking
+- Health check endpoint with multi-component monitoring
 
-* **Health Checks**: The endpoint will perform the following checks:
-  * **Backend Status**: A simple check to ensure the FastAPI service is running.
-  * **LLM Connection Status**: A check to ensure the LLM provider's API is reachable and authorized.
-  * **Task Queue Status**: A check to ensure the Redis broker and at least one Celery worker are online and available.
-  * **Database Status**: A check to confirm connectivity to the PostgreSQL database.
+**Multi-LLM Provider Integration:**
+- OpenAI GPT-4, Anthropic Claude, and Google Gemini provider abstractions
+- Environment-based API key management with validation
+- LLM response validation and sanitization
+- Provider-specific error handling and fallback mechanisms
 
-* **Response**: The endpoint will return a 200 OK status code if all components are healthy, and a 503 Service Unavailable status code if any component is down. The JSON body will provide details on which components are healthy or unhealthy.
+**BMAD Core Template System:**
+- Dynamic workflow loading from `.bmad-core/workflows/`
+- YAML template parsing from `.bmad-core/templates/`
+- Agent team configuration loading from `.bmad-core/agent-teams/`
+- Variable substitution and conditional logic processing
 
-This simple API endpoint serves as both a human-readable status page and a robust health check for automated monitoring systems. We can expand upon it with more detailed metrics and alerting in future development phases.
+#### **Phase 2: Agent Framework & Core Logic (6-8 weeks)**
+
+**AutoGen Framework Integration:**
+- Microsoft AutoGen framework configuration and setup
+- Agent conversation management with proper context passing
+- Group chat capabilities for multi-agent collaboration
+- Dynamic agent configuration loading
+
+**Agent Implementation:**
+- Orchestrator Agent: 6-phase SDLC workflow coordination
+- Analyst Agent: Requirements analysis and PRD generation (Claude)
+- Architect Agent: Technical architecture and API design (GPT-4)
+- Developer Agent: Code generation with AutoGen code execution
+- Tester Agent: Quality assurance and validation
+- Deployer Agent: Deployment automation and monitoring
+
+**Context Store Pattern:**
+- Mixed-granularity artifact storage (document/section/concept level)
+- Repository pattern with proper abstraction layers
+- Context artifact validation and metadata management
+- Intelligent retrieval and injection for agent workflows
+
+#### **Phase 3: HITL System & Advanced Features (4-5 weeks)**
+
+**Enhanced HITL Implementation:**
+- Comprehensive approval/rejection/amendment workflow
+- Configurable oversight levels (High/Medium/Low)
+- Automatic trigger conditions with confidence scoring
+- Complete audit trail and history tracking
+- Real-time notifications via WebSocket
+
+**Error Handling & Recovery:**
+- Multi-tier recovery strategy (retry → reassign → HITL)
+- Timeout management with progress heartbeats
+- Network resilience and session preservation
+- Data integrity and transaction management
+
+#### **Phase 4: Frontend Application (5-7 weeks)**
+
+**Next.js Application Setup:**
+- Responsive UI with Tailwind CSS and modern design patterns
+- Zustand state management for complex application state
+- WebSocket client with automatic reconnection and event handling
+- Component library following shadcn/ui patterns
+
+**Core Interface Components:**
+- Real-time chat interface with agent conversation history
+- Workflow visualization with phase/task progress tracking
+- HITL approval interface with context-aware decision support
+- Agent status dashboard with performance monitoring
+- Context artifact browser with search and filtering
+
+#### **Phase 5: Integration & Testing (3-4 weeks)**
+
+**End-to-End Integration:**
+- Complete SDLC workflow testing from idea to deployment
+- Multi-agent conversation and handoff validation
+- HITL approval flow testing with all action types
+- Error recovery and resilience testing
+
+**Performance & Security:**
+- API response time optimization (< 200ms status queries)
+- WebSocket event delivery optimization (< 100ms)
+- Concurrent project support testing (10 projects, 50 tasks each)
+- Security audit and penetration testing
+- Load testing and performance profiling
+
+**Quality Assurance:**
+- Comprehensive test suite (unit, integration, E2E)
+- Code quality gates with automated linting and formatting
+- Documentation completeness verification
+- Accessibility compliance testing (WCAG 2.1 AA)
+
+#### **Phase 6: Deployment & Monitoring (2-3 weeks)**
+
+**Production Deployment:**
+- GitHub Codespaces initial deployment configuration
+- Vercel production deployment with environment management
+- Database migration and backup procedures
+- CI/CD pipeline setup with automated testing
+
+**Monitoring & Observability:**
+- Application performance monitoring (APM) integration
+- Structured logging with correlation IDs
+- Alert system for critical failures and performance degradation
+- Usage analytics and performance metrics dashboard
+
+### **9. System Health & Monitoring Architecture**
+
+#### **9.1 Multi-Component Health Checks**
+
+**Enhanced Health Endpoint** (`/healthz`):
+- **Application Layer**: FastAPI service status and response times
+- **Database Layer**: PostgreSQL connectivity, query performance, migration status
+- **Cache Layer**: Redis connectivity, memory usage, key-value performance
+- **Task Queue**: Celery worker availability, queue depth, processing times
+- **LLM Providers**: OpenAI/Claude/Gemini API connectivity and rate limits
+- **WebSocket Service**: Connection pool status and message delivery rates
+
+**Health Status Levels:**
+- **Healthy**: All components operational within performance thresholds
+- **Degraded**: Some components experiencing performance issues but functional
+- **Unhealthy**: Critical components down or performance severely impacted
+
+#### **9.2 Observability & Metrics**
+
+**Key Performance Indicators:**
+- API response times (P50, P95, P99 percentiles)
+- WebSocket event delivery latency
+- Agent task completion rates and performance
+- HITL request resolution times
+- Context artifact retrieval performance
+- Error rates and failure patterns
+
+**Structured Logging:**
+- Correlation IDs for request tracing across services
+- Agent conversation logging with privacy controls
+- HITL interaction audit trails
+- Performance metrics and resource utilization
+- Security events and access patterns

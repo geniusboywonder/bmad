@@ -8,6 +8,7 @@ Test scenarios:
 
 import pytest
 import asyncio
+import unittest.mock
 from uuid import UUID
 from fastapi.testclient import TestClient
 from fastapi import status
@@ -47,7 +48,7 @@ class TestCompleteHitlApproveWorkflow:
         # Step 2: Create initial context (user requirements)
         user_requirements = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "project_goal": "Develop a customer relationship management system",
@@ -77,7 +78,7 @@ class TestCompleteHitlApproveWorkflow:
         )
         
         # Execute analysis with mock AutoGen
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
             
             # Complete analysis task
@@ -288,7 +289,7 @@ class TestCompleteHitlApproveWorkflow:
         )
         
         # Step 10: Execute architecture task
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             arch_result = await orchestrator_service.process_task_with_autogen(architecture_task.task_id)
             
             orchestrator_service.update_task_status(
@@ -498,7 +499,7 @@ class TestCompleteHitlAmendWorkflow:
         # Step 2: Create initial requirements
         user_requirements = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "project_type": "Enterprise Data Analytics Platform",
@@ -526,7 +527,7 @@ class TestCompleteHitlAmendWorkflow:
         )
         
         # Execute initial analysis
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
             
             orchestrator_service.update_task_status(
@@ -712,7 +713,7 @@ class TestCompleteHitlAmendWorkflow:
         )
         
         # Step 9: Execute enhanced analysis
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             enhanced_result = await orchestrator_service.process_task_with_autogen(enhanced_analysis_task.task_id)
             
             orchestrator_service.update_task_status(

@@ -340,7 +340,7 @@ class TestContextArtifactPassingBetweenPhases:
         user_input = context_artifact_factory.create(
             db_session,
             project_id=project.id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={"requirements": "Build a task manager"}
         )
@@ -529,8 +529,8 @@ class TestWebSocketEventsForHandoffOperations:
         """Test WebSocket events are emitted during handoff operations."""
         project = project_factory.create(db_session)
         
-        # Mock the WebSocket manager in the orchestrator
-        with patch.object(orchestrator_service, 'websocket_manager', mock_websocket_manager):
+        # Mock the global WebSocket manager
+        with patch('app.services.orchestrator.websocket_manager', mock_websocket_manager):
             handoff_data = {
                 "from_agent": AgentType.ANALYST.value,
                 "to_agent": AgentType.ARCHITECT.value,
@@ -567,7 +567,7 @@ class TestWebSocketEventsForHandoffOperations:
         
         performance_timer.start()
         
-        with patch.object(orchestrator_service, 'websocket_manager', mock_websocket_manager):
+        with patch('app.services.orchestrator.websocket_manager', mock_websocket_manager):
             # Simulate multiple rapid handoffs
             handoffs = [
                 {

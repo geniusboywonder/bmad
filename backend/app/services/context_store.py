@@ -1,6 +1,6 @@
 """Context Store service for persistent memory management."""
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from uuid import UUID
 from sqlalchemy.orm import Session
 import structlog
@@ -115,15 +115,23 @@ class ContextStoreService:
         
         return artifacts
     
-    def get_artifacts_by_ids(self, context_ids: List[UUID]) -> List[ContextArtifact]:
+    def get_artifacts_by_ids(self, context_ids: List[Union[UUID, str]]) -> List[ContextArtifact]:
         """Get multiple context artifacts by their IDs."""
         
         # Handle empty or None input
         if not context_ids:
             return []
         
+        # Convert string UUIDs to UUID objects
+        uuid_list = []
+        for context_id in context_ids:
+            if isinstance(context_id, str):
+                uuid_list.append(UUID(context_id))
+            else:
+                uuid_list.append(context_id)
+        
         db_artifacts = self.db.query(ContextArtifactDB).filter(
-            ContextArtifactDB.id.in_(context_ids)
+            ContextArtifactDB.id.in_(uuid_list)
         ).all()
         
         artifacts = []
@@ -186,6 +194,58 @@ class ContextStoreService:
         logger.info("Context artifact updated", artifact_id=target_id)
         
         return artifact
+    
+    def get_artifacts_by_project_and_type(self, project_id: UUID, artifact_type: str) -> List[ContextArtifact]:
+        """Get context artifacts by project ID and artifact type."""
+        
+        db_artifacts = self.db.query(ContextArtifactDB).filter(
+            ContextArtifactDB.project_id == project_id,
+            ContextArtifactDB.artifact_type == artifact_type
+        ).all()
+        
+        artifacts = []
+        for db_artifact in db_artifacts:
+            artifact = ContextArtifact(
+                context_id=db_artifact.id,
+                project_id=db_artifact.project_id,
+                source_agent=db_artifact.source_agent,
+                artifact_type=db_artifact.artifact_type,
+                content=db_artifact.content,
+                artifact_metadata=db_artifact.artifact_metadata,
+                created_at=db_artifact.created_at,
+                updated_at=db_artifact.updated_at
+            )
+            artifacts.append(artifact)
+        
+        logger.info("Context artifacts retrieved by project and type", 
+                   project_id=project_id, artifact_type=artifact_type, count=len(artifacts))
+        return artifacts
+    
+    def get_artifacts_by_project_and_agent(self, project_id: UUID, source_agent: str) -> List[ContextArtifact]:
+        """Get context artifacts by project ID and source agent."""
+        
+        db_artifacts = self.db.query(ContextArtifactDB).filter(
+            ContextArtifactDB.project_id == project_id,
+            ContextArtifactDB.source_agent == source_agent
+        ).all()
+        
+        artifacts = []
+        for db_artifact in db_artifacts:
+            artifact = ContextArtifact(
+                context_id=db_artifact.id,
+                project_id=db_artifact.project_id,
+                source_agent=db_artifact.source_agent,
+                artifact_type=db_artifact.artifact_type,
+                content=db_artifact.content,
+                artifact_metadata=db_artifact.artifact_metadata,
+                created_at=db_artifact.created_at,
+                updated_at=db_artifact.updated_at
+            )
+            artifacts.append(artifact)
+        
+        logger.info("Context artifacts retrieved by project and agent", 
+                   project_id=project_id, source_agent=source_agent, count=len(artifacts))
+        return artifacts
     
     def delete_artifact(self, context_id: UUID) -> bool:
         """Delete a context artifact."""

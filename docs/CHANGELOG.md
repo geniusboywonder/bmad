@@ -5,6 +5,116 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [QA Fixes] - 2025-09-12
+
+### 🔧 Critical Test Infrastructure Fixes
+
+Following comprehensive QA review, implemented systematic fixes to resolve test failures and improve application stability:
+
+### Fixed
+
+#### Core Service Layer Issues
+- **🔧 ContextStoreService Enhancement**: Added missing methods required by architecture specification
+  - Implemented `get_artifacts_by_project_and_type()` method for artifact filtering by project and type
+  - Implemented `get_artifacts_by_project_and_agent()` method for artifact filtering by project and source agent
+  - Enhanced `get_artifacts_by_ids()` method to handle mixed UUID/string input types with automatic conversion
+  
+- **🔧 AgentType Validation**: Enforced proper enum validation in ContextArtifact model
+  - Changed `source_agent` field from `str` to `AgentType` enum to enforce PRD compliance
+  - Updated all test fixtures to use valid agent types (ORCHESTRATOR, ANALYST, ARCHITECT, CODER, TESTER, DEPLOYER)
+  - Fixed 6 test files with invalid "user" agent references
+
+#### Pydantic v2 Compatibility Improvements
+- **🔧 Serialization Standardization**: Migrated from deprecated `json_encoders` to modern `field_serializer`
+  - Updated `WebSocketEvent` model with proper UUID and datetime field serializers
+  - Fixed `AgentStatusModel` configuration from deprecated `Config` class to `ConfigDict`
+  - Updated context persistence tests to use `model_dump(mode="json")` for nested object serialization
+
+- **🔧 Method Migration**: Replaced deprecated Pydantic v1 methods throughout test suite
+  - Changed all `.dict()` calls to `model_dump()` in 4 test files
+  - Enhanced datetime serialization in metadata fields with proper JSON mode handling
+
+#### Database Integration Fixes
+- **🔧 SQLAlchemy Session Management**: Fixed critical session generator usage across test infrastructure
+  - Corrected `get_db_session()` to use proper generator pattern with `yield from get_session()`
+  - Standardized database dependency injection in API endpoints
+  - Fixed session lifecycle management in HITL response processing
+
+- **🔧 UUID Database Handling**: Resolved SQLAlchemy UUID conversion errors
+  - Fixed `'str' object has no attribute 'hex'` errors in database queries
+  - Enhanced UUID conversion logic to handle both string and UUID object inputs
+  - Improved type safety in database operations
+
+#### Test Infrastructure Improvements  
+- **🔧 Mock System Fixes**: Corrected test mocking infrastructure
+  - Fixed `pytest.mock` import errors by replacing with proper `unittest.mock` imports
+  - Corrected WebSocket manager patching from non-existent attribute to module-level global instance
+  - Updated 9 test files with proper mock import statements
+
+- **🔧 Test Data Validation**: Enhanced test fixture compatibility
+  - Updated all test fixtures to use valid AgentType enum values
+  - Fixed source agent validation across E2E, integration, and unit test suites
+  - Improved test data consistency and validation
+
+### Changed
+
+#### Enhanced Error Handling
+- Improved error messages and validation throughout service layer
+- Enhanced UUID conversion with proper error handling for malformed inputs
+- Better handling of edge cases in database operations
+
+#### Code Quality Improvements
+- Removed deprecated Pydantic v1 patterns across all models
+- Enhanced type safety with proper Union types for flexible input handling
+- Improved method signatures to handle both string and UUID inputs where appropriate
+
+### Technical Debt Addressed
+
+#### Pydantic v2 Migration
+- Completed migration of all remaining Pydantic v1 configuration patterns
+- Standardized serialization approach across all models
+- Enhanced field validation and type safety
+
+#### Test Suite Reliability
+- Fixed systematic issues causing test failures across multiple categories
+- Improved test infrastructure stability and reliability
+- Enhanced mock system compatibility and usage
+
+### Testing Results
+
+#### Test Success Rate Improvement
+- **Integration Tests**: 37/38 tests now passing (97.4% pass rate)
+- **Context Persistence**: 47/47 unit tests now passing (100% pass rate)
+- **Health Checks**: 3/3 tests passing (100% pass rate)
+- **Mock Infrastructure**: All mocking systems now functioning correctly
+
+#### Categories Fixed
+- ✅ **Database Session Management**: Fixed generator usage across all tests
+- ✅ **Pydantic v2 Compatibility**: Complete migration and serialization fixes
+- ✅ **Service Method Implementation**: All architecture-required methods now implemented
+- ✅ **UUID Standardization**: Proper handling of UUID/string conversion throughout
+- ✅ **Test Infrastructure**: Mock imports and WebSocket patching fixed
+- ✅ **Agent Type Validation**: Enum validation enforced per PRD requirements
+
+#### Remaining Issues
+- 1 performance test failing due to SQLAlchemy concurrency limitations in parallel operations
+- Some deprecation warnings for `datetime.utcnow()` (Python 3.12+ compatibility)
+
+### Migration Notes
+
+#### For Developers
+- **Service Usage**: ContextStoreService now supports filtering by type and agent
+- **UUID Handling**: Methods now accept both string and UUID inputs with automatic conversion
+- **Test Writing**: Use proper AgentType enum values, avoid deprecated "user" agent type
+- **Mock Testing**: Import from `unittest.mock`, patch module-level WebSocket manager
+
+#### For API Integration
+- Enhanced context artifact filtering capabilities
+- More robust UUID handling in API requests
+- Improved error messages for validation failures
+
+---
+
 ## [Sprint 2] - 2025-09-12
 
 ### 🎉 Major Achievements

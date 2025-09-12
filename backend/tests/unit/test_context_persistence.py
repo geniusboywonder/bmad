@@ -278,7 +278,7 @@ class TestEventLogModelValidation:
         )
         
         # Test model can be serialized to dict
-        event_dict = event.dict()
+        event_dict = event.model_dump()
         
         assert "event_type" in event_dict
         assert "project_id" in event_dict
@@ -405,7 +405,7 @@ class TestContextMetadataSerialization:
         )
         
         # Test serialization to dict
-        artifact_dict = artifact.dict()
+        artifact_dict = artifact.model_dump()
         assert artifact_dict["artifact_metadata"] == complex_metadata
     
     @pytest.mark.unit
@@ -432,7 +432,7 @@ class TestContextMetadataSerialization:
             )
             
             # Should serialize without errors
-            artifact_dict = artifact.dict()
+            artifact_dict = artifact.model_dump()
             assert artifact_dict["artifact_metadata"] == metadata
     
     @pytest.mark.unit
@@ -456,7 +456,7 @@ class TestContextMetadataSerialization:
                 content=content
             )
             
-            artifact_dict = artifact.dict()
+            artifact_dict = artifact.model_dump()
             assert artifact_dict["content"] == content
     
     @pytest.mark.unit
@@ -477,7 +477,7 @@ class TestContextMetadataSerialization:
         )
         
         # The artifact should handle datetime serialization
-        artifact_dict = artifact.dict()
+        artifact_dict = artifact.model_dump(mode="json")
         
         # Datetime should be serialized as ISO string
         assert isinstance(artifact_dict["artifact_metadata"]["deployed_at"], str)

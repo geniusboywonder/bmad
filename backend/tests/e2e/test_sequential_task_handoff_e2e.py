@@ -8,6 +8,7 @@ Test scenarios:
 
 import pytest
 import asyncio
+import unittest.mock
 from uuid import UUID
 from fastapi.testclient import TestClient
 from fastapi import status
@@ -46,7 +47,7 @@ class TestCompleteSDLCWorkflowExecution:
         # Step 2: Create initial user input context
         user_input = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "requirements": "Build a task management system with user authentication",
@@ -64,7 +65,7 @@ class TestCompleteSDLCWorkflowExecution:
         )
         
         # Step 4: Execute analysis task (simulated with mock)
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
             
             # Complete analysis task
@@ -105,7 +106,7 @@ class TestCompleteSDLCWorkflowExecution:
         )
         
         # Execute architecture task
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             await orchestrator_service.process_task_with_autogen(architecture_task.task_id)
             
             orchestrator_service.update_task_status(
@@ -145,7 +146,7 @@ class TestCompleteSDLCWorkflowExecution:
         )
         
         # Execute implementation task
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             await orchestrator_service.process_task_with_autogen(implementation_task.task_id)
             
             orchestrator_service.update_task_status(
@@ -185,7 +186,7 @@ class TestCompleteSDLCWorkflowExecution:
         )
         
         # Execute testing task
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             await orchestrator_service.process_task_with_autogen(testing_task.task_id)
             
             orchestrator_service.update_task_status(
@@ -226,7 +227,7 @@ class TestCompleteSDLCWorkflowExecution:
         )
         
         # Execute deployment task
-        with pytest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
+        with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
             await orchestrator_service.process_task_with_autogen(deployment_task.task_id)
             
             orchestrator_service.update_task_status(
@@ -374,7 +375,7 @@ class TestMultiPhaseProjectProgression:
             # Create user input for each project
             user_input = context_store_service.create_artifact(
                 project_id=project_id,
-                source_agent="user",
+                source_agent=AgentType.ORCHESTRATOR,
                 artifact_type=ArtifactType.USER_INPUT,
                 content={"requirements": f"Project {i+1} requirements"}
             )
@@ -442,7 +443,7 @@ class TestMultiPhaseProjectProgression:
         # Create user input
         user_input = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={"requirements": "System requirements"}
         )
@@ -526,7 +527,7 @@ class TestMultiPhaseProjectProgression:
         # Create rich user input
         user_input = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "requirements": "Build e-commerce platform",

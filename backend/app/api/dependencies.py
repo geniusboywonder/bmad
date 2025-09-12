@@ -21,4 +21,4 @@ def get_orchestrator_service(db: Session = Depends(get_session)) -> Orchestrator
 
 def get_db_session() -> Generator[Session, None, None]:
     """Get database session."""
-    return get_session()
+    yield from get_session()

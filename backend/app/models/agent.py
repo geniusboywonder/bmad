@@ -3,7 +3,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 
 
@@ -34,9 +34,10 @@ class AgentStatusModel(BaseModel):
     last_activity: datetime = Field(default_factory=datetime.utcnow, description="Last activity timestamp")
     error_message: Optional[str] = Field(default=None, description="Error message if status is error")
     
-    class Config:
-        use_enum_values = True
-        json_encoders = {
+    model_config = ConfigDict(
+        use_enum_values=True,
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v),
         }
+    )

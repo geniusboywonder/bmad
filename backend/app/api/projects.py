@@ -1,6 +1,6 @@
 """Project API endpoints."""
 
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -14,14 +14,14 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 class ProjectCreateRequest(BaseModel):
     """Request model for creating a project."""
     name: str
-    description: str = None
+    description: Optional[str] = None
 
 
 class ProjectResponse(BaseModel):
     """Response model for project data."""
     id: UUID
     name: str
-    description: str = None
+    description: Optional[str] = None
     status: str
 
 

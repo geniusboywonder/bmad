@@ -120,7 +120,7 @@ class TestContextPersistenceWorkflow:
         # Step 2: Create initial context artifact (user input)
         user_input_artifact = context_store_service.create_artifact(
             project_id=project_id,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             artifact_type=ArtifactType.USER_INPUT,
             content={
                 "requirements": "Build a task management system",

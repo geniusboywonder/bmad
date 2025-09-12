@@ -599,7 +599,7 @@ class TestArtifactRelationshipMaintenance:
             db_session,
             project_id=project.id,
             artifact_type=ArtifactType.USER_INPUT,
-            source_agent="user",
+            source_agent=AgentType.ORCHESTRATOR,
             content={"requirements": "Build task manager"}
         )
         

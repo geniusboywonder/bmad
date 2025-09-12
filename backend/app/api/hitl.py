@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.models.hitl import HitlAction, HitlStatus, HitlHistoryEntry
-from app.api.dependencies import get_orchestrator_service, get_db_session
+from app.api.dependencies import get_orchestrator_service
+from app.database.connection import get_session
 from app.services.orchestrator import OrchestratorService
 from app.database.models import HitlRequestDB
 from app.websocket.events import WebSocketEvent, EventType
@@ -35,9 +36,13 @@ class HitlRequestResponse(BaseModel):
     options: List[str]
     status: str
     user_response: Optional[str] = None
+    response_comment: Optional[str] = None
     amended_content: Optional[dict] = None
+    history: Optional[List[dict]] = None
     created_at: str
     updated_at: str
+    expires_at: Optional[str] = None
+    responded_at: Optional[str] = None
 
 
 class HitlProcessResponse(BaseModel):
@@ -53,7 +58,7 @@ class HitlProcessResponse(BaseModel):
 async def respond_to_hitl_request(
     request_id: UUID,
     request: HitlResponseRequest,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_session),
     orchestrator: OrchestratorService = Depends(get_orchestrator_service)
 ):
     """Respond to a HITL request with approve, reject, or amend actions."""
@@ -120,7 +125,7 @@ async def respond_to_hitl_request(
     # Add history entry
     if not hitl_request.history:
         hitl_request.history = []
-    hitl_request.history.append(history_entry.dict())
+    hitl_request.history.append(history_entry.model_dump(mode="json"))
     hitl_request.updated_at = datetime.utcnow()
     
     db.commit()
@@ -150,7 +155,7 @@ async def respond_to_hitl_request(
 @router.get("/{request_id}", response_model=HitlRequestResponse)
 async def get_hitl_request(
     request_id: UUID,
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_session)
 ):
     """Get a specific HITL request."""
     
@@ -170,16 +175,20 @@ async def get_hitl_request(
         options=hitl_request.options or [],
         status=hitl_request.status,
         user_response=hitl_request.user_response,
+        response_comment=hitl_request.response_comment,
         amended_content=hitl_request.amended_content,
+        history=hitl_request.history or [],
         created_at=hitl_request.created_at.isoformat(),
-        updated_at=hitl_request.updated_at.isoformat()
+        updated_at=hitl_request.updated_at.isoformat(),
+        expires_at=hitl_request.expires_at.isoformat() if hitl_request.expires_at else None,
+        responded_at=hitl_request.responded_at.isoformat() if hitl_request.responded_at else None
     )
 
 
 @router.get("/project/{project_id}/requests", response_model=List[HitlRequestResponse])
 async def get_project_hitl_requests(
     project_id: UUID,
-    db: Session = Depends(get_db_session),
+    db: Session = Depends(get_session),
     status_filter: Optional[str] = None
 ):
     """Get all HITL requests for a project."""

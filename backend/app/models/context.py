@@ -3,8 +3,9 @@
 from datetime import datetime
 from typing import Dict, Any, Optional
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from uuid import UUID, uuid4
+from app.models.agent import AgentType
 
 
 class ArtifactType(str, Enum):
@@ -27,7 +28,7 @@ class ContextArtifact(BaseModel):
     
     context_id: UUID = Field(default_factory=uuid4, description="Unique context identifier")
     project_id: UUID = Field(description="Project this artifact belongs to")
-    source_agent: str = Field(description="Agent that created this artifact")
+    source_agent: AgentType = Field(description="Agent that created this artifact")
     artifact_type: ArtifactType = Field(description="Type of artifact")
     content: Dict[str, Any] = Field(description="Artifact content data")
     artifact_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
@@ -40,3 +41,11 @@ class ContextArtifact(BaseModel):
             UUID: lambda v: str(v),
         }
     )
+    
+    @field_serializer('context_id', 'project_id')
+    def serialize_uuid(self, value: UUID) -> str:
+        return str(value)
+    
+    @field_serializer('created_at', 'updated_at')  
+    def serialize_datetime(self, value: datetime) -> str:
+        return value.isoformat()
