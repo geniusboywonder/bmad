@@ -5,10 +5,27 @@ from .agent import AgentStatus, AgentType
 from .context import ContextArtifact, ArtifactType
 from .hitl import HitlRequest, HitlStatus, HitlAction
 from .handoff import HandoffSchema
+from .workflow import (
+    WorkflowDefinition,
+    WorkflowStep,
+    WorkflowExecution,
+    WorkflowExecutionStep,
+    WorkflowType,
+    WorkflowExecutionState
+)
+from .template import (
+    TemplateDefinition,
+    TemplateSection,
+    TemplateOutput,
+    TemplateWorkflow,
+    TemplateSectionType,
+    TemplateOutputFormat,
+    TemplateWorkflowMode
+)
 
 __all__ = [
     "Task",
-    "TaskStatus", 
+    "TaskStatus",
     "AgentStatus",
     "AgentType",
     "ContextArtifact",
@@ -17,4 +34,19 @@ __all__ = [
     "HitlStatus",
     "HitlAction",
     "HandoffSchema",
+    # Workflow models
+    "WorkflowDefinition",
+    "WorkflowStep",
+    "WorkflowExecution",
+    "WorkflowExecutionStep",
+    "WorkflowType",
+    "WorkflowExecutionState",
+    # Template models
+    "TemplateDefinition",
+    "TemplateSection",
+    "TemplateOutput",
+    "TemplateWorkflow",
+    "TemplateSectionType",
+    "TemplateOutputFormat",
+    "TemplateWorkflowMode",
 ]

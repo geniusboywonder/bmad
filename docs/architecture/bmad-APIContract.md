@@ -25,6 +25,7 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 #### **REST API Endpoints (`/api/v1`)**
 
 **Project Management:**
+
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/projects` | Creates a new project and initiates the first task. | `{ "product_idea": "string" }` | `{ "project_id": "uuid", "status": "string" }` |
@@ -34,6 +35,7 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | `POST` | `/projects/{project_id}/force-complete` | Force project completion (admin function). | None | `{ "status": "completed", "artifacts_generated": true }` |
 
 **Agent Status Management (Sprint 3):**
+
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/agents/status` | Get real-time status of all agents. | None | `{ "agents": [{ "agent_type": "analyst", "status": "working", "last_activity": "datetime" }] }` |
@@ -42,6 +44,7 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | `POST` | `/agents/status/{agent_type}/reset` | Reset agent status to idle (admin function). | None | `{ "message": "Agent analyst status reset to idle", "status": "idle" }` |
 
 **Artifact Management (Sprint 3):**
+
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/artifacts/{project_id}/generate` | Generate downloadable project artifacts. | None | `{ "artifacts_generated": 5, "zip_created": true, "download_available": true }` |
@@ -50,7 +53,23 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | `DELETE` | `/artifacts/{project_id}/artifacts` | Clean up project artifacts. | None | `{ "cleaned_files": 3, "status": "success" }` |
 | `DELETE` | `/artifacts/cleanup-old` | Admin endpoint to cleanup old artifacts. | `{ "max_age_hours": 24 }` | `{ "cleaned_files": 15, "freed_space_mb": 128 }` |
 
+**BMAD Core Template System (Task 3):**
+
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/workflows/templates` | List all available templates from `.bmad-core/templates/`. | None | `{ "templates": [{ "id": "string", "name": "string", "description": "string", "version": "string" }] }` |
+| `GET` | `/workflows/templates/{template_id}` | Get specific template details. | None | `{ "id": "string", "name": "string", "content": {}, "variables": [], "sections": [] }` |
+| `POST` | `/workflows/templates/{template_id}/render` | Render template with variable substitution. | `{ "variables": { "key": "value" }, "output_format": "markdown" }` | `{ "rendered_content": "string", "format": "markdown", "variables_used": [] }` |
+| `GET` | `/workflows/workflows` | List all available workflows from `.bmad-core/workflows/`. | None | `{ "workflows": [{ "id": "string", "name": "string", "description": "string", "phases": [] }] }` |
+| `GET` | `/workflows/workflows/{workflow_id}` | Get specific workflow definition. | None | `{ "id": "string", "name": "string", "steps": [], "handoffs": [], "validation_rules": [] }` |
+| `POST` | `/workflows/workflows/{workflow_id}/execute` | Execute workflow with orchestration. | `{ "project_id": "uuid", "context": {}, "parameters": {} }` | `{ "execution_id": "uuid", "status": "started", "estimated_duration": 300 }` |
+| `GET` | `/workflows/workflows/{workflow_id}/status/{execution_id}` | Get workflow execution status. | None | `{ "execution_id": "uuid", "status": "running", "current_step": "string", "progress": 75, "results": {} }` |
+| `GET` | `/workflows/teams` | List all available agent teams from `.bmad-core/agent-teams/`. | None | `{ "teams": [{ "id": "string", "name": "string", "agents": [], "compatibility": [] }] }` |
+| `GET` | `/workflows/teams/{team_id}` | Get specific team configuration. | None | `{ "id": "string", "name": "string", "agents": [], "workflows": [], "capabilities": [] }` |
+| `POST` | `/workflows/teams/{team_id}/validate` | Validate team compatibility with workflow. | `{ "workflow_id": "string" }` | `{ "compatible": true, "warnings": [], "recommendations": [] }` |
+
 **Human-in-the-Loop (HITL):**
+
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/hitl/{request_id}/respond` | Submits a user's response to a HITL request. | `{ "action": "string", "response_content": "string" }` | `{ "request_id": "uuid", "new_status": "string" }` |
@@ -58,6 +77,7 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | `GET` | `/hitl/project/{project_id}/requests` | Get all HITL requests for a project. | None | `{ "requests": [], "pending_count": 2 }` |
 
 **System Health:**
+
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/healthz` | Health check endpoint for system monitoring. | None | `{ "api_status": "ok", "db_status": "ok", "celery_status": "ok", "llm_status": "ok" }` |

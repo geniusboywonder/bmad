@@ -1,0 +1,472 @@
+"use client";
+
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { 
+  Lightbulb, 
+  Palette, 
+  Hammer, 
+  CheckCircle, 
+  Rocket,
+  Clock,
+  AlertTriangle,
+  CircleDashed,
+  AlertCircle,
+  Calendar
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type StageState = "Plan" | "WIP" | "Done" | "HITL";
+
+interface Stage {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  state: StageState;
+  color: {
+    bg: string;
+    text: string;
+    iconBg: string;
+    iconText: string;
+    badgeBg: string;
+    badgeText: string;
+  };
+}
+
+interface DesignProcessProps {
+  onStageClick?: (stageId: string) => void;
+  className?: string;
+  animationStyle?: string;
+}
+
+const stageColors = {
+  Plan: {
+    bg: "bg-blue-50 hover:bg-blue-100",
+    text: "text-blue-900",
+    iconBg: "bg-blue-500",
+    iconText: "text-white",
+    badgeBg: "bg-orange-100",
+    badgeText: "text-orange-700"
+  },
+  Design: {
+    bg: "bg-purple-50 hover:bg-purple-100",
+    text: "text-purple-900",
+    iconBg: "bg-purple-500",
+    iconText: "text-white",
+    badgeBg: "bg-blue-100",
+    badgeText: "text-blue-700"
+  },
+  Build: {
+    bg: "bg-green-50 hover:bg-green-100",
+    text: "text-green-900",
+    iconBg: "bg-green-500",
+    iconText: "text-white",
+    badgeBg: "bg-blue-100",
+    badgeText: "text-blue-700"
+  },
+  Validate: {
+    bg: "bg-amber-50 hover:bg-amber-100",
+    text: "text-amber-900",
+    iconBg: "bg-amber-500",
+    iconText: "text-white",
+    badgeBg: "bg-green-100",
+    badgeText: "text-green-700"
+  },
+  Launch: {
+    bg: "bg-red-50 hover:bg-red-100",
+    text: "text-red-900",
+    iconBg: "bg-red-500",
+    iconText: "text-white",
+    badgeBg: "bg-green-100",
+    badgeText: "text-green-700"
+  }
+};
+
+const getBadgeIcon = (state: StageState) => {
+  switch (state) {
+    case "Plan":
+      return <Calendar className="w-3 h-3" />;
+    case "WIP":
+      return <CircleDashed className="w-3 h-3" />;
+    case "Done":
+      return <CheckCircle className="w-3 h-3" />;
+    case "HITL":
+      return <AlertCircle className="w-3 h-3" />;
+    default:
+      return null;
+  }
+};
+
+const getBadgeColors = (state: StageState) => {
+  switch (state) {
+    case "Plan":
+      return "bg-orange-100 text-orange-700";
+    case "WIP":
+      return "bg-blue-100 text-blue-700";
+    case "Done":
+      return "bg-green-100 text-green-700";
+    case "HITL":
+      return "bg-yellow-100 text-yellow-700";
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+};
+
+export function DesignProcess({ onStageClick, className, animationStyle = "flowing" }: DesignProcessProps) {
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  
+  const getAnimationProps = (style: string, index: number) => {
+    switch (style) {
+      case "pulsing":
+        return {
+          initial: { scaleX: 0 },
+          animate: { scaleX: [0, 1, 0] },
+          transition: {
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: index * 0.8
+          }
+        };
+      default:
+        return {};
+    }
+  };
+  const [stages] = useState<Stage[]>([
+    {
+      id: "plan",
+      name: "Plan",
+      icon: <Lightbulb className="w-8 h-8" />,
+      state: "Done",
+      color: stageColors.Plan
+    },
+    {
+      id: "design",
+      name: "Design",
+      icon: <Palette className="w-8 h-8" />,
+      state: "Done",
+      color: stageColors.Design
+    },
+    {
+      id: "build",
+      name: "Build",
+      icon: <Hammer className="w-8 h-8" />,
+      state: "WIP",
+      color: stageColors.Build
+    },
+    {
+      id: "validate",
+      name: "Validate",
+      icon: <CheckCircle className="w-8 h-8" />,
+      state: "Plan",
+      color: stageColors.Validate
+    },
+    {
+      id: "launch",
+      name: "Launch",
+      icon: <Rocket className="w-8 h-8" />,
+      state: "Plan",
+      color: stageColors.Launch
+    }
+  ]);
+
+  const handleStageClick = (stageId: string) => {
+    setSelectedStage(stageId);
+    onStageClick?.(stageId);
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { 
+      opacity: 0, 
+      y: 20,
+      scale: 0.95
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 300,
+        damping: 24
+      }
+    }
+  };
+
+  return (
+    <div className={cn("w-full max-w-4xl mx-auto p-6", className)}>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-4"
+      >
+        <motion.h2 
+          variants={itemVariants}
+          className="text-2xl font-bold text-center text-gray-900 mb-8"
+        >
+          Design Process
+        </motion.h2>
+        
+        <motion.div 
+          variants={containerVariants}
+          className="grid grid-cols-1 md:grid-cols-5 gap-4"
+        >
+          {stages.map((stage, index) => (
+            <motion.div
+              key={stage.id}
+              variants={itemVariants}
+              whileHover={{ 
+                scale: 1.02,
+                y: -2,
+                transition: { type: "spring", stiffness: 400, damping: 25 }
+              }}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                "relative cursor-pointer rounded-xl border-2 border-transparent p-8 transition-all duration-200",
+                "hover:border-gray-200 hover:shadow-lg",
+                selectedStage === stage.id ? stage.color.bg : "",
+                stage.id === "plan" && "hover:bg-blue-50",
+                stage.id === "design" && "hover:bg-purple-50", 
+                stage.id === "build" && "hover:bg-green-50",
+                stage.id === "validate" && "hover:bg-amber-50",
+                stage.id === "launch" && "hover:bg-red-50"
+              )}
+              onClick={() => handleStageClick(stage.id)}
+            >
+              {/* Animated connection line */}
+              {index < stages.length - 1 && (
+                <div className="hidden md:block absolute left-1/2 translate-x-8 top-[60%] w-16 h-2 bg-gray-300 z-10 overflow-hidden rounded-full">
+                  {animationStyle === "shiny" ? (
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-75"
+                      animate={{
+                        x: ["-200%", "200%"]
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: index * 0.8
+                      }}
+                    />
+                  ) : animationStyle === "gradient" ? (
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-blue-400 via-purple-500 to-blue-400"
+                      animate={{
+                        backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"]
+                      }}
+                      style={{
+                        backgroundSize: "200% 200%"
+                      }}
+                      transition={{
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "linear",
+                        delay: index * 0.6
+                      }}
+                    />
+                  ) : animationStyle === "flowing" ? (
+                    <motion.div
+                      className="h-full bg-blue-500"
+                      initial={{ x: "-100%" }}
+                      animate={{ x: "100%" }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                        delay: index * 0.8
+                      }}
+                    />
+                  ) : (
+                    <motion.div
+                      className="h-full bg-blue-500"
+                      {...getAnimationProps(animationStyle, index)}
+                    />
+                  )}
+                </div>
+              )}
+              
+              {/* Stage content */}
+              <div className="flex flex-col items-center space-y-4">
+                {/* Icon - highlighted as main element */}
+                <motion.div
+                  className={cn(
+                    "flex items-center justify-center w-20 h-20 rounded-full shadow-lg",
+                    stage.color.iconBg,
+                    stage.color.iconText
+                  )}
+                  whileHover={{ 
+                    scale: 1.1,
+                    rotate: 5,
+                    boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04)"
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                >
+                  {stage.icon}
+                </motion.div>
+                
+                {/* Stage name */}
+                <h3 className={cn("font-bold text-xl", stage.color.text)}>
+                  {stage.name}
+                </h3>
+                
+                {/* State badge */}
+                <motion.div
+                  className={cn(
+                    "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shadow-sm",
+                    getBadgeColors(stage.state)
+                  )}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3 + index * 0.1, type: "spring", stiffness: 400 }}
+                >
+                  {getBadgeIcon(stage.state)}
+                  {stage.state}
+                </motion.div>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+        
+
+      </motion.div>
+    </div>
+  );
+}
+
+export default function DesignProcessDemo() {
+  const [selectedStage, setSelectedStage] = useState<string | null>(null);
+  const [animationStyle, setAnimationStyle] = useState<string>("flowing");
+  
+  const stageProgress = {
+    plan: 100,
+    design: 100,
+    build: 65,
+    validate: 0,
+    launch: 0
+  };
+
+  const overallProgress = 40;
+
+  const handleStageClick = (stageId: string) => {
+    setSelectedStage(stageId);
+  };
+
+  const currentProgress = selectedStage ? stageProgress[selectedStage as keyof typeof stageProgress] : overallProgress;
+  const progressLabel = selectedStage ? `${selectedStage} Stage Progress` : "Overall Progress";
+
+  const getAnimationProps = (style: string, index: number) => {
+    switch (style) {
+      case "flowing":
+        return {
+          initial: { x: "-100%" },
+          animate: { x: "100%" },
+          transition: {
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: index * 0.5
+          }
+        };
+      case "pulsing":
+        return {
+          initial: { scaleX: 0 },
+          animate: { scaleX: [0, 1, 0] },
+          transition: {
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: index * 0.3
+          }
+        };
+      case "dots":
+        return {
+          initial: { opacity: 0 },
+          animate: { opacity: [0, 1, 0] },
+          transition: {
+            duration: 1.5,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: index * 0.4
+          }
+        };
+      case "gradient":
+        return {
+          initial: { x: "-200%" },
+          animate: { x: "200%" },
+          transition: {
+            duration: 3,
+            repeat: Infinity,
+            ease: "linear",
+            delay: index * 0.2
+          }
+        };
+      default:
+        return {};
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-6xl space-y-8">
+        <motion.div className="bg-white rounded-xl shadow-lg p-6 border mb-8">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">Choose Animation Style:</h3>
+          <div className="flex gap-4 flex-wrap">
+            {["flowing", "pulsing", "shiny", "gradient"].map((style) => (
+              <button
+                key={style}
+                onClick={() => setAnimationStyle(style)}
+                className={cn(
+                  "px-4 py-2 rounded-lg font-medium transition-all capitalize",
+                  animationStyle === style
+                    ? "bg-blue-500 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                )}
+              >
+                {style}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        <DesignProcess onStageClick={handleStageClick} animationStyle={animationStyle} />
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-xl shadow-lg p-6 border"
+        >
+          <h3 className="text-xl font-bold text-gray-900 mb-4 capitalize">
+            {progressLabel}
+          </h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Progress</span>
+              <span>{currentProgress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <motion.div
+                className="bg-blue-500 h-3 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${currentProgress}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

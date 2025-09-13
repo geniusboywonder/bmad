@@ -1,6 +1,7 @@
 # Source Tree Structure
 
 ## Project Root
+
 ```
 bmad/
 ├── .bmad-core/                 # BMAD Core framework configuration
@@ -17,6 +18,7 @@ bmad/
 ```
 
 ## BMAD Core Framework (.bmad-core/)
+
 ```
 .bmad-core/
 ├── agents/                   # Agent persona definitions
@@ -105,6 +107,7 @@ bmad/
 ```
 
 ## Backend Structure (backend/)
+
 ```
 backend/
 ├── alembic/                # Database migration management
@@ -129,7 +132,9 @@ backend/
 │   │   ├── context.py     # Context data models
 │   │   ├── handoff.py     # Handoff data models
 │   │   ├── hitl.py        # HITL data models
-│   │   └── task.py        # Task data models
+│   │   ├── task.py        # Task data models
+│   │   ├── template.py    # Template data models (Task 3)
+│   │   └── workflow.py    # Workflow data models (Task 3)
 │   ├── schemas/           # API request/response schemas
 │   │   ├── __init__.py
 │   │   ├── handoff.py     # Handoff schemas
@@ -197,6 +202,7 @@ backend/
 ```
 
 ## Documentation Structure (docs/)
+
 ```
 docs/
 ├── architecture/          # System architecture documentation
@@ -236,6 +242,7 @@ docs/
 ```
 
 ## AI Integration Structure
+
 ```
 .claude/
 ├── commands/BMad/         # Claude-specific BMAD commands
@@ -255,23 +262,27 @@ docs/
 ## Key Architectural Patterns
 
 ### Layered Architecture
+
 - **API Layer** - FastAPI endpoints and WebSocket handlers
 - **Service Layer** - Business logic and orchestration
 - **Data Layer** - Database models and persistence
 - **Integration Layer** - External service connections
 
 ### Domain Separation
+
 - **Agent Management** - Agent lifecycle and status
 - **Project Orchestration** - Workflow and task management
 - **Human-in-the-Loop** - User interaction and approval
 - **Context Management** - Data persistence and retrieval
 
 ### Configuration Management
+
 - **Environment-based** - Development, staging, production
 - **BMAD Core integration** - Dynamic template loading
 - **Agent configuration** - Runtime agent personality loading
 
 ### Testing Strategy
+
 - **Unit tests** - Individual component testing
 - **Integration tests** - Service interaction testing
 - **End-to-end tests** - Complete workflow validation
@@ -279,12 +290,14 @@ docs/
 ## Development Workflow
 
 ### Code Organization
+
 - **Single responsibility** - Each module has one clear purpose
 - **Dependency injection** - Loose coupling between components
 - **Type safety** - Comprehensive type hints and validation
 - **Error handling** - Structured exception management
 
 ### Quality Assurance
+
 - **Automated testing** - Comprehensive test coverage
 - **Code formatting** - Black and isort integration
 - **Static analysis** - Type checking and linting

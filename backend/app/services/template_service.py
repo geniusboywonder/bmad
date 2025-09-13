@@ -1,0 +1,514 @@
+"""
+Template Service for BMAD Core Template System
+
+This module provides services for loading, processing, and rendering document templates
+with variable substitution and conditional logic support.
+"""
+
+import os
+import logging
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
+
+from pydantic import ValidationError
+
+from ..utils.yaml_parser import YAMLParser, VariableSubstitutionError, ParserError
+from ..models.template import (
+    TemplateDefinition,
+    TemplateSection,
+    TemplateSectionType,
+    TemplateOutputFormat
+)
+from ..models.workflow import WorkflowDefinition
+
+
+class TemplateError(Exception):
+    """Raised when template processing fails."""
+    pass
+
+logger = logging.getLogger(__name__)
+
+
+class TemplateService:
+    """
+    Service for managing document templates and their rendering.
+
+    This service provides functionality to:
+    - Load templates from YAML files
+    - Substitute variables in templates
+    - Render templates to various output formats
+    - Validate template variables and structure
+    - Manage template caching and metadata
+    """
+
+    def __init__(self, template_base_path: Optional[Union[str, Path]] = None):
+        """
+        Initialize the template service.
+
+        Args:
+            template_base_path: Base path for template files (defaults to .bmad-core/templates)
+        """
+        self.yaml_parser = YAMLParser()
+
+        if template_base_path is None:
+            # Default to .bmad-core/templates relative to project root
+            self.template_base_path = Path(".bmad-core/templates")
+        else:
+            self.template_base_path = Path(template_base_path)
+
+        self._template_cache: Dict[str, TemplateDefinition] = {}
+        self._cache_enabled = True
+
+    def load_template(self, template_id: str, use_cache: bool = True) -> TemplateDefinition:
+        """
+        Load a template by its ID.
+
+        Args:
+            template_id: Unique identifier for the template
+            use_cache: Whether to use cached templates
+
+        Returns:
+            TemplateDefinition object
+
+        Raises:
+            FileNotFoundError: If template file doesn't exist
+            ParserError: If template parsing fails
+            ValidationError: If template validation fails
+        """
+        # Check cache first
+        if use_cache and self._cache_enabled and template_id in self._template_cache:
+            logger.debug(f"Loading template '{template_id}' from cache")
+            return self._template_cache[template_id]
+
+        # Find template file
+        template_file = self._find_template_file(template_id)
+        if not template_file:
+            raise FileNotFoundError(f"Template '{template_id}' not found")
+
+        # Load and parse template
+        logger.info(f"Loading template '{template_id}' from {template_file}")
+        template = self.yaml_parser.load_template(template_file)
+
+        # Validate template
+        validation_errors = template.validate_template()
+        if validation_errors:
+            logger.error(f"Template validation failed for '{template_id}': {validation_errors}")
+            raise ValueError(f"Template validation failed: {'; '.join(validation_errors)}")
+
+        # Cache template
+        if self._cache_enabled:
+            self._template_cache[template_id] = template
+
+        return template
+
+    def render_template(
+        self,
+        template_id: str,
+        variables: Dict[str, Any],
+        output_format: Optional[TemplateOutputFormat] = None
+    ) -> str:
+        """
+        Render a template with the provided variables.
+
+        Args:
+            template_id: ID of the template to render
+            variables: Dictionary of variable values
+            output_format: Desired output format (overrides template default)
+
+        Returns:
+            Rendered template as string
+
+        Raises:
+            TemplateError: If rendering fails
+            VariableSubstitutionError: If variable substitution fails
+        """
+        try:
+            # Load template
+            template = self.load_template(template_id)
+
+            # Validate variables
+            validation_result = self.yaml_parser.validate_template_variables(
+                self._template_to_string(template),
+                variables
+            )
+
+            if not validation_result.is_valid:
+                logger.warning(f"Variable validation warnings for template '{template_id}': {validation_result.warnings}")
+
+            # Render template
+            rendered_content = self._render_template_sections(template.sections, variables)
+
+            # Apply output formatting
+            final_format = output_format or template.output.format
+            formatted_content = self._format_output(rendered_content, final_format, template, variables)
+
+            logger.info(f"Successfully rendered template '{template_id}'")
+            return formatted_content
+
+        except Exception as e:
+            logger.error(f"Failed to render template '{template_id}': {str(e)}")
+            raise TemplateError(f"Template rendering failed: {str(e)}")
+
+    def validate_template_variables(
+        self,
+        template_id: str,
+        variables: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Validate variables for a template.
+
+        Args:
+            template_id: ID of the template to validate against
+            variables: Dictionary of variable values
+
+        Returns:
+            Dictionary with validation results
+        """
+        try:
+            template = self.load_template(template_id)
+            template_str = self._template_to_string(template)
+
+            validation_result = self.yaml_parser.validate_template_variables(template_str, variables)
+
+            required_vars = template.get_all_required_variables()
+
+            return {
+                "is_valid": validation_result.is_valid,
+                "errors": validation_result.errors,
+                "warnings": validation_result.warnings,
+                "required_variables": required_vars,
+                "provided_variables": list(variables.keys()),
+                "missing_variables": [v for v in required_vars if v not in variables],
+                "unused_variables": [v for v in variables.keys() if v not in required_vars]
+            }
+
+        except Exception as e:
+            return {
+                "is_valid": False,
+                "errors": [f"Validation failed: {str(e)}"],
+                "warnings": [],
+                "required_variables": [],
+                "provided_variables": list(variables.keys()),
+                "missing_variables": [],
+                "unused_variables": []
+            }
+
+    def get_template_metadata(self, template_id: str) -> Dict[str, Any]:
+        """
+        Get metadata for a template.
+
+        Args:
+            template_id: ID of the template
+
+        Returns:
+            Dictionary with template metadata
+        """
+        try:
+            template = self.load_template(template_id)
+
+            return {
+                "id": template.id,
+                "name": template.name,
+                "version": template.version,
+                "description": template.description,
+                "output_format": template.output.format.value,
+                "sections_count": len(template.sections),
+                "elicitation_sections": len(template.get_elicitation_sections()),
+                "complexity": template.estimate_complexity(),
+                "tags": template.tags,
+                "metadata": template.metadata
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get metadata for template '{template_id}': {str(e)}")
+            return {"error": str(e)}
+
+    def list_available_templates(self) -> List[Dict[str, Any]]:
+        """
+        List all available templates.
+
+        Returns:
+            List of template metadata dictionaries
+        """
+        templates = []
+
+        try:
+            if self.template_base_path.exists():
+                for template_file in self.template_base_path.glob("*.yaml"):
+                    try:
+                        template_id = template_file.stem
+                        metadata = self.get_template_metadata(template_id)
+                        if "error" not in metadata:
+                            templates.append(metadata)
+                    except Exception as e:
+                        logger.warning(f"Failed to load template '{template_file}': {str(e)}")
+                        continue
+
+        except Exception as e:
+            logger.error(f"Failed to list templates: {str(e)}")
+
+        return templates
+
+    def clear_cache(self):
+        """Clear the template cache."""
+        self._template_cache.clear()
+        logger.info("Template cache cleared")
+
+    def enable_cache(self, enabled: bool = True):
+        """Enable or disable template caching."""
+        self._cache_enabled = enabled
+        if not enabled:
+            self.clear_cache()
+        logger.info(f"Template cache {'enabled' if enabled else 'disabled'}")
+
+    def _find_template_file(self, template_id: str) -> Optional[Path]:
+        """
+        Find the template file for a given template ID.
+
+        Args:
+            template_id: Template identifier
+
+        Returns:
+            Path to template file or None if not found
+        """
+        # Try different file extensions
+        for ext in ['.yaml', '.yml']:
+            template_file = self.template_base_path / f"{template_id}{ext}"
+            if template_file.exists():
+                return template_file
+
+        return None
+
+    def _render_template_sections(
+        self,
+        sections: List[TemplateSection],
+        variables: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Render template sections recursively.
+
+        Args:
+            sections: List of template sections to render
+            variables: Variable values for substitution
+            context: Additional context for conditional rendering
+
+        Returns:
+            Rendered content as string
+        """
+        if context is None:
+            context = {}
+
+        rendered_parts = []
+
+        for section in sections:
+            # Check conditional rendering
+            if not section.should_render({**variables, **context}):
+                continue
+
+            # Render section content
+            section_content = self._render_section(section, variables, context)
+            if section_content:
+                rendered_parts.append(section_content)
+
+        return "\n\n".join(rendered_parts)
+
+    def _render_section(
+        self,
+        section: TemplateSection,
+        variables: Dict[str, Any],
+        context: Dict[str, Any]
+    ) -> str:
+        """
+        Render a single template section.
+
+        Args:
+            section: Template section to render
+            variables: Variable values
+            context: Rendering context
+
+        Returns:
+            Rendered section content
+        """
+        content_parts = []
+
+        # Render section title
+        if section.title:
+            if section.type == TemplateSectionType.HEADING:
+                content_parts.append(f"# {section.title}")
+            else:
+                content_parts.append(f"## {section.title}")
+
+        # Render section instruction
+        if section.instruction:
+            content_parts.append(f"*{section.instruction}*")
+
+        # Render main content
+        if section.template:
+            try:
+                rendered_template = self.yaml_parser.substitute_variables_in_template(
+                    section.template,
+                    variables
+                )
+                content_parts.append(rendered_template)
+            except VariableSubstitutionError as e:
+                logger.warning(f"Variable substitution failed in section '{section.id}': {str(e)}")
+                content_parts.append(f"*[Error: {str(e)}]*")
+
+        # Render subsections
+        if section.sections:
+            subsection_content = self._render_template_sections(
+                section.sections,
+                variables,
+                context
+            )
+            if subsection_content:
+                content_parts.append(subsection_content)
+
+        return "\n\n".join(content_parts)
+
+    def _format_output(
+        self,
+        content: str,
+        output_format: TemplateOutputFormat,
+        template: TemplateDefinition,
+        variables: Dict[str, Any]
+    ) -> str:
+        """
+        Format rendered content according to output format.
+
+        Args:
+            content: Raw rendered content
+            output_format: Desired output format
+            template: Template definition
+            variables: Template variables
+
+        Returns:
+            Formatted content
+        """
+        if output_format == TemplateOutputFormat.MARKDOWN:
+            return self._format_markdown(content, template, variables)
+        elif output_format == TemplateOutputFormat.HTML:
+            return self._format_html(content, template, variables)
+        elif output_format == TemplateOutputFormat.JSON:
+            return self._format_json(content, template, variables)
+        elif output_format == TemplateOutputFormat.YAML:
+            return self._format_yaml(content, template, variables)
+        else:
+            return content
+
+    def _format_markdown(
+        self,
+        content: str,
+        template: TemplateDefinition,
+        variables: Dict[str, Any]
+    ) -> str:
+        """Format content as Markdown."""
+        lines = []
+
+        # Add title
+        if template.output.title:
+            try:
+                title = self.yaml_parser.substitute_variables_in_template(
+                    template.output.title,
+                    variables
+                )
+                lines.append(f"# {title}")
+                lines.append("")
+            except VariableSubstitutionError:
+                lines.append(f"# {template.name}")
+                lines.append("")
+
+        # Add metadata header
+        lines.append("---")
+        lines.append(f"template: {template.id}")
+        lines.append(f"version: {template.version}")
+        lines.append(f"generated: {datetime.utcnow().isoformat()}")
+        lines.append("---")
+        lines.append("")
+
+        # Add content
+        lines.append(content)
+
+        return "\n".join(lines)
+
+    def _format_html(
+        self,
+        content: str,
+        template: TemplateDefinition,
+        variables: Dict[str, Any]
+    ) -> str:
+        """Format content as HTML."""
+        # Basic HTML formatting - can be enhanced
+        html_content = content.replace("\n", "<br>\n")
+        html_content = f"<h1>{template.name}</h1>\n\n{html_content}"
+
+        return f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{template.name}</title>
+    <meta charset="utf-8">
+</head>
+<body>
+{html_content}
+</body>
+</html>"""
+
+    def _format_json(
+        self,
+        content: str,
+        template: TemplateDefinition,
+        variables: Dict[str, Any]
+    ) -> str:
+        """Format content as JSON."""
+        import json
+
+        data = {
+            "template": template.id,
+            "name": template.name,
+            "version": template.version,
+            "generated": datetime.utcnow().isoformat(),
+            "variables": variables,
+            "content": content
+        }
+
+        return json.dumps(data, indent=2, ensure_ascii=False)
+
+    def _format_yaml(
+        self,
+        content: str,
+        template: TemplateDefinition,
+        variables: Dict[str, Any]
+    ) -> str:
+        """Format content as YAML."""
+        import yaml
+
+        data = {
+            "template": template.id,
+            "name": template.name,
+            "version": template.version,
+            "generated": datetime.utcnow().isoformat(),
+            "variables": variables,
+            "content": content
+        }
+
+        return yaml.dump(data, default_flow_style=False, allow_unicode=True)
+
+    def _template_to_string(self, template: TemplateDefinition) -> str:
+        """Convert template to string representation for variable extraction."""
+        # Simple conversion - extract all text content from template
+        content_parts = []
+
+        def extract_text(section: TemplateSection):
+            if section.template:
+                content_parts.append(section.template)
+            if section.item_template:
+                content_parts.append(section.item_template)
+            for subsection in section.sections:
+                extract_text(subsection)
+
+        for section in template.sections:
+            extract_text(section)
+
+        return "\n".join(content_parts)
