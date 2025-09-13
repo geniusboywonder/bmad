@@ -100,7 +100,7 @@ async def reset_agent_status(
         )
         
         return {
-            "message": f"Agent {agent_type} status reset to idle",
+            "message": f"Agent {agent_type.value} status reset to idle",
             "agent_type": agent_type,
             "status": "idle"
         }

@@ -76,7 +76,7 @@ class TestCompletionDetectionLogic:
         # Mock mixed task states
         mixed_tasks = [
             Mock(status=TaskStatus.COMPLETED),
-            Mock(status=TaskStatus.RUNNING),
+            Mock(status=TaskStatus.WORKING),
             Mock(status=TaskStatus.PENDING)
         ]
         mock_db.query.return_value.filter.return_value.all.return_value = mixed_tasks
@@ -146,7 +146,7 @@ class TestCompletionIndicators:
                 instructions="Perform final check of all components"
             ),
             Mock(
-                status=TaskStatus.RUNNING,
+                status=TaskStatus.WORKING,
                 instructions="Code review in progress" 
             )
         ]
@@ -260,7 +260,7 @@ class TestEdgeCaseHandling:
                 instructions="Final deployment completed successfully"
             ),
             Mock(
-                status=TaskStatus.RUNNING,
+                status=TaskStatus.WORKING,
                 instructions="Optional cleanup in progress"
             )
         ]
@@ -510,7 +510,7 @@ class TestCompletionStatusMetrics:
         mock_tasks = [
             Mock(status=TaskStatus.COMPLETED),
             Mock(status=TaskStatus.COMPLETED), 
-            Mock(status=TaskStatus.RUNNING),
+            Mock(status=TaskStatus.WORKING),
             Mock(status=TaskStatus.PENDING),
             Mock(status=TaskStatus.FAILED)
         ]
@@ -550,7 +550,7 @@ class TestCompletionStatusMetrics:
         assert status["completed_tasks"] == 2
         assert status["failed_tasks"] == 1
         assert status["pending_tasks"] == 1
-        assert status["running_tasks"] == 1
+        assert status["working_tasks"] == 1
         assert status["completion_percentage"] == 40.0  # 2/5 * 100
         assert status["artifacts_count"] == 3
         assert status["artifacts_available"] is True

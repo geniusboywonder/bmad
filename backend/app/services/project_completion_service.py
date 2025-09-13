@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 import structlog
 
@@ -105,7 +105,7 @@ class ProjectCompletionService:
             project = db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
             if project:
                 project.status = "completed"
-                project.updated_at = datetime.utcnow()
+                project.updated_at = datetime.now(timezone.utc)
                 db.commit()
             
             # Emit completion event
@@ -130,7 +130,7 @@ class ProjectCompletionService:
             data={
                 "event": "project_completed",
                 "message": "Project has completed successfully",
-                "completed_at": datetime.utcnow().isoformat(),
+                "completed_at": datetime.now(timezone.utc).isoformat(),
                 "artifacts_generating": True
             }
         )
@@ -232,7 +232,7 @@ class ProjectCompletionService:
             completed_tasks = len([t for t in tasks if t.status == TaskStatus.COMPLETED])
             failed_tasks = len([t for t in tasks if t.status == TaskStatus.FAILED])
             pending_tasks = len([t for t in tasks if t.status == TaskStatus.PENDING])
-            running_tasks = len([t for t in tasks if t.status == TaskStatus.RUNNING])
+            running_tasks = len([t for t in tasks if t.status == TaskStatus.WORKING])
             
             completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
             
@@ -249,7 +249,7 @@ class ProjectCompletionService:
                 "completed_tasks": completed_tasks,
                 "failed_tasks": failed_tasks,
                 "pending_tasks": pending_tasks,
-                "running_tasks": running_tasks,
+                "working_tasks": running_tasks,
                 "artifacts_count": artifacts,
                 "artifacts_available": artifacts_available,
                 "last_updated": project.updated_at.isoformat(),

@@ -1,7 +1,7 @@
 """Agent status service for managing real-time agent status updates."""
 
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy.orm import Session
 import structlog
@@ -28,7 +28,7 @@ class AgentStatusService:
             self._status_cache[agent_type] = AgentStatusModel(
                 agent_type=agent_type,
                 status=AgentStatus.IDLE,
-                last_activity=datetime.utcnow()
+                last_activity=datetime.now(timezone.utc)
             )
     
     async def update_agent_status(
@@ -53,7 +53,7 @@ class AgentStatusService:
             agent_type=agent_type,
             status=status,
             current_task_id=task_id,
-            last_activity=datetime.utcnow(),
+            last_activity=datetime.now(timezone.utc),
             error_message=error_message
         )
         
