@@ -1,6 +1,7 @@
 "AutoGen agent service for multi-agent orchestration."
 
 import asyncio
+import time
 from typing import Dict, List, Any, Optional
 from uuid import UUID
 import structlog
@@ -13,6 +14,10 @@ from app.models.task import Task
 from app.models.handoff import HandoffSchema
 from app.models.agent import AgentType
 from app.models.context import ContextArtifact
+from app.config import settings
+from app.services.llm_validation import LLMResponseValidator
+from app.services.llm_retry import LLMRetryHandler, RetryConfig
+from app.services.llm_monitoring import LLMUsageTracker
 
 logger = structlog.get_logger(__name__)
 
@@ -24,6 +29,28 @@ class AutoGenService:
         self.agents: Dict[str, AssistantAgent] = {}
         self.teams: Dict[str, Team] = {}
         self.task_runners: Dict[str, TaskRunner] = {}
+        
+        # Initialize LLM reliability components
+        self.response_validator = LLMResponseValidator(
+            max_response_size=settings.llm_max_response_size
+        )
+        
+        retry_config = RetryConfig(
+            max_retries=settings.llm_retry_max_attempts,
+            base_delay=settings.llm_retry_base_delay,
+            max_delay=8.0  # Cap at 8 seconds
+        )
+        self.retry_handler = LLMRetryHandler(retry_config)
+        
+        self.usage_tracker = LLMUsageTracker(
+            enable_tracking=settings.llm_enable_usage_tracking
+        )
+        
+        logger.info("AutoGen service initialized with LLM reliability features",
+                   max_retries=settings.llm_retry_max_attempts,
+                   base_delay=settings.llm_retry_base_delay,
+                   response_size_limit=settings.llm_max_response_size,
+                   usage_tracking=settings.llm_enable_usage_tracking)
         
     def _create_model_client(self, model: str, temperature: float = 0.7) -> OpenAIChatCompletionClient:
         """Create an OpenAI model client for agents."""
@@ -200,7 +227,17 @@ class AutoGenService:
         return "\n".join(context_parts)
     
     async def run_single_agent_conversation(self, agent: AssistantAgent, message: str, task: Task) -> str:
-        """Run a conversation with a single agent using the new AutoGen API."""
+        """Run a conversation with a single agent with comprehensive reliability features."""
+        
+        start_time = time.time()
+        
+        # Create context for monitoring
+        context = {
+            "task_id": str(task.task_id) if task.task_id else None,
+            "project_id": str(task.project_id) if task.project_id else None,
+            "agent_type": task.agent_type,
+            "message_length": len(message)
+        }
         
         try:
             # Import message types
@@ -209,27 +246,118 @@ class AutoGenService:
             # Create message for the agent
             user_message = UserMessage(content=message, source="user")
             
-            # Run the agent with the message - using on_messages method
-            response = await agent.on_messages([user_message], cancellation_token=None)
+            # Define the LLM call with retry wrapper
+            async def llm_call():
+                return await agent.on_messages([user_message], cancellation_token=None)
             
-            # Extract the content from the response
+            # Execute with retry logic
+            logger.info("Starting LLM conversation with retry protection", **context)
+            retry_result = await self.retry_handler.execute_with_retry(
+                llm_call,
+                context=context
+            )
+            
+            response_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+            
+            if not retry_result.success:
+                # Handle permanent failure
+                logger.error("LLM conversation failed permanently", 
+                           attempts=retry_result.total_attempts,
+                           total_time=retry_result.total_time,
+                           final_error=str(retry_result.final_error),
+                           **context)
+                
+                # Track failed request
+                await self._track_failed_request(task, message, response_time, retry_result)
+                
+                # Return fallback response
+                return self._generate_fallback_response(task.agent_type)
+            
+            # Extract response content
+            response = retry_result.result
+            raw_response = ""
+            
             if response and response.messages:
                 # Get the last message from the agent's response
                 last_message = response.messages[-1]
                 if hasattr(last_message, 'content'):
-                    return str(last_message.content)
+                    raw_response = str(last_message.content)
                 else:
-                    return str(last_message)
+                    raw_response = str(last_message)
             else:
-                logger.warning("No response from agent", task_id=task.task_id)
-                return "No response generated"
+                logger.warning("No response from agent", **context)
+                raw_response = "No response generated"
+            
+            # Validate and sanitize response
+            validation_result = await self.response_validator.validate_response(
+                raw_response, expected_format="auto"
+            )
+            
+            if validation_result.is_valid:
+                final_response = raw_response
+                if validation_result.sanitized_content:
+                    # If we have structured content, use it
+                    if isinstance(validation_result.sanitized_content, dict):
+                        # Convert back to string for compatibility
+                        import json
+                        final_response = json.dumps(validation_result.sanitized_content)
+                    else:
+                        final_response = str(validation_result.sanitized_content)
+                
+                logger.info("LLM response validated successfully", 
+                           validation_passed=True,
+                           response_length=len(final_response),
+                           **context)
+            else:
+                # Handle validation failure
+                logger.warning("LLM response failed validation", 
+                             errors=[e.message for e in validation_result.errors],
+                             **context)
+                
+                # Attempt recovery
+                final_response = await self.response_validator.handle_validation_failure(
+                    raw_response, validation_result.errors[0] if validation_result.errors else None
+                )
+                
+                logger.info("LLM response recovered after validation failure",
+                           recovered_response_length=len(final_response),
+                           **context)
+            
+            # Track successful request
+            await self._track_successful_request(
+                task, message, final_response, response_time, retry_result
+            )
+            
+            logger.info("LLM conversation completed successfully",
+                       response_time_ms=response_time,
+                       retry_attempts=retry_result.total_attempts - 1,
+                       **context)
+            
+            return final_response
                 
         except Exception as e:
-            logger.error("Error running agent conversation", 
-                        task_id=task.task_id, 
-                        error=str(e))
+            # Unexpected error outside retry logic
+            response_time = (time.time() - start_time) * 1000
             
-            # Fallback to simulated responses for now
+            logger.error("Unexpected error in LLM conversation", 
+                        error=str(e),
+                        response_time_ms=response_time,
+                        **context)
+            
+            # Track failed request
+            await self.usage_tracker.track_request(
+                agent_type=task.agent_type,
+                tokens_used=0,
+                response_time=response_time,
+                cost=0.0,
+                success=False,
+                project_id=task.project_id,
+                task_id=task.task_id,
+                error_type=type(e).__name__,
+                retry_count=0
+            )
+            
+            # Return fallback response
             return self._generate_fallback_response(task.agent_type)
     
     def _generate_fallback_response(self, agent_type: str) -> str:
@@ -297,3 +425,112 @@ class AutoGenService:
                 "name": agent_name,
                 "active": False
             }
+    
+    async def _track_successful_request(
+        self,
+        task: Task,
+        message: str,
+        response: str,
+        response_time: float,
+        retry_result
+    ):
+        """Track successful LLM request with comprehensive metrics."""
+        
+        # Estimate token usage
+        input_tokens = self.usage_tracker.estimate_tokens(message, is_input=True)
+        output_tokens = self.usage_tracker.estimate_tokens(response, is_input=False)
+        total_tokens = input_tokens + output_tokens
+        
+        # Calculate cost
+        cost = await self.usage_tracker.calculate_costs(
+            input_tokens, output_tokens, provider="openai", model="gpt-4o-mini"
+        )
+        
+        # Track the request
+        await self.usage_tracker.track_request(
+            agent_type=task.agent_type,
+            tokens_used=total_tokens,
+            response_time=response_time,
+            cost=cost,
+            success=True,
+            project_id=task.project_id,
+            task_id=task.task_id,
+            provider="openai",
+            model="gpt-4o-mini",
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            retry_count=retry_result.total_attempts - 1
+        )
+        
+        # Log structured metrics for monitoring
+        logger.info("LLM request completed successfully",
+                   agent_type=task.agent_type,
+                   project_id=str(task.project_id) if task.project_id else None,
+                   task_id=str(task.task_id) if task.task_id else None,
+                   tokens_used=total_tokens,
+                   input_tokens=input_tokens,
+                   output_tokens=output_tokens,
+                   response_time_ms=response_time,
+                   estimated_cost=cost,
+                   provider="openai",
+                   model="gpt-4o-mini",
+                   retry_attempts=retry_result.total_attempts - 1,
+                   success=True)
+    
+    async def _track_failed_request(
+        self,
+        task: Task,
+        message: str,
+        response_time: float,
+        retry_result
+    ):
+        """Track failed LLM request for monitoring and analysis."""
+        
+        # Estimate input tokens (no output for failed requests)
+        input_tokens = self.usage_tracker.estimate_tokens(message, is_input=True)
+        
+        # Determine error type
+        error_type = "unknown"
+        if retry_result.final_error:
+            error_type = type(retry_result.final_error).__name__
+        
+        # Track the failed request
+        await self.usage_tracker.track_request(
+            agent_type=task.agent_type,
+            tokens_used=input_tokens,  # Only input tokens
+            response_time=response_time,
+            cost=0.0,  # No cost for failed requests
+            success=False,
+            project_id=task.project_id,
+            task_id=task.task_id,
+            provider="openai",
+            model="gpt-4o-mini",
+            input_tokens=input_tokens,
+            output_tokens=0,
+            error_type=error_type,
+            retry_count=retry_result.total_attempts - 1
+        )
+        
+        # Log structured error metrics
+        logger.error("LLM request failed permanently",
+                    agent_type=task.agent_type,
+                    project_id=str(task.project_id) if task.project_id else None,
+                    task_id=str(task.task_id) if task.task_id else None,
+                    tokens_used=input_tokens,
+                    response_time_ms=response_time,
+                    error_type=error_type,
+                    error_message=str(retry_result.final_error),
+                    retry_attempts=retry_result.total_attempts - 1,
+                    total_retry_time=retry_result.total_time,
+                    provider="openai",
+                    model="gpt-4o-mini",
+                    success=False)
+    
+    def get_usage_stats(self) -> Dict[str, Any]:
+        """Get current usage statistics for monitoring."""
+        return {
+            "session_stats": self.usage_tracker.get_session_stats(),
+            "retry_stats": self.retry_handler.get_retry_stats(),
+            "validator_enabled": self.response_validator is not None,
+            "tracking_enabled": self.usage_tracker.enable_tracking
+        }

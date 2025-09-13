@@ -138,8 +138,11 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── agent_status_service.py # Agent status management
 │   │   ├── artifact_service.py     # Artifact management
-│   │   ├── autogen_service.py      # AutoGen integration
+│   │   ├── autogen_service.py      # AutoGen integration (enhanced with reliability features)
 │   │   ├── context_store.py        # Context storage service
+│   │   ├── llm_monitoring.py       # LLM usage tracking and cost monitoring (Task 1)
+│   │   ├── llm_retry.py           # Exponential backoff retry logic (Task 1)
+│   │   ├── llm_validation.py      # Response validation and sanitization (Task 1)
 │   │   ├── orchestrator.py         # Main orchestration service
 │   │   └── project_completion_service.py # Project lifecycle
 │   ├── tasks/             # Celery task definitions
@@ -161,6 +164,7 @@ backend/
 │   │   ├── test_sprint1_critical_paths.py
 │   │   └── test_sprint3_e2e_workflows.py
 │   ├── integration/       # Integration tests
+│   │   ├── test_autogen_reliability.py     # AutoGen LLM reliability integration (Task 1)
 │   │   ├── test_context_persistence_integration.py
 │   │   ├── test_context_persistence_sprint2_integration.py
 │   │   ├── test_hitl_response_handling_integration.py
@@ -173,6 +177,7 @@ backend/
 │   │   ├── test_context_persistence.py
 │   │   ├── test_context_persistence_sprint2.py
 │   │   ├── test_hitl_response_handling.py
+│   │   ├── test_llm_reliability.py         # LLM reliability components unit tests (Task 1)
 │   │   ├── test_project_completion_service.py
 │   │   ├── test_project_initiation.py
 │   │   └── test_sequential_task_handoff.py

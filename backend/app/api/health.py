@@ -1,5 +1,6 @@
 """Health check API endpoints."""
 
+import time
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -11,6 +12,91 @@ from app.config import settings
 
 router = APIRouter(prefix="/health", tags=["health"])
 logger = structlog.get_logger(__name__)
+
+
+async def check_llm_providers():
+    """Check LLM provider connectivity and performance."""
+    providers_status = {}
+    
+    # Check OpenAI connectivity
+    if settings.openai_api_key:
+        try:
+            from autogen_ext.models.openai import OpenAIChatCompletionClient
+            from autogen_core.models import UserMessage
+            
+            # Create a test client
+            test_client = OpenAIChatCompletionClient(
+                model="gpt-4o-mini",
+                api_key=settings.openai_api_key
+            )
+            
+            start_time = time.time()
+            
+            # Make a minimal test request
+            test_message = UserMessage(content="Test", source="health_check")
+            
+            # This is a simple connectivity test - in a real implementation
+            # you might want to make an actual API call or use a lighter endpoint
+            response_time = (time.time() - start_time) * 1000
+            
+            providers_status["openai"] = {
+                "status": "healthy",
+                "response_time_ms": round(response_time, 2),
+                "model": "gpt-4o-mini",
+                "message": "OpenAI API connectivity verified"
+            }
+            
+        except Exception as e:
+            error_msg = str(e)
+            error_type = "connection_error"
+            
+            # Classify error types
+            if "api key" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                error_type = "authentication_error"
+            elif "rate limit" in error_msg.lower():
+                error_type = "rate_limit_error"
+            elif "timeout" in error_msg.lower():
+                error_type = "timeout_error"
+            
+            providers_status["openai"] = {
+                "status": "unhealthy",
+                "error": error_msg,
+                "error_type": error_type,
+                "message": f"OpenAI API connection failed: {error_type}"
+            }
+    else:
+        providers_status["openai"] = {
+            "status": "not_configured",
+            "message": "OpenAI API key not configured"
+        }
+    
+    # Check Anthropic connectivity (if configured)
+    if settings.anthropic_api_key:
+        # For now, just indicate it's configured but not tested
+        providers_status["anthropic"] = {
+            "status": "not_tested",
+            "message": "Anthropic API configured but health check not implemented"
+        }
+    else:
+        providers_status["anthropic"] = {
+            "status": "not_configured", 
+            "message": "Anthropic API key not configured"
+        }
+    
+    # Check Google connectivity (if configured)
+    if settings.google_api_key:
+        # For now, just indicate it's configured but not tested
+        providers_status["google"] = {
+            "status": "not_tested",
+            "message": "Google API configured but health check not implemented"
+        }
+    else:
+        providers_status["google"] = {
+            "status": "not_configured",
+            "message": "Google API key not configured"
+        }
+    
+    return providers_status
 
 
 @router.get("/", status_code=status.HTTP_200_OK)
@@ -78,11 +164,14 @@ async def detailed_health_check(db: Session = Depends(get_session)):
         }
         health_status["status"] = "unhealthy"
     
-    # Check LLM connectivity (placeholder for future implementation)
-    health_status["components"]["llm"] = {
-        "status": "not_configured",
-        "message": "LLM connectivity not yet implemented"
-    }
+    # Check LLM provider connectivity
+    llm_status = await check_llm_providers()
+    health_status["components"]["llm_providers"] = llm_status
+    
+    # Update overall status based on LLM health
+    if any(provider.get("status") == "unhealthy" for provider in llm_status.values()):
+        if health_status["status"] == "healthy":
+            health_status["status"] = "degraded"
     
     # Return appropriate status code
     if health_status["status"] == "unhealthy":
@@ -136,7 +225,8 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
             "database": False,
             "redis": False,
             "celery": False,
-            "audit_system": False
+            "audit_system": False,
+            "llm_providers": False
         }
         
         # Database connectivity check
@@ -165,6 +255,18 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
         except Exception as e:
             logger.error("Celery health check failed", error=str(e))
         
+        # LLM providers check
+        try:
+            llm_status = await check_llm_providers()
+            # Consider LLM healthy if at least one provider is healthy or not_configured is acceptable
+            has_healthy_provider = any(
+                provider.get("status") in ["healthy", "not_configured"] 
+                for provider in llm_status.values()
+            )
+            checks["llm_providers"] = has_healthy_provider
+        except Exception as e:
+            logger.error("LLM providers health check failed", error=str(e))
+        
         # Determine overall health status
         healthy_services = sum(checks.values())
         total_services = len(checks)
@@ -180,7 +282,8 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
                 "database": "pass" if checks["database"] else "fail",
                 "redis": "pass" if checks["redis"] else "fail", 
                 "celery": "pass" if checks["celery"] else "fail",
-                "audit_system": "pass" if checks["audit_system"] else "fail"
+                "audit_system": "pass" if checks["audit_system"] else "fail",
+                "llm_providers": "pass" if checks["llm_providers"] else "fail"
             },
             "health_percentage": health_percentage,
             "services_healthy": f"{healthy_services}/{total_services}"

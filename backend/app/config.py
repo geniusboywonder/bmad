@@ -33,10 +33,17 @@ class Settings(BaseSettings):
     ws_heartbeat_interval: int = Field(default=30, env="WS_HEARTBEAT_INTERVAL")
     ws_max_connections: int = Field(default=100, env="WS_MAX_CONNECTIONS")
     
-    # LLM Configuration (for future use)
+    # LLM Configuration
     openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
     anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
     google_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
+    
+    # LLM Reliability Configuration
+    llm_retry_max_attempts: int = Field(default=3, env="LLM_RETRY_MAX_ATTEMPTS")
+    llm_retry_base_delay: float = Field(default=1.0, env="LLM_RETRY_BASE_DELAY")
+    llm_response_timeout: int = Field(default=30, env="LLM_RESPONSE_TIMEOUT")
+    llm_max_response_size: int = Field(default=50000, env="LLM_MAX_RESPONSE_SIZE")
+    llm_enable_usage_tracking: bool = Field(default=True, env="LLM_ENABLE_USAGE_TRACKING")
     
     # Security
     secret_key: str = Field(env="SECRET_KEY")
