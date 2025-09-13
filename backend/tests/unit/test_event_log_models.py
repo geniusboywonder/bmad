@@ -246,10 +246,10 @@ class TestEventLogResponse:
         assert response.project_id == project_id
         assert response.task_id == task_id
         assert response.hitl_request_id == hitl_request_id
-        assert response.event_type == EventType.HITL_RESPONSE
-        assert response.event_source == EventSource.USER
+        assert response.event_type == EventType.HITL_RESPONSE.value
+        assert response.event_source == EventSource.USER.value
         assert response.event_data == event_data
-        assert response.metadata == metadata
+        assert response.event_metadata == metadata
         assert response.created_at == created_at
     
     def test_event_log_response_optional_fields_none(self):

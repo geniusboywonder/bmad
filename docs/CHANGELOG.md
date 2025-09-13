@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Sprint 4.1 - Model Validation & Bug Fixes] - 2024-09-13
+
+### Fixed
+
+#### Data Model Validation Enhancements
+- **🔧 HandoffSchema Validation**: Updated to support new schema format with string enums, required context_summary field, and expected_outputs as list
+- **🔧 Task Model Agent Type Validation**: Added validator to ensure agent_type matches valid AgentType enum values with proper error messages
+- **🔧 EventLogFilter Limit Validation**: Enhanced validation to prevent zero/negative limit values (added `gt=0` constraint)
+- **🔧 EventLogResponse Metadata Access**: Fixed test assertions to use correct `event_metadata` attribute instead of `metadata`
+- **🔧 EventType/EventSource String Representations**: Corrected test comparisons to use `.value` attribute for enum string values
+
+#### Health Monitoring Fixes
+- **🔧 Health Endpoint Audit System Dependency**: Fixed test expectations to correctly reflect audit system dependency on database connectivity
+- **🔧 Health Check Service Count**: Updated health endpoint tests to accurately reflect 5/5 service checks including LLM providers
+
+#### Test Framework Improvements
+- **🔧 UUID Serialization in Tests**: Ensured consistent UUID-to-string casting in model_dump() test assertions
+- **🔧 Disabled Test Re-enablement**: Restored `test_task_invalid_agent_type_validation` test with proper ValidationError imports
+- **🔧 Method Signature Compliance**: Verified OrchestratorService.process_task_with_autogen method signature includes required HandoffSchema parameter
+
+#### Code Quality & Consistency
+- **🔧 Enum Reference Cleanup**: Removed outdated HitlStatus.EXPIRED references (already resolved)
+- **🔧 Model Field Naming**: Standardized metadata field naming across EventLogCreate and EventLogResponse models
+- **🔧 Test Data Consistency**: Updated test fixtures to align with enhanced model validation requirements
+
+### Technical Debt Reduction
+- Enhanced Pydantic v2 model validation patterns
+- Improved test isolation and mocking strategies  
+- Standardized error handling and validation messages
+- Strengthened type safety across data models
+
 ## [Sprint 4 Complete - Production Ready] - 2024-09-13
 
 ### 🚀 Sprint 4: Validation & Finalization - COMPLETE

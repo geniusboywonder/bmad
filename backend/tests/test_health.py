@@ -96,14 +96,14 @@ class TestHealthzEndpoint:
             data = response.json()
             
             assert data["status"] == "degraded"
-            assert data["health_percentage"] == 80.0  # 4/5 services healthy
-            assert data["services_healthy"] == "4/5"
+            assert data["health_percentage"] == 60.0  # 3/5 services healthy
+            assert data["services_healthy"] == "3/5"
             
             checks = data["checks"]
             assert checks["database"] == "fail"
             assert checks["redis"] == "pass"
             assert checks["celery"] == "pass"
-            assert checks["audit_system"] == "pass"
+            assert checks["audit_system"] == "fail"  # Audit system depends on database
             assert checks["llm_providers"] == "pass"
     
     def test_healthz_endpoint_degraded_redis_failure(self):

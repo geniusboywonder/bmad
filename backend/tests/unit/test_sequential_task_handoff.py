@@ -115,9 +115,10 @@ class TestHandoffSchemaCreation:
         # Test required fields are present
         assert handoff_data["from_agent"] == AgentType.ANALYST.value
         assert handoff_data["to_agent"] == AgentType.ARCHITECT.value
-        assert "task_instructions" in handoff_data
-        assert "context_ids" in handoff_data
-        assert isinstance(handoff_data["context_ids"], list)
+        assert "instructions" in handoff_data
+        assert "context_summary" in handoff_data
+        assert "expected_outputs" in handoff_data
+        assert isinstance(handoff_data["expected_outputs"], list)
     
     @pytest.mark.unit
     @pytest.mark.p0
@@ -127,7 +128,7 @@ class TestHandoffSchemaCreation:
         # Test missing required fields
         incomplete_data = {
             "from_agent": AgentType.ANALYST.value,
-            # Missing to_agent and task_instructions
+            # Missing to_agent, phase, instructions, context_summary, expected_outputs
         }
         
         with pytest.raises(AssertionError):
@@ -137,7 +138,10 @@ class TestHandoffSchemaCreation:
         invalid_agent_data = {
             "from_agent": "invalid_agent",
             "to_agent": AgentType.ARCHITECT.value,
-            "task_instructions": "Test instructions"
+            "phase": "architecture",
+            "instructions": "Test instructions",
+            "context_summary": "Test summary",
+            "expected_outputs": ["Test output"]
         }
         
         with pytest.raises(AssertionError):
@@ -146,27 +150,31 @@ class TestHandoffSchemaCreation:
     @pytest.mark.unit
     @pytest.mark.p1
     @pytest.mark.handoff
-    def test_context_ids_validation(self):
-        """Test context_ids field validation."""
-        # Test valid context IDs list
+    def test_expected_outputs_validation(self):
+        """Test expected_outputs field validation."""
+        # Test valid expected outputs list
         valid_data = {
             "from_agent": AgentType.ANALYST.value,
             "to_agent": AgentType.ARCHITECT.value,
-            "task_instructions": "Test instructions",
-            "context_ids": [str(uuid4()), str(uuid4())]
+            "phase": "architecture",
+            "instructions": "Test instructions",
+            "context_summary": "Test summary",
+            "expected_outputs": ["Architecture document", "Component diagram"]
         }
         assert_handoff_schema_valid(valid_data)
         
-        # Test invalid context_ids type
-        invalid_context_data = {
+        # Test invalid expected_outputs type
+        invalid_outputs_data = {
             "from_agent": AgentType.ANALYST.value,
             "to_agent": AgentType.ARCHITECT.value,
-            "task_instructions": "Test instructions",
-            "context_ids": "not_a_list"
+            "phase": "architecture",
+            "instructions": "Test instructions",
+            "context_summary": "Test summary",
+            "expected_outputs": "not_a_list"
         }
         
         with pytest.raises(AssertionError):
-            assert_handoff_schema_valid(invalid_context_data)
+            assert_handoff_schema_valid(invalid_outputs_data)
     
     @pytest.mark.unit
     @pytest.mark.p2
@@ -177,7 +185,10 @@ class TestHandoffSchemaCreation:
         minimal_data = {
             "from_agent": AgentType.ANALYST.value,
             "to_agent": AgentType.ARCHITECT.value,
-            "task_instructions": "Test instructions"
+            "phase": "architecture",
+            "instructions": "Test instructions",
+            "context_summary": "Test summary",
+            "expected_outputs": ["Test output"]
         }
         assert_handoff_schema_valid(minimal_data)
         
@@ -185,11 +196,14 @@ class TestHandoffSchemaCreation:
         complete_data = {
             "from_agent": AgentType.ANALYST.value,
             "to_agent": AgentType.ARCHITECT.value,
-            "task_instructions": "Test instructions",
-            "context_ids": [str(uuid4())],
-            "expected_output": "Expected output description",
+            "phase": "architecture",
+            "instructions": "Test instructions",
+            "context_summary": "Test summary",
+            "expected_outputs": ["Architecture document", "System design"],
             "priority": "high",
-            "metadata": {"custom": "field"}
+            "metadata": {"custom": "field"},
+            "dependencies": ["requirements"],
+            "acceptance_criteria": ["Must be scalable"]
         }
         assert_handoff_schema_valid(complete_data)
 
@@ -288,7 +302,10 @@ class TestPhaseTransitionLogic:
         invalid_transition = {
             "from_agent": AgentType.ANALYST.value,
             "to_agent": AgentType.TESTER.value,  # Should go through ARCHITECT and CODER first
-            "task_instructions": "Invalid direct transition"
+            "phase": "testing",
+            "instructions": "Invalid direct transition",
+            "context_summary": "Analysis completed",
+            "expected_outputs": ["Test results"]
         }
         
         # This should be caught by business logic validation
@@ -306,7 +323,10 @@ class TestPhaseTransitionLogic:
         circular_handoff = {
             "from_agent": AgentType.ANALYST.value,
             "to_agent": AgentType.ANALYST.value,  # Same agent
-            "task_instructions": "Circular handoff"
+            "phase": "analysis",
+            "instructions": "Circular handoff",
+            "context_summary": "Self-handoff test",
+            "expected_outputs": ["Same work"]
         }
         
         # Schema validation allows this, but business logic should prevent it
@@ -356,16 +376,16 @@ class TestTaskInstructionGeneration:
     def test_context_injection_in_instructions(self, sample_handoff_schema_data):
         """Test that context is properly injected into instructions."""
         handoff_data = sample_handoff_schema_data
-        instructions = handoff_data["task_instructions"]
-        context_ids = handoff_data["context_ids"]
+        instructions = handoff_data["instructions"]
+        context_summary = handoff_data["context_summary"]
         
         # Instructions should be meaningful
         assert len(instructions) > 10
         assert isinstance(instructions, str)
         
-        # Context IDs should be valid UUIDs
-        for context_id in context_ids:
-            UUID(context_id)  # Should not raise exception
+        # Context summary should be meaningful
+        assert len(context_summary) > 10
+        assert isinstance(context_summary, str)
     
     @pytest.mark.unit
     @pytest.mark.p3
@@ -401,16 +421,20 @@ class TestExpectedOutputValidation:
     def test_output_specification_validation(self, sample_handoff_schema_data):
         """Test validation of expected output specifications."""
         handoff_data = sample_handoff_schema_data
-        expected_output = handoff_data.get("expected_output")
+        expected_outputs = handoff_data.get("expected_outputs", [])
         
-        if expected_output:
-            # Output specification should be descriptive
-            assert len(expected_output) > 10
-            assert isinstance(expected_output, str)
+        # Expected outputs should be a list
+        assert isinstance(expected_outputs, list)
+        assert len(expected_outputs) > 0
+        
+        # Each output should be descriptive
+        for output in expected_outputs:
+            assert len(output) > 5
+            assert isinstance(output, str)
             
             # Should contain meaningful keywords
-            keywords = ["document", "specification", "plan", "code", "test", "architecture"]
-            assert any(keyword in expected_output.lower() for keyword in keywords)
+            keywords = ["document", "specification", "plan", "code", "test", "architecture", "system", "component"]
+            assert any(keyword in output.lower() for keyword in keywords)
     
     @pytest.mark.unit
     @pytest.mark.p2

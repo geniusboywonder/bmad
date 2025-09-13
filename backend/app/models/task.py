@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from uuid import UUID, uuid4
 
 
@@ -31,6 +31,15 @@ class Task(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     started_at: Optional[datetime] = Field(default=None, description="Task start timestamp")
     completed_at: Optional[datetime] = Field(default=None, description="Task completion timestamp")
+    
+    @validator('agent_type')
+    def validate_agent_type(cls, v):
+        """Validate that agent_type is a valid AgentType enum value."""
+        from app.models.agent import AgentType
+        valid_agent_types = [agent_type.value for agent_type in AgentType]
+        if v not in valid_agent_types:
+            raise ValueError(f'Invalid agent_type: {v}. Must be one of {valid_agent_types}')
+        return v
     
     class Config:
         use_enum_values = True

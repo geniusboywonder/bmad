@@ -129,16 +129,26 @@ class Task(BaseModel):
     """Represents a single unit of work for an agent with full lifecycle tracking."""
     task_id: UUID = Field(default_factory=uuid4)
     project_id: UUID
-    agent_type: Literal["orchestrator", "analyst", "architect", "coder", "tester", "deployer"]
+    agent_type: str  # Validated against AgentType enum values
     status: TaskStatus = Field(default=TaskStatus.PENDING)
     context_ids: List[UUID] = Field(default_factory=list)
     instructions: str
     output: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    
+    @validator('agent_type')
+    def validate_agent_type(cls, v):
+        """Validate that agent_type is a valid AgentType enum value."""
+        from app.models.agent import AgentType
+        valid_agent_types = [agent_type.value for agent_type in AgentType]
+        if v not in valid_agent_types:
+            raise ValueError(f'Invalid agent_type: {v}. Must be one of {valid_agent_types}')
+        return v
     
     model_config = ConfigDict(use_enum_values=True)
 
@@ -247,27 +257,58 @@ class HitlHistoryEntry(BaseModel):
     comment: Optional[str] = None
 ```
 
-#### **3.4 Agent Communication Models**
+#### **3.4 Agent Communication Models (Task 2 Enhanced)**
 
 ```python
+class HandoffPriority(int, Enum):
+    LOW = 1
+    MEDIUM = 2
+    HIGH = 3
+    URGENT = 4
+    CRITICAL = 5
+
+class HandoffStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    COMPLETED = "completed"
+
 class HandoffSchema(BaseModel):
-    """Generic JSON schema for structured agent handoffs with validation."""
+    """Enhanced structured agent handoff schema with comprehensive validation and lifecycle management."""
     handoff_id: UUID = Field(default_factory=uuid4)
     project_id: UUID
     from_agent: str
     to_agent: str
     phase: str
-    instructions: str
+    instructions: str = Field(..., min_length=10, max_length=5000)
     context_ids: List[UUID] = Field(default_factory=list)
     expected_outputs: List[str] = Field(default_factory=list)
-    priority: int = Field(default=1, ge=1, le=5)
+    priority: HandoffPriority = Field(default=HandoffPriority.MEDIUM)
+    status: HandoffStatus = Field(default=HandoffStatus.PENDING)
     metadata: Optional[Dict[str, Any]] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    accepted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
     
-    model_config = ConfigDict(json_encoders={
-        datetime: lambda v: v.isoformat(),
-        UUID: lambda v: str(v)
-    })
+    @validator('instructions')
+    def validate_instructions(cls, v):
+        if not v.strip():
+            raise ValueError('Instructions cannot be empty')
+        return v.strip()
+    
+    @validator('from_agent', 'to_agent')
+    def validate_agent_types(cls, v):
+        valid_agents = {"orchestrator", "analyst", "architect", "coder", "tester", "deployer"}
+        if v not in valid_agents:
+            raise ValueError(f'Invalid agent type: {v}. Must be one of {valid_agents}')
+        return v
+    
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat(),
+            UUID: lambda v: str(v)
+        }
+    )
 ```
 
 ***
@@ -516,9 +557,68 @@ Response: 200 OK / 503 Service Unavailable
 
 ***
 
-### **5. Agent Architecture and Behavior Specifications**
+### **5. Agent Framework Architecture (Task 2 Implementation)**
 
-#### **5.1 Orchestrator Agent (AB-01 to AB-05)**
+#### **5.1 Agent Framework Foundation**
+
+**Purpose**: Implement core agent framework that integrates with AutoGen for conversation management and implements six specialized agent types with structured handoffs.
+
+**Core Architecture:**
+```
+backend/app/agents/
+├── base_agent.py          # Abstract BaseAgent with LLM reliability integration
+├── orchestrator.py        # Orchestrator agent implementation
+├── analyst.py             # Analyst agent implementation  
+├── architect.py           # Architect agent implementation
+├── coder.py              # Developer/Coder agent implementation
+├── tester.py             # Tester agent implementation
+├── deployer.py           # Deployer agent implementation
+└── factory.py            # Agent factory for type-based instantiation
+
+backend/app/services/
+└── agent_service.py      # Agent service layer with factory pattern
+```
+
+#### **5.2 BaseAgent Abstract Class**
+
+**Purpose**: Provides common functionality for all agents with LLM reliability integration from Task 1.
+
+**Core Features:**
+- **LLM Reliability Integration**: Response validation, retry logic, and usage tracking
+- **AutoGen Agent Management**: Wraps AutoGen ConversableAgent instances
+- **Context Artifact Processing**: Handles structured context consumption and creation
+- **HandoffSchema Support**: Enables structured inter-agent communication
+
+**Implementation Architecture:**
+```python
+class BaseAgent(ABC):
+    """Abstract base class for all BotArmy agents with LLM reliability integration."""
+    
+    def __init__(self, agent_type: str, llm_config: Dict[str, Any]):
+        self.agent_type = agent_type
+        self.llm_config = llm_config
+        
+        # LLM Reliability Components (from Task 1)
+        self.response_validator = LLMResponseValidator()
+        self.retry_handler = LLMRetryHandler()
+        self.usage_tracker = LLMUsageTracker()
+        
+        # AutoGen agent instance
+        self.autogen_agent: Optional[ConversableAgent] = None
+        self._initialize_autogen_agent()
+    
+    @abstractmethod
+    async def execute_task(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Execute agent-specific task with context artifacts."""
+        pass
+    
+    @abstractmethod
+    async def create_handoff(self, to_agent: str, task: Task, context: List[ContextArtifact]) -> HandoffSchema:
+        """Create structured handoff to another agent."""
+        pass
+```
+
+#### **5.3 Orchestrator Agent (AB-01 to AB-05)**
 
 The Orchestrator serves as the central coordinator managing the 6-phase SDLC workflow:
 
@@ -529,20 +629,30 @@ The Orchestrator serves as the central coordinator managing the 6-phase SDLC wor
 - **State Management**: Maintains project state and progress tracking throughout workflow execution
 - **Time-Conscious Orchestration**: Front-loads detail gathering to minimize iterative refinements
 
-**AutoGen Integration:**
+**Enhanced AutoGen Integration:**
 ```python
-class OrchestratorAgent(ConversableAgent):
+class OrchestratorAgent(BaseAgent):
+    """Orchestrator manages 6-phase SDLC workflow with AutoGen integration."""
+    
     def __init__(self, llm_config: Dict[str, Any]):
-        super().__init__(
+        super().__init__("orchestrator", llm_config)
+        self.workflow_phases = ["discovery", "plan", "design", "build", "validate", "launch"]
+    
+    def _initialize_autogen_agent(self) -> None:
+        self.autogen_agent = ConversableAgent(
             name="orchestrator",
-            llm_config=llm_config,
-            system_message="You are the Orchestrator managing multi-agent SDLC workflows..."
+            llm_config=self.llm_config,
+            system_message="""You are the Orchestrator managing multi-agent SDLC workflows.
+            Your responsibilities:
+            - Coordinate 6-phase workflow: Discovery → Plan → Design → Build → Validate → Launch
+            - Manage structured handoffs between agents using HandoffSchema
+            - Resolve conflicts between agent outputs after 3 automated attempts
+            - Maintain project state and progress tracking
+            - Create HITL requests for critical decisions and conflicts"""
         )
-        self.context_store = ContextStoreService()
-        self.hitl_service = HitlService()
 ```
 
-#### **5.2 Analyst Agent (AB-06 to AB-10)**
+#### **5.4 Analyst Agent (AB-06 to AB-10)**
 
 Specialized for requirements analysis and PRD generation:
 
@@ -552,6 +662,30 @@ Specialized for requirements analysis and PRD generation:
 - **Stakeholder Interaction**: Engage users through chat interface for comprehensive requirement gathering
 - **User Persona Creation**: Develop detailed user personas and business requirement mapping
 - **Success Criteria Definition**: Define measurable acceptance conditions and success metrics
+
+**Enhanced Implementation:**
+```python
+class AnalystAgent(BaseAgent):
+    """Analyst specializes in requirements analysis with Claude LLM optimization."""
+    
+    def __init__(self, llm_config: Dict[str, Any]):
+        # Configure for Anthropic Claude (optimized for requirements analysis)
+        claude_config = {**llm_config, "model": "claude-3-sonnet-20240229"}
+        super().__init__("analyst", claude_config)
+    
+    def _initialize_autogen_agent(self) -> None:
+        self.autogen_agent = ConversableAgent(
+            name="analyst",
+            llm_config=self.llm_config,
+            system_message="""You are the Analyst specializing in requirements analysis and PRD generation.
+            Your responsibilities:
+            - Generate structured Product Requirements Documents from user input
+            - Identify missing requirements and create targeted clarifying questions
+            - Develop detailed user personas and business requirement mapping
+            - Define measurable acceptance criteria and success metrics
+            - Engage users through chat interface for comprehensive requirement gathering"""
+        )
+```
 
 **LLM Assignment**: Anthropic Claude (optimized for requirements analysis and documentation)
 
@@ -606,6 +740,88 @@ Deployment automation and environment management:
 - **Monitoring**: Monitor post-deployment system performance and stability
 
 **Target Environments**: GitHub Codespaces (initial), Vercel (production path)
+
+#### **5.7 Agent Service Layer & Factory Pattern (Task 2)**
+
+**Purpose**: Provides service layer for agent instantiation, lifecycle management, and handoff execution.
+
+**Core Components:**
+- **AgentService**: Factory pattern implementation for type-based agent instantiation
+- **AutoGenConversationManager**: Manages multi-agent conversations using AutoGen GroupChat
+- **HandoffExecutor**: Orchestrates structured handoffs between agents
+
+**Implementation Architecture:**
+```python
+class AgentService:
+    """Agent service factory with type-based instantiation and lifecycle management."""
+    
+    def __init__(self):
+        self.agent_classes: Dict[str, Type[BaseAgent]] = {
+            "orchestrator": OrchestratorAgent,
+            "analyst": AnalystAgent,
+            "architect": ArchitectAgent,
+            "coder": CoderAgent,
+            "tester": TesterAgent,
+            "deployer": DeployerAgent
+        }
+        self.agent_instances: Dict[str, BaseAgent] = {}
+    
+    async def get_agent(self, agent_type: str, llm_config: Dict[str, Any]) -> BaseAgent:
+        """Get or create agent instance with proper LLM configuration."""
+        if agent_type not in self.agent_instances:
+            if agent_type not in self.agent_classes:
+                raise ValueError(f"Unknown agent type: {agent_type}")
+            
+            agent_class = self.agent_classes[agent_type]
+            self.agent_instances[agent_type] = agent_class(llm_config)
+        
+        return self.agent_instances[agent_type]
+    
+    async def execute_handoff(self, handoff: HandoffSchema, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Execute structured handoff between agents with full lifecycle tracking."""
+        # Handoff implementation with status tracking
+        pass
+```
+
+**AutoGen GroupChat Integration:**
+```python
+class AutoGenConversationManager:
+    """Manages AutoGen group conversations between agents."""
+    
+    async def create_multi_agent_conversation(
+        self, 
+        agents: List[str], 
+        initial_message: str,
+        project_id: UUID
+    ) -> str:
+        """Create AutoGen group conversation with multiple agents."""
+        
+        # Get AutoGen agent instances
+        autogen_agents = []
+        for agent_type in agents:
+            agent = await self.agent_service.get_agent(agent_type, {})
+            autogen_agents.append(agent.autogen_agent)
+        
+        # Create group chat with round-robin speaker selection
+        group_chat = GroupChat(
+            agents=autogen_agents,
+            messages=[],
+            max_round=10,
+            speaker_selection_method="round_robin"
+        )
+        
+        # Execute conversation with manager
+        manager = GroupChatManager(groupchat=group_chat, llm_config={})
+        response = await manager.a_initiate_chat(recipient=autogen_agents[0], message=initial_message)
+        
+        return response
+```
+
+**Agent Configuration Loading:**
+- **Dynamic Configuration**: Load agent configs from `.bmad-core/agents/` directory
+- **LLM Assignment**: Automatic LLM provider assignment based on agent specialization
+- **Context Integration**: Seamless integration with Context Store Pattern
+- **Reliability Features**: All agents inherit Task 1 LLM reliability features
 
 ### **6. Enhanced HITL System Architecture**
 
@@ -860,27 +1076,33 @@ class ProjectCompletionService:
 - Agent team configuration loading from `.bmad-core/agent-teams/`
 - Variable substitution and conditional logic processing
 
-#### **Phase 2: Agent Framework & Core Logic (6-8 weeks)**
+#### **Phase 2: Agent Framework & Core Logic (Task 2 Implementation - 6-8 weeks)**
 
-**AutoGen Framework Integration:**
-- Microsoft AutoGen framework configuration and setup
-- Agent conversation management with proper context passing
-- Group chat capabilities for multi-agent collaboration
-- Dynamic agent configuration loading
+**Agent Framework Foundation:** ✅ **PLANNED (Task 2)**
+- BaseAgent abstract class with LLM reliability integration from Task 1
+- Factory pattern for type-based agent instantiation with lifecycle management
+- HandoffSchema enhanced with validation, priority levels, and status tracking
+- Agent service layer with structured handoff execution and status management
 
-**Agent Implementation:**
-- Orchestrator Agent: 6-phase SDLC workflow coordination
-- Analyst Agent: Requirements analysis and PRD generation (Claude)
-- Architect Agent: Technical architecture and API design (GPT-4)
-- Developer Agent: Code generation with AutoGen code execution
-- Tester Agent: Quality assurance and validation
-- Deployer Agent: Deployment automation and monitoring
+**AutoGen Framework Integration:** ✅ **PLANNED (Task 2)**
+- Microsoft AutoGen framework configuration and setup with ConversableAgent wrappers
+- Agent conversation management with proper context passing and GroupChat support
+- Group chat capabilities for multi-agent collaboration with round-robin speaker selection
+- Dynamic agent configuration loading from `.bmad-core/agents/` directory
 
-**Context Store Pattern:**
+**Specialized Agent Implementation:** ✅ **PLANNED (Task 2)**
+- **Orchestrator Agent**: 6-phase SDLC workflow coordination with conflict resolution
+- **Analyst Agent**: Requirements analysis and PRD generation (Claude LLM optimization)
+- **Architect Agent**: Technical architecture and API design (GPT-4 LLM optimization)
+- **Developer Agent**: Code generation with AutoGen code execution capabilities
+- **Tester Agent**: Quality assurance and validation with comprehensive test planning
+- **Deployer Agent**: Deployment automation and monitoring with health validation
+
+**Context Store Pattern Integration:**
 - Mixed-granularity artifact storage (document/section/concept level)
 - Repository pattern with proper abstraction layers
-- Context artifact validation and metadata management
-- Intelligent retrieval and injection for agent workflows
+- Context artifact validation and metadata management via BaseAgent
+- Intelligent retrieval and injection for agent workflows through HandoffSchema
 
 #### **Phase 3: HITL System & Advanced Features (4-5 weeks)**
 

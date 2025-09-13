@@ -17,12 +17,24 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 - **Alembic 1.13.1** - Database migration management
 - **Redis 5.0.1** - Caching layer and message broker
 
-### Agent Framework
-- **AutoGen AgentChat 0.7.4** - Microsoft's multi-agent conversation framework
+### Agent Framework (Task 2 Enhanced)
+- **AutoGen AgentChat 0.7.4** - Microsoft's multi-agent conversation framework with enhanced integration
+  - **ConversableAgent Integration**: Each agent wraps AutoGen ConversableAgent instances
+  - **GroupChat Support**: Multi-agent collaboration with round-robin speaker selection
+  - **Dynamic Configuration**: Runtime agent config loading from `.bmad-core/agents/`
+  - **Context Passing**: Structured handoff management via HandoffSchema
+- **BaseAgent Architecture** - Abstract agent foundation with LLM reliability integration
+  - **Factory Pattern**: Type-based agent instantiation via AgentService
+  - **LLM Reliability**: Integration with Task 1 validation, retry, and monitoring
+  - **Context Management**: Artifact consumption and creation with validation
 - **Celery 5.3.4** - Distributed task queue for asynchronous processing
 
 ### Data Validation & Serialization
-- **Pydantic 2.10.0** - Data validation using Python type hints
+- **Pydantic 2.10.0** - Data validation using Python type hints with enhanced validation patterns
+  - **Custom Validators**: Agent type validation, limit constraints, and enum value verification
+  - **Field Validation**: Comprehensive field-level validation with descriptive error messages
+  - **Model Consistency**: Standardized metadata field naming and UUID serialization handling
+  - **Type Safety**: Strengthened type safety across all data models with proper enum handling
 - **Pydantic Settings 2.5.0** - Configuration management
 - **orjson 3.9.10** - Fast JSON serialization
 
@@ -160,11 +172,15 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 - Excellent type hint integration
 - Native WebSocket support
 
-### Why AutoGen?
-- Microsoft-backed multi-agent framework
-- Structured conversation management
-- Extensible agent architecture
-- Integration with multiple LLM providers
+### Why AutoGen? (Task 2 Enhanced)
+- **Microsoft-backed Framework**: Enterprise-grade multi-agent conversation management
+- **Structured Conversation**: Built-in support for agent-to-agent communication patterns
+- **Extensible Architecture**: Easy integration with custom agent implementations via ConversableAgent
+- **GroupChat Capabilities**: Native support for multi-agent collaboration scenarios
+- **LLM Provider Agnostic**: Seamless integration with OpenAI, Claude, and other providers
+- **Code Execution**: Built-in support for code generation and execution workflows
+- **Context Management**: Sophisticated conversation context and state management
+- **Speaker Selection**: Configurable agent selection methods (round-robin, manual, auto)
 
 ### Why PostgreSQL?
 - ACID compliance for data integrity

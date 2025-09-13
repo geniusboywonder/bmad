@@ -246,14 +246,18 @@ def sample_hitl_request_data():
 
 @pytest.fixture
 def sample_handoff_schema_data():
-    """Sample HandoffSchema data for testing."""
+    """Sample HandoffSchema data for testing according to new schema format."""
     return {
         "from_agent": AgentType.ANALYST.value,
         "to_agent": AgentType.ARCHITECT.value,
-        "context_ids": [str(uuid4())],
-        "task_instructions": "Create technical architecture based on analysis",
-        "expected_output": "System architecture document with components and data flow",
-        "priority": "high"
+        "phase": "architecture",
+        "instructions": "Create technical architecture based on analysis",
+        "context_summary": "Analysis phase completed with requirements gathered and documented",
+        "expected_outputs": ["System architecture document", "Component specifications", "Data flow diagrams"],
+        "priority": "high",
+        "metadata": {"urgency": "standard", "complexity": "medium"},
+        "dependencies": ["requirements_analysis"],
+        "acceptance_criteria": ["Architecture covers all requirements", "Scalability considerations addressed"]
     }
 
 
@@ -570,8 +574,12 @@ def assert_hitl_request_matches_data(hitl_request: HitlRequestDB, expected_data:
 
 
 def assert_handoff_schema_valid(handoff_data: dict):
-    """Assert that handoff schema contains required fields."""
-    required_fields = ["from_agent", "to_agent", "task_instructions"]
+    """Assert that handoff schema contains required fields according to new HandoffSchema model."""
+    # Import the schema here to avoid circular imports
+    from app.schemas.handoff import HandoffSchema, HandoffPhase, HandoffPriority
+    
+    # Required fields according to the new schema
+    required_fields = ["from_agent", "to_agent", "phase", "instructions", "context_summary", "expected_outputs"]
     for field in required_fields:
         assert field in handoff_data, f"Missing required field: {field}"
     
@@ -580,9 +588,25 @@ def assert_handoff_schema_valid(handoff_data: dict):
     assert handoff_data["from_agent"] in valid_agents
     assert handoff_data["to_agent"] in valid_agents
     
-    # Validate context_ids is a list if provided
-    if "context_ids" in handoff_data:
-        assert isinstance(handoff_data["context_ids"], list)
+    # Validate phase is a valid enum value
+    valid_phases = [phase.value for phase in HandoffPhase]
+    assert handoff_data["phase"] in valid_phases, f"Invalid phase: {handoff_data['phase']}"
+    
+    # Validate priority is a string enum (if provided)
+    if "priority" in handoff_data:
+        valid_priorities = [priority.value for priority in HandoffPriority]
+        assert handoff_data["priority"] in valid_priorities, f"Invalid priority: {handoff_data['priority']}"
+    
+    # Validate expected_outputs is a list
+    assert isinstance(handoff_data["expected_outputs"], list), "expected_outputs must be a list"
+    
+    # Validate all expected_outputs are strings
+    for output in handoff_data["expected_outputs"]:
+        assert isinstance(output, str), "All expected_outputs must be strings"
+    
+    # Validate context_summary is a string
+    assert isinstance(handoff_data["context_summary"], str), "context_summary must be a string"
+    assert len(handoff_data["context_summary"]) > 0, "context_summary cannot be empty"
 
 
 def assert_performance_threshold(elapsed_ms: float, threshold_ms: float, operation: str):

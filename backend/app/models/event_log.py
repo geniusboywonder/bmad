@@ -87,5 +87,5 @@ class EventLogFilter(BaseModel):
     event_source: Optional[EventSource] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    limit: int = Field(default=100, le=1000)
+    limit: int = Field(default=100, gt=0, le=1000)
     offset: int = Field(default=0, ge=0)
