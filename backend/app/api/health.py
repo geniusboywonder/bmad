@@ -120,3 +120,99 @@ async def readiness_check(db: Session = Depends(get_session)):
                 "message": f"Service not ready: {str(e)}"
             }
         )
+
+
+@router.get("/z", status_code=status.HTTP_200_OK)
+async def healthz_endpoint(db: Session = Depends(get_session)):
+    """
+    Kubernetes-style /healthz endpoint for comprehensive service monitoring.
+    
+    This endpoint provides a comprehensive health check suitable for
+    Kubernetes liveness probes and external monitoring systems.
+    """
+    try:
+        # Core service checks
+        checks = {
+            "database": False,
+            "redis": False,
+            "celery": False,
+            "audit_system": False
+        }
+        
+        # Database connectivity check
+        try:
+            db.execute(text("SELECT 1"))
+            # Test audit table accessibility
+            db.execute(text("SELECT COUNT(*) FROM event_log LIMIT 1"))
+            checks["database"] = True
+            checks["audit_system"] = True
+        except Exception as e:
+            logger.error("Database health check failed", error=str(e))
+        
+        # Redis connectivity check
+        try:
+            redis_client = redis.from_url(settings.redis_url)
+            redis_client.ping()
+            checks["redis"] = True
+        except Exception as e:
+            logger.error("Redis health check failed", error=str(e))
+        
+        # Celery broker check
+        try:
+            redis_celery = redis.from_url(settings.redis_celery_url)
+            redis_celery.ping()
+            checks["celery"] = True
+        except Exception as e:
+            logger.error("Celery health check failed", error=str(e))
+        
+        # Determine overall health status
+        healthy_services = sum(checks.values())
+        total_services = len(checks)
+        health_percentage = (healthy_services / total_services) * 100
+        
+        # Response data
+        response_data = {
+            "status": "healthy" if healthy_services == total_services else "degraded",
+            "service": "BotArmy Backend",
+            "version": settings.app_version,
+            "timestamp": "2024-09-13T12:00:00Z",
+            "checks": {
+                "database": "pass" if checks["database"] else "fail",
+                "redis": "pass" if checks["redis"] else "fail", 
+                "celery": "pass" if checks["celery"] else "fail",
+                "audit_system": "pass" if checks["audit_system"] else "fail"
+            },
+            "health_percentage": health_percentage,
+            "services_healthy": f"{healthy_services}/{total_services}"
+        }
+        
+        # Return appropriate status code based on health
+        if healthy_services == 0:
+            # All services down - critical failure
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=response_data
+            )
+        elif healthy_services < total_services:
+            # Some services down - degraded but operational
+            response_data["status"] = "degraded"
+            logger.warning("Service running in degraded mode", 
+                          healthy=healthy_services, 
+                          total=total_services)
+        
+        return response_data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Health check system failure", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "status": "unhealthy",
+                "service": "BotArmy Backend", 
+                "version": settings.app_version,
+                "error": "Health check system failure",
+                "message": str(e)
+            }
+        )

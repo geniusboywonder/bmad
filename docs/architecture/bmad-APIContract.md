@@ -24,11 +24,42 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 
 #### **REST API Endpoints (`/api/v1`)**
 
+**Project Management:**
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/projects` | Creates a new project and initiates the first task. | `{ "product_idea": "string" }` | `{ "project_id": "uuid", "status": "string" }` |
 | `GET` | `/projects/{project_id}` | Retrieves a project's full status and all artifacts. | None | `{ "project_id": "uuid", "status": "string", "tasks": [], "artifacts": [] }` |
+| `GET` | `/projects/{project_id}/completion` | Get detailed project completion status and metrics. | None | `{ "project_id": "uuid", "completion_percentage": 85.5, "total_tasks": 12, "completed_tasks": 10, "artifacts_available": true }` |
+| `POST` | `/projects/{project_id}/check-completion` | Trigger manual project completion check. | None | `{ "is_complete": false, "completion_indicators": [] }` |
+| `POST` | `/projects/{project_id}/force-complete` | Force project completion (admin function). | None | `{ "status": "completed", "artifacts_generated": true }` |
+
+**Agent Status Management (Sprint 3):**
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/agents/status` | Get real-time status of all agents. | None | `{ "agents": [{ "agent_type": "analyst", "status": "working", "last_activity": "datetime" }] }` |
+| `GET` | `/agents/status/{agent_type}` | Get specific agent status. | None | `{ "agent_type": "analyst", "status": "idle", "current_task_id": "uuid", "last_activity": "datetime" }` |
+| `GET` | `/agents/status-history/{agent_type}` | Get agent status history from database. | None | `{ "history": [{ "status": "working", "timestamp": "datetime" }] }` |
+| `POST` | `/agents/status/{agent_type}/reset` | Reset agent status to idle (admin function). | None | `{ "message": "Agent analyst status reset to idle", "status": "idle" }` |
+
+**Artifact Management (Sprint 3):**
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/artifacts/{project_id}/generate` | Generate downloadable project artifacts. | None | `{ "artifacts_generated": 5, "zip_created": true, "download_available": true }` |
+| `GET` | `/artifacts/{project_id}/summary` | Get summary of generated artifacts. | None | `{ "artifacts": [{ "name": "README.md", "type": "documentation", "size": 1024 }] }` |
+| `GET` | `/artifacts/{project_id}/download` | Download project artifacts as ZIP file. | None | `Binary ZIP file download` |
+| `DELETE` | `/artifacts/{project_id}/artifacts` | Clean up project artifacts. | None | `{ "cleaned_files": 3, "status": "success" }` |
+| `DELETE` | `/artifacts/cleanup-old` | Admin endpoint to cleanup old artifacts. | `{ "max_age_hours": 24 }` | `{ "cleaned_files": 15, "freed_space_mb": 128 }` |
+
+**Human-in-the-Loop (HITL):**
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/hitl/{request_id}/respond` | Submits a user's response to a HITL request. | `{ "action": "string", "response_content": "string" }` | `{ "request_id": "uuid", "new_status": "string" }` |
+| `GET` | `/hitl/{request_id}` | Get HITL request details. | None | `{ "request_id": "uuid", "question": "string", "status": "pending" }` |
+| `GET` | `/hitl/project/{project_id}/requests` | Get all HITL requests for a project. | None | `{ "requests": [], "pending_count": 2 }` |
+
+**System Health:**
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
 | `GET` | `/healthz` | Health check endpoint for system monitoring. | None | `{ "api_status": "ok", "db_status": "ok", "celery_status": "ok", "llm_status": "ok" }` |
 
 #### **WebSocket Service (`/ws`)**
@@ -37,7 +68,11 @@ The WebSocket connection will stream a JSON object for each event. The `event_ty
 
 | Event Type | Description | Sample Payload |
 | :--- | :--- | :--- |
-| `agent_status_update` | Notifies the frontend of an agent's status change. | `{ "agent_type": "analyst", "status": "working", "timestamp": "ISO 8601" }` |
+| `agent_status_change` | Real-time agent status updates (Sprint 3). | `{ "event_type": "agent_status_change", "agent_type": "analyst", "data": { "status": "working", "current_task_id": "uuid", "last_activity": "ISO 8601" } }` |
+| `artifact_created` | Notification when project artifacts are ready for download (Sprint 3). | `{ "event_type": "artifact_created", "project_id": "uuid", "data": { "message": "Project artifacts are ready for download", "download_available": true, "generated_at": "ISO 8601" } }` |
+| `workflow_event` | Project completion and major workflow notifications (Sprint 3). | `{ "event_type": "workflow_event", "project_id": "uuid", "data": { "event": "project_completed", "message": "Project has completed successfully", "completed_at": "ISO 8601", "artifacts_generating": true } }` |
+| `hitl_response` | Enhanced HITL response broadcasting (Sprint 3). | `{ "event_type": "hitl_response", "project_id": "uuid", "data": { "request_id": "uuid", "action": "approved", "response": "Looks good!", "timestamp": "ISO 8601" } }` |
+| `agent_status_update` | Legacy agent status updates (pre-Sprint 3). | `{ "agent_type": "analyst", "status": "working", "timestamp": "ISO 8601" }` |
 | `new_message` | Streams a new message from an agent to the chat UI. | `{ "agent_type": "analyst", "message": "Analyzing requirements...", "timestamp": "ISO 8601" }` |
 | `hitl_request` | Notifies the frontend that a HITL request requires user input. | `{ "request_id": "uuid", "task_id": "uuid", "question": "Please review the plan...", "timestamp": "ISO 8601" }` |
 | `task_progress` | Provides a percentage or stage update for a long-running task. | `{ "task_id": "uuid", "progress": 50, "stage": "gathering_data" }` |

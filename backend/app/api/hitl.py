@@ -13,6 +13,8 @@ from app.database.connection import get_session
 from app.services.orchestrator import OrchestratorService
 from app.database.models import HitlRequestDB
 from app.websocket.events import WebSocketEvent, EventType
+from app.services.audit_service import AuditService
+from app.models.event_log import EventType as AuditEventType, EventSource
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -131,10 +133,33 @@ async def respond_to_hitl_request(
     db.commit()
     db.refresh(hitl_request)
     
-    # 4. Emit WebSocket events for real-time updates
+    # 4. Log audit event for HITL response
+    audit_service = AuditService(db)
+    await audit_service.log_hitl_event(
+        hitl_request_id=hitl_request.id,
+        event_type=AuditEventType.HITL_RESPONSE,
+        event_source=EventSource.USER,
+        event_data={
+            "action": request.action.value,
+            "status": hitl_request.status.value,
+            "user_response": hitl_request.user_response,
+            "response_comment": request.comment,
+            "amended_content": hitl_request.amended_content,
+            "original_question": hitl_request.question,
+            "workflow_resumed": workflow_resumed
+        },
+        project_id=hitl_request.project_id,
+        metadata={
+            "endpoint": "/hitl/{request_id}/respond",
+            "user_action": request.action.value,
+            "request_timestamp": datetime.utcnow().isoformat()
+        }
+    )
+    
+    # 5. Emit WebSocket events for real-time updates
     await emit_hitl_response_event(hitl_request, request.action)
     
-    # 5. Resume workflow if needed
+    # 6. Resume workflow if needed
     if workflow_resumed:
         await orchestrator.resume_workflow_after_hitl(hitl_request.project_id, hitl_request.task_id)
     

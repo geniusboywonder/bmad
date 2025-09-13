@@ -13,6 +13,25 @@ from app.models.context import ArtifactType
 from app.models.hitl import HitlStatus
 
 
+class EventLogDB(Base):
+    """Event log database model for audit trail."""
+    
+    __tablename__ = "event_log"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True)
+    task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
+    hitl_request_id = Column(UUID(as_uuid=True), ForeignKey("hitl_requests.id"), nullable=True)
+    event_type = Column(String(100), nullable=False)  # e.g., 'task_created', 'hitl_response', 'task_failed'
+    event_source = Column(String(100), nullable=False)  # e.g., 'agent', 'user', 'system'
+    event_data = Column(JSON, nullable=False)  # Full payload/context data
+    event_metadata = Column(JSON, default=dict)  # Additional metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    project = relationship("ProjectDB", back_populates="event_logs")
+
+
 class ProjectDB(Base):
     """Project database model."""
     
@@ -29,6 +48,7 @@ class ProjectDB(Base):
     tasks = relationship("TaskDB", back_populates="project")
     context_artifacts = relationship("ContextArtifactDB", back_populates="project")
     hitl_requests = relationship("HitlRequestDB", back_populates="project")
+    event_logs = relationship("EventLogDB", back_populates="project")
 
 
 class TaskDB(Base):
