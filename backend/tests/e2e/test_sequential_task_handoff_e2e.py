@@ -16,6 +16,7 @@ from fastapi import status
 from app.models.task import TaskStatus
 from app.models.agent import AgentType
 from app.models.context import ArtifactType
+from app.schemas.handoff import HandoffSchema
 from tests.conftest import assert_performance_threshold
 
 
@@ -66,7 +67,19 @@ class TestCompleteSDLCWorkflowExecution:
         
         # Step 4: Execute analysis task (simulated with mock)
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
+            dummy_analysis_handoff = HandoffSchema(
+                handoff_id=analysis_task.task_id,
+                from_agent=AgentType.ORCHESTRATOR.value,
+                to_agent=analysis_task.agent_type,
+                project_id=analysis_task.project_id,
+                phase="analysis",
+                context_summary="Initial analysis of user requirements.",
+                context_ids=[str(c) for c in analysis_task.context_ids],
+                instructions=analysis_task.instructions,
+                expected_outputs=["Detailed project plan"],
+                priority='high',
+            )
+            analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task, dummy_analysis_handoff)
             
             # Complete analysis task
             orchestrator_service.update_task_status(
@@ -107,7 +120,19 @@ class TestCompleteSDLCWorkflowExecution:
         
         # Execute architecture task
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            await orchestrator_service.process_task_with_autogen(architecture_task.task_id)
+            dummy_architecture_handoff = HandoffSchema(
+                handoff_id=architecture_task.task_id,
+                from_agent=architecture_handoff["from_agent"],
+                to_agent=architecture_handoff["to_agent"],
+                project_id=architecture_task.project_id,
+                phase="architecture",
+                context_summary="Design of the system architecture based on the project plan.",
+                context_ids=[str(c) for c in architecture_task.context_ids],
+                instructions=architecture_handoff["task_instructions"],
+                expected_outputs=[architecture_handoff["expected_output"]],
+                priority='high',
+            )
+            await orchestrator_service.process_task_with_autogen(architecture_task, dummy_architecture_handoff)
             
             orchestrator_service.update_task_status(
                 architecture_task.task_id,
@@ -147,7 +172,19 @@ class TestCompleteSDLCWorkflowExecution:
         
         # Execute implementation task
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            await orchestrator_service.process_task_with_autogen(implementation_task.task_id)
+            dummy_implementation_handoff = HandoffSchema(
+                handoff_id=implementation_task.task_id,
+                from_agent=implementation_handoff["from_agent"],
+                to_agent=implementation_handoff["to_agent"],
+                project_id=implementation_task.project_id,
+                phase="coding",
+                context_summary="Implementation of the core services based on the architecture.",
+                context_ids=[str(c) for c in implementation_task.context_ids],
+                instructions=implementation_handoff["task_instructions"],
+                expected_outputs=[implementation_handoff["expected_output"]],
+                priority='high',
+            )
+            await orchestrator_service.process_task_with_autogen(implementation_task, dummy_implementation_handoff)
             
             orchestrator_service.update_task_status(
                 implementation_task.task_id,
@@ -187,7 +224,19 @@ class TestCompleteSDLCWorkflowExecution:
         
         # Execute testing task
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            await orchestrator_service.process_task_with_autogen(testing_task.task_id)
+            dummy_testing_handoff = HandoffSchema(
+                handoff_id=testing_task.task_id,
+                from_agent=testing_handoff["from_agent"],
+                to_agent=testing_handoff["to_agent"],
+                project_id=testing_task.project_id,
+                phase="testing",
+                context_summary="Testing of the implemented system.",
+                context_ids=[str(c) for c in testing_task.context_ids],
+                instructions=testing_handoff["task_instructions"],
+                expected_outputs=[testing_handoff["expected_output"]],
+                priority='high',
+            )
+            await orchestrator_service.process_task_with_autogen(testing_task, dummy_testing_handoff)
             
             orchestrator_service.update_task_status(
                 testing_task.task_id,
@@ -228,7 +277,19 @@ class TestCompleteSDLCWorkflowExecution:
         
         # Execute deployment task
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            await orchestrator_service.process_task_with_autogen(deployment_task.task_id)
+            dummy_deployment_handoff = HandoffSchema(
+                handoff_id=deployment_task.task_id,
+                from_agent=deployment_handoff["from_agent"],
+                to_agent=deployment_handoff["to_agent"],
+                project_id=deployment_task.project_id,
+                phase="deployment",
+                context_summary="Deployment of the tested system.",
+                context_ids=[str(c) for c in deployment_task.context_ids],
+                instructions=deployment_handoff["task_instructions"],
+                expected_outputs=[deployment_handoff["expected_output"]],
+                priority='high',
+            )
+            await orchestrator_service.process_task_with_autogen(deployment_task, dummy_deployment_handoff)
             
             orchestrator_service.update_task_status(
                 deployment_task.task_id,

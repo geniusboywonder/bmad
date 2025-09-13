@@ -14,6 +14,7 @@ from fastapi import status
 from app.models.agent import AgentType
 from app.models.context import ArtifactType
 from app.models.task import TaskStatus
+from app.schemas.handoff import HandoffSchema
 from tests.conftest import assert_performance_threshold
 
 
@@ -98,6 +99,18 @@ class TestAgentWorkflowWithContextPersistence:
             assert "scalable" in user_context.content["technical_constraints"][0]
             
             # Execute analysis task
+            dummy_analysis_handoff = HandoffSchema(
+                handoff_id=analysis_task.task_id,
+                from_agent=AgentType.ORCHESTRATOR.value,
+                to_agent=analysis_task.agent_type,
+                project_id=analysis_task.project_id,
+                phase="analysis",
+                context_summary="Initial analysis of user requirements for the e-commerce platform.",
+                context_ids=[str(c) for c in analysis_task.context_ids],
+                instructions=analysis_task.instructions,
+                expected_outputs=["Comprehensive project plan"],
+                priority='high',
+            )
             analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task, dummy_analysis_handoff)
             
             # Complete analysis
@@ -214,31 +227,18 @@ class TestAgentWorkflowWithContextPersistence:
             assert "10,000 concurrent users" in str(user_input_artifact.content["technical_constraints"][0])
             assert "FastAPI" in plan_artifact.content["technology_recommendations"]["backend"]
             
-            # Execute architecture task
             # Create a dummy HandoffSchema object for the call
             dummy_architecture_handoff = HandoffSchema(
-                handoff_id=UUID(str(architecture_task.task_id)),
+                handoff_id=architecture_task.task_id,
                 from_agent=architecture_handoff["from_agent"],
                 to_agent=architecture_handoff["to_agent"],
                 project_id=architecture_task.project_id,
-                phase="Architecture",
-                context_ids=architecture_task.context_ids,
+                phase="architecture",
+                context_summary="Design of the system architecture based on the project plan.",
+                context_ids=[str(c) for c in architecture_task.context_ids],
                 instructions=architecture_handoff["task_instructions"],
-                expected_outputs=architecture_handoff["expected_output"],
-                priority=1
-            )
-            # Execute architecture task
-            # Create a dummy HandoffSchema object for the call
-            dummy_architecture_handoff = HandoffSchema(
-                handoff_id=UUID(str(architecture_task.task_id)),
-                from_agent=architecture_handoff["from_agent"],
-                to_agent=architecture_handoff["to_agent"],
-                project_id=architecture_task.project_id,
-                phase="Architecture",
-                context_ids=architecture_task.context_ids,
-                instructions=architecture_handoff["task_instructions"],
-                expected_outputs=architecture_handoff["expected_output"],
-                priority=1
+                expected_outputs=[architecture_handoff["expected_output"]],
+                priority='high'
             )
             await orchestrator_service.process_task_with_autogen(architecture_task, dummy_architecture_handoff)
             
@@ -362,15 +362,16 @@ class TestAgentWorkflowWithContextPersistence:
             # Execute implementation
             # Create a dummy HandoffSchema object for the call
             dummy_implementation_handoff = HandoffSchema(
-                handoff_id=UUID(implementation_task.task_id),
+                handoff_id=implementation_task.task_id,
                 from_agent=implementation_handoff["from_agent"],
                 to_agent=implementation_handoff["to_agent"],
                 project_id=implementation_task.project_id,
-                phase="Implementation",
-                context_ids=implementation_task.context_ids,
+                phase="coding",
+                context_summary="Implementation of the core services based on the architecture.",
+                context_ids=[str(c) for c in implementation_task.context_ids],
                 instructions=implementation_handoff["task_instructions"],
-                expected_outputs=implementation_handoff["expected_output"],
-                priority=1
+                expected_outputs=[implementation_handoff["expected_output"]],
+                priority='high'
             )
             await orchestrator_service.process_task_with_autogen(implementation_task, dummy_implementation_handoff)
             

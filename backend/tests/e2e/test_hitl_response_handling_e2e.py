@@ -17,6 +17,7 @@ from app.models.agent import AgentType
 from app.models.context import ArtifactType
 from app.models.task import TaskStatus
 from app.models.hitl import HitlStatus, HitlAction
+from app.schemas.handoff import HandoffSchema
 from tests.conftest import assert_performance_threshold
 
 
@@ -79,7 +80,19 @@ class TestCompleteHitlApproveWorkflow:
         
         # Execute analysis with mock AutoGen
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
+            dummy_analysis_handoff = HandoffSchema(
+                handoff_id=analysis_task.task_id,
+                from_agent=AgentType.ORCHESTRATOR.value,
+                to_agent=analysis_task.agent_type,
+                project_id=analysis_task.project_id,
+                phase="analysis",
+                context_summary="Initial analysis of CRM requirements.",
+                context_ids=[str(c) for c in analysis_task.context_ids],
+                instructions=analysis_task.instructions,
+                expected_outputs=["Detailed specification"],
+                priority='high',
+            )
+            analysis_result = await orchestrator_service.process_task_with_autogen(analysis_task, dummy_analysis_handoff)
             
             # Complete analysis task
             orchestrator_service.update_task_status(
@@ -290,7 +303,19 @@ class TestCompleteHitlApproveWorkflow:
         
         # Step 10: Execute architecture task
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            arch_result = await orchestrator_service.process_task_with_autogen(architecture_task.task_id)
+            dummy_architecture_handoff = HandoffSchema(
+                handoff_id=architecture_task.task_id,
+                from_agent=architecture_handoff["from_agent"],
+                to_agent=architecture_handoff["to_agent"],
+                project_id=architecture_task.project_id,
+                phase="architecture",
+                context_summary="Creation of detailed system architecture.",
+                context_ids=[str(c) for c in architecture_task.context_ids],
+                instructions=architecture_handoff["task_instructions"],
+                expected_outputs=[architecture_handoff["expected_output"]],
+                priority='high',
+            )
+            arch_result = await orchestrator_service.process_task_with_autogen(architecture_task, dummy_architecture_handoff)
             
             orchestrator_service.update_task_status(
                 architecture_task.task_id,
@@ -528,7 +553,19 @@ class TestCompleteHitlAmendWorkflow:
         
         # Execute initial analysis
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            await orchestrator_service.process_task_with_autogen(analysis_task.task_id)
+            dummy_analysis_handoff = HandoffSchema(
+                handoff_id=analysis_task.task_id,
+                from_agent=AgentType.ORCHESTRATOR.value,
+                to_agent=analysis_task.agent_type,
+                project_id=analysis_task.project_id,
+                phase="analysis",
+                context_summary="Initial analysis of enterprise analytics platform requirements.",
+                context_ids=[str(c) for c in analysis_task.context_ids],
+                instructions=analysis_task.instructions,
+                expected_outputs=["Initial analysis"],
+                priority='high',
+            )
+            await orchestrator_service.process_task_with_autogen(analysis_task, dummy_analysis_handoff)
             
             orchestrator_service.update_task_status(
                 analysis_task.task_id,
@@ -714,7 +751,19 @@ class TestCompleteHitlAmendWorkflow:
         
         # Step 9: Execute enhanced analysis
         with unittest.mock.patch.object(orchestrator_service, 'autogen_service', mock_autogen_service):
-            enhanced_result = await orchestrator_service.process_task_with_autogen(enhanced_analysis_task.task_id)
+            dummy_enhanced_analysis_handoff = HandoffSchema(
+                handoff_id=enhanced_analysis_task.task_id,
+                from_agent=enhanced_analysis_handoff["from_agent"],
+                to_agent=enhanced_analysis_handoff["to_agent"],
+                project_id=enhanced_analysis_task.project_id,
+                phase="analysis",
+                context_summary="Enhanced analysis based on stakeholder feedback.",
+                context_ids=[str(c) for c in enhanced_analysis_task.context_ids],
+                instructions=enhanced_analysis_handoff["task_instructions"],
+                expected_outputs=[enhanced_analysis_handoff["expected_output"]],
+                priority='high',
+            )
+            enhanced_result = await orchestrator_service.process_task_with_autogen(enhanced_analysis_task, dummy_enhanced_analysis_handoff)
             
             orchestrator_service.update_task_status(
                 enhanced_analysis_task.task_id,

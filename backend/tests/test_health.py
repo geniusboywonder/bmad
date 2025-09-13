@@ -44,9 +44,7 @@ class TestHealthzEndpoint:
     def test_healthz_endpoint_success(self):
         """Test /healthz endpoint with all services healthy."""
         with patch('app.api.health.get_session') as mock_get_session, \
-             patch('redis.from_url') as mock_redis, \
-             patch('app.api.health.AuditService') as mock_audit_service:
-            
+             patch('redis.from_url') as mock_redis:            
             # Setup successful database connection
             mock_db = Mock()
             mock_db.execute.return_value = None
@@ -56,10 +54,6 @@ class TestHealthzEndpoint:
             mock_redis_client = Mock()
             mock_redis_client.ping.return_value = True
             mock_redis.return_value = mock_redis_client
-            
-            # Setup successful audit service
-            mock_audit_instance = Mock()
-            mock_audit_service.return_value = mock_audit_instance
             
             response = client.get("/health/z")
             
@@ -86,8 +80,7 @@ class TestHealthzEndpoint:
     def test_healthz_endpoint_degraded_database_failure(self):
         """Test /healthz endpoint with database failure."""
         with patch('app.api.health.get_session') as mock_get_session, \
-             patch('redis.from_url') as mock_redis, \
-             patch('app.api.health.AuditService') as mock_audit_service:
+             patch('redis.from_url') as mock_redis:
             
             # Setup failing database connection
             mock_get_session.side_effect = Exception("Database connection failed")
@@ -96,10 +89,6 @@ class TestHealthzEndpoint:
             mock_redis_client = Mock()
             mock_redis_client.ping.return_value = True
             mock_redis.return_value = mock_redis_client
-            
-            # Setup successful audit service
-            mock_audit_instance = Mock()
-            mock_audit_service.return_value = mock_audit_instance
             
             response = client.get("/health/z")
             
@@ -120,8 +109,7 @@ class TestHealthzEndpoint:
     def test_healthz_endpoint_degraded_redis_failure(self):
         """Test /healthz endpoint with Redis failure."""
         with patch('app.api.health.get_session') as mock_get_session, \
-             patch('redis.from_url') as mock_redis, \
-             patch('app.api.health.AuditService') as mock_audit_service:
+             patch('redis.from_url') as mock_redis:
             
             # Setup successful database connection
             mock_db = Mock()
@@ -130,10 +118,6 @@ class TestHealthzEndpoint:
             
             # Setup failing Redis connection
             mock_redis.side_effect = Exception("Redis connection failed")
-            
-            # Setup successful audit service
-            mock_audit_instance = Mock()
-            mock_audit_service.return_value = mock_audit_instance
             
             response = client.get("/health/z")
             
@@ -154,17 +138,13 @@ class TestHealthzEndpoint:
     def test_healthz_endpoint_unhealthy_multiple_failures(self):
         """Test /healthz endpoint with multiple service failures."""
         with patch('app.api.health.get_session') as mock_get_session, \
-             patch('redis.from_url') as mock_redis, \
-             patch('app.api.health.AuditService') as mock_audit_service:
+             patch('redis.from_url') as mock_redis:
             
             # Setup failing database connection
             mock_get_session.side_effect = Exception("Database connection failed")
             
             # Setup failing Redis connection
             mock_redis.side_effect = Exception("Redis connection failed")
-            
-            # Setup failing audit service
-            mock_audit_service.side_effect = Exception("Audit service failed")
             
             response = client.get("/health/z")
             
@@ -185,8 +165,7 @@ class TestHealthzEndpoint:
     def test_healthz_endpoint_performance_requirement(self):
         """Test /healthz endpoint meets sub-200ms performance requirement."""
         with patch('app.api.health.get_session') as mock_get_session, \
-             patch('redis.from_url') as mock_redis, \
-             patch('app.api.health.AuditService') as mock_audit_service:
+             patch('redis.from_url') as mock_redis:
             
             # Setup successful mocks
             mock_db = Mock()
@@ -197,8 +176,7 @@ class TestHealthzEndpoint:
             mock_redis_client.ping.return_value = True
             mock_redis.return_value = mock_redis_client
             
-            mock_audit_instance = Mock()
-            mock_audit_service.return_value = mock_audit_instance
+            
             
             # Measure response time
             start_time = time.time()
@@ -217,8 +195,7 @@ class TestHealthzEndpoint:
     def test_healthz_endpoint_kubernetes_compatibility(self):
         """Test /healthz endpoint format is Kubernetes-compatible."""
         with patch('app.api.health.get_session') as mock_get_session, \
-             patch('redis.from_url') as mock_redis, \
-             patch('app.api.health.AuditService') as mock_audit_service:
+             patch('redis.from_url') as mock_redis:
             
             # Setup successful mocks
             mock_db = Mock()
@@ -229,8 +206,7 @@ class TestHealthzEndpoint:
             mock_redis_client.ping.return_value = True
             mock_redis.return_value = mock_redis_client
             
-            mock_audit_instance = Mock()
-            mock_audit_service.return_value = mock_audit_instance
+            
             
             response = client.get("/health/z")
             
@@ -264,7 +240,7 @@ class TestHealthzEndpoint:
         def make_health_request():
             with patch('app.api.health.get_session') as mock_get_session, \
                  patch('redis.from_url') as mock_redis, \
-                 patch('app.api.health.AuditService') as mock_audit_service:
+                 patch('redis.from_url') as mock_redis:
                 
                 mock_db = Mock()
                 mock_db.execute.return_value = None
@@ -273,9 +249,6 @@ class TestHealthzEndpoint:
                 mock_redis_client = Mock()
                 mock_redis_client.ping.return_value = True
                 mock_redis.return_value = mock_redis_client
-                
-                mock_audit_instance = Mock()
-                mock_audit_service.return_value = mock_audit_instance
                 
                 return client.get("/health/z")
         
