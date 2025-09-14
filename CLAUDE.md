@@ -5,6 +5,7 @@
 **IMPORTANT**: Always read and follow `/Users/neill/Documents/AI Code/Projects/v0-botarmy-poc/docs/CODEPROTOCOL.md` before making any code changes. This file contains the complete development workflow, quality standards, and enforcement rules that must be followed for every task.
 Read and follow the front-end style guide in `/Users/neill/Documents/AI Code/Projects/v0-botarmy-poc/docs/STYLEGUIDE.md` before making any front-end changes.
 Read and follow the SOLID principle in `/Users/neill/Documents/AI Code/Projects/v0-botarmy-poc/docs/SOLID.md`
+**ALWAYS USE A TODO LIST TO PLAN YOUR STEPS AND SO PROGRESS**
 
 ## Development Patterns
 

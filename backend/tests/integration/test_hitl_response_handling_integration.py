@@ -80,8 +80,8 @@ class TestHitlRequestCreationAndPersistence:
         project = project_factory.create(db_session)
         task = task_factory.create(db_session, project_id=project.id)
         
-        creation_time = datetime.now()
-        
+        creation_time = datetime.utcnow()
+
         # Create HITL request with custom TTL
         hitl_request = orchestrator_service.create_hitl_request(
             project_id=project.id,
@@ -90,11 +90,11 @@ class TestHitlRequestCreationAndPersistence:
             options=["approve", "reject"],
             ttl_hours=48
         )
-        
+
         # Verify expiration time is set correctly
         assert hitl_request.expiration_time is not None
         expected_expiration = creation_time + timedelta(hours=48)
-        
+
         # Allow for small time difference (within 1 minute)
         time_diff = abs((hitl_request.expiration_time - expected_expiration).total_seconds())
         assert time_diff < 60
@@ -434,7 +434,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.p1
     @pytest.mark.hitl
     @pytest.mark.workflow
-    def test_workflow_resume_after_approval(
+    @pytest.mark.asyncio
+    async def test_workflow_resume_after_approval(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_with_hitl
     ):
@@ -442,26 +443,26 @@ class TestWorkflowResumeAfterHitlResponse:
         project = project_with_hitl["project"]
         task = project_with_hitl["task"]
         hitl_request = project_with_hitl["hitl_request"]
-        
+
         # Verify task is initially waiting for HITL
         assert task.status == TaskStatus.PENDING
-        
+
         # Submit approval
         approve_response = client.post(
             f"/api/v1/hitl/{hitl_request.id}/respond",
             json={"action": "approve", "comment": "Approved for continuation"}
         )
         assert approve_response.status_code == status.HTTP_200_OK
-        
+
         # Verify workflow resumption
-        resume_result = orchestrator_service.resume_workflow_after_hitl(
+        resume_result = await orchestrator_service.resume_workflow_after_hitl(
             hitl_request.id,
             HitlAction.APPROVE
         )
-        
+
         assert resume_result["workflow_resumed"] is True
         assert resume_result["next_action"] == "continue_task"
-        
+
         # Verify task can proceed
         db_session.refresh(task)
         # In full implementation, task status might change to WORKING
@@ -472,7 +473,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.p1
     @pytest.mark.hitl
     @pytest.mark.workflow
-    def test_workflow_handling_after_rejection(
+    @pytest.mark.asyncio
+    async def test_workflow_handling_after_rejection(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_with_hitl
     ):
@@ -480,32 +482,32 @@ class TestWorkflowResumeAfterHitlResponse:
         project = project_with_hitl["project"]
         task = project_with_hitl["task"]
         hitl_request = project_with_hitl["hitl_request"]
-        
+
         # Submit rejection
         reject_response = client.post(
             f"/api/v1/hitl/{hitl_request.id}/respond",
             json={
-                "action": "reject", 
+                "action": "reject",
                 "comment": "Does not meet requirements",
                 "reason": "insufficient_detail"
             }
         )
         assert reject_response.status_code == status.HTTP_200_OK
-        
+
         # Verify workflow handling of rejection
-        resume_result = orchestrator_service.resume_workflow_after_hitl(
+        resume_result = await orchestrator_service.resume_workflow_after_hitl(
             hitl_request.id,
             HitlAction.REJECT
         )
-        
+
         assert resume_result["workflow_resumed"] is True
         assert resume_result["next_action"] == "handle_rejection"
-        
+
         # In full implementation, this might:
         # - Mark task as needing rework
         # - Create new task for addressing feedback
         # - Notify relevant agents
-        
+
         # Verify task state reflects rejection
         db_session.refresh(task)
         assert task.id is not None  # Task still exists for rework
@@ -514,7 +516,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.p1
     @pytest.mark.hitl
     @pytest.mark.workflow
-    def test_workflow_continuation_after_amendment(
+    @pytest.mark.asyncio
+    async def test_workflow_continuation_after_amendment(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_with_hitl
     ):
@@ -522,7 +525,7 @@ class TestWorkflowResumeAfterHitlResponse:
         project = project_with_hitl["project"]
         task = project_with_hitl["task"]
         hitl_request = project_with_hitl["hitl_request"]
-        
+
         # Submit amendment
         amend_response = client.post(
             f"/api/v1/hitl/{hitl_request.id}/respond",
@@ -533,22 +536,22 @@ class TestWorkflowResumeAfterHitlResponse:
             }
         )
         assert amend_response.status_code == status.HTTP_200_OK
-        
+
         # Verify workflow handles amendment
-        resume_result = orchestrator_service.resume_workflow_after_hitl(
+        resume_result = await orchestrator_service.resume_workflow_after_hitl(
             hitl_request.id,
             HitlAction.AMEND
         )
-        
+
         assert resume_result["workflow_resumed"] is True
         assert resume_result["next_action"] == "apply_amendments"
-        
+
         # Verify amendment content is available for workflow
         db_session.refresh(hitl_request)
         assert hitl_request.amended_content is not None
         amended_content = hitl_request.amended_content["amended_content"]
         assert "database optimization" in amended_content
-        
+
         # In full implementation, this would:
         # - Update task instructions with amendments
         # - Notify agent of required changes
@@ -558,14 +561,15 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.p2
     @pytest.mark.hitl
     @pytest.mark.workflow
-    def test_multi_stage_hitl_workflow(
+    @pytest.mark.asyncio
+    async def test_multi_stage_hitl_workflow(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_factory, task_factory,
         hitl_request_factory
     ):
         """Test workflow with multiple HITL checkpoints."""
         project = project_factory.create(db_session)
-        
+
         # Create workflow with multiple HITL checkpoints
         analysis_task = task_factory.create(
             db_session,
@@ -573,14 +577,14 @@ class TestWorkflowResumeAfterHitlResponse:
             agent_type=AgentType.ANALYST.value,
             instructions="Analysis phase with HITL checkpoint"
         )
-        
+
         architecture_task = task_factory.create(
             db_session,
             project_id=project.id,
             agent_type=AgentType.ARCHITECT.value,
             instructions="Architecture phase with HITL checkpoint"
         )
-        
+
         # First HITL checkpoint - Analysis review
         analysis_hitl = hitl_request_factory.create(
             db_session,
@@ -588,26 +592,26 @@ class TestWorkflowResumeAfterHitlResponse:
             task_id=analysis_task.id,
             question="Please review analysis results"
         )
-        
+
         # Approve analysis
         client.post(
             f"/api/v1/hitl/{analysis_hitl.id}/respond",
             json={"action": "approve", "comment": "Analysis approved"}
         )
-        
+
         # Resume workflow after first HITL
-        orchestrator_service.resume_workflow_after_hitl(
+        await orchestrator_service.resume_workflow_after_hitl(
             analysis_hitl.id,
             HitlAction.APPROVE
         )
-        
+
         # Complete analysis task
         orchestrator_service.update_task_status(
             analysis_task.id,
             TaskStatus.COMPLETED,
             output={"analysis": "completed after HITL approval"}
         )
-        
+
         # Second HITL checkpoint - Architecture review
         architecture_hitl = hitl_request_factory.create(
             db_session,
@@ -615,7 +619,7 @@ class TestWorkflowResumeAfterHitlResponse:
             task_id=architecture_task.id,
             question="Please review architecture design"
         )
-        
+
         # Amend architecture
         client.post(
             f"/api/v1/hitl/{architecture_hitl.id}/respond",
@@ -625,23 +629,23 @@ class TestWorkflowResumeAfterHitlResponse:
                 "comment": "Need more detail on service interactions"
             }
         )
-        
+
         # Resume workflow after amendment
-        resume_result = orchestrator_service.resume_workflow_after_hitl(
+        resume_result = await orchestrator_service.resume_workflow_after_hitl(
             architecture_hitl.id,
             HitlAction.AMEND
         )
-        
+
         # Verify multi-stage workflow state
         assert resume_result["workflow_resumed"] is True
-        
+
         # Verify both HITL requests have been processed
         db_session.refresh(analysis_hitl)
         db_session.refresh(architecture_hitl)
-        
+
         assert analysis_hitl.status == HitlStatus.APPROVED
         assert architecture_hitl.status == HitlStatus.AMENDED
-        
+
         # Verify workflow can continue with amendments applied
         assert architecture_hitl.amended_content is not None
 
@@ -849,7 +853,7 @@ class TestHitlRequestHistoryTracking:
             assert field in history_entry
         
         assert history_entry["action"] == "amend"
-        assert "performance benchmarks" in history_entry["comment"]
+        assert "performance benchmarks" in str(history_entry.get("content", ""))
     
     @pytest.mark.integration
     @pytest.mark.p2

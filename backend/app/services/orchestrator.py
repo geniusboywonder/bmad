@@ -132,19 +132,27 @@ class OrchestratorService:
         pass
 
     def create_hitl_request(
-        self, 
-        project_id: UUID, 
-        task_id: UUID, 
-        question: str, 
+        self,
+        project_id: UUID,
+        task_id: UUID,
+        question: str,
         options: Optional[List[str]] = None,
         ttl_hours: Optional[int] = None
     ) -> HitlRequestDB:
         """Create a new HITL request with optional TTL."""
-        
+
         # Validation
         if not question or question.strip() == "":
             raise ValueError("Question cannot be empty")
-        
+
+        # Validate that task belongs to the specified project
+        task = self.db.query(TaskDB).filter(TaskDB.id == task_id).first()
+        if not task:
+            raise ValueError(f"Task {task_id} not found")
+
+        if task.project_id != project_id:
+            raise ValueError(f"Task {task_id} does not belong to project {project_id}")
+
         if options is None:
             options = []
             
@@ -619,37 +627,67 @@ class OrchestratorService:
         
         return None
     
-    async def resume_workflow_after_hitl(self, project_id: UUID, task_id: UUID):
+    async def resume_workflow_after_hitl(self, hitl_request_id: UUID, hitl_action):
         """Resume workflow after HITL response."""
-        
-        logger.info("Resuming workflow after HITL response", 
-                   project_id=project_id, 
-                   task_id=task_id)
-        
+
+        logger.info("Resuming workflow after HITL response",
+                   hitl_request_id=hitl_request_id,
+                   hitl_action=hitl_action)
+
+        # Get the HITL request to find the associated task and project
+        hitl_request = self.db.query(HitlRequestDB).filter(
+            HitlRequestDB.id == hitl_request_id
+        ).first()
+
+        if not hitl_request:
+            logger.error("HITL request not found", hitl_request_id=hitl_request_id)
+            return {
+                "workflow_resumed": False,
+                "error": "HITL request not found"
+            }
+
         # Get the task that was waiting for HITL
-        task = self.db.query(TaskDB).filter(TaskDB.id == task_id).first()
+        task = self.db.query(TaskDB).filter(TaskDB.id == hitl_request.task_id).first()
         if not task:
-            logger.error("Task not found for HITL resume", task_id=task_id)
-            return
-        
+            logger.error("Task not found for HITL resume", task_id=hitl_request.task_id)
+            return {
+                "workflow_resumed": False,
+                "error": "Associated task not found"
+            }
+
         # Update agent status to idle (ready for next task)
         self.update_agent_status(task.agent_type, AgentStatus.IDLE)
-        
+
+        # Determine next action based on HITL action
+        next_action = "continue_task"
+        if hitl_action == "reject":
+            next_action = "handle_rejection"
+        elif hitl_action == "amend":
+            next_action = "apply_amendments"
+
         # Emit workflow resume event
         event = WebSocketEvent(
             event_type=EventType.WORKFLOW_RESUMED,
-            project_id=project_id,
-            task_id=task_id,
+            project_id=hitl_request.project_id,
+            task_id=hitl_request.task_id,
             data={
                 "message": "Workflow resumed after HITL response",
-                "task_id": str(task_id),
-                "agent_type": task.agent_type
+                "task_id": str(hitl_request.task_id),
+                "agent_type": task.agent_type,
+                "hitl_action": hitl_action,
+                "next_action": next_action
             }
         )
-        
-        logger.info("Workflow resume event emitted", project_id=project_id, task_id=task_id)
-        
-        # In a full implementation, you might want to:
-        # 1. Continue to the next phase of the workflow
-        # 2. Re-process the current task if amended
-        # 3. Update project status accordingly
+
+        logger.info("Workflow resume event emitted",
+                   project_id=hitl_request.project_id,
+                   task_id=hitl_request.task_id,
+                   hitl_action=hitl_action)
+
+        return {
+            "workflow_resumed": True,
+            "next_action": next_action,
+            "project_id": str(hitl_request.project_id),
+            "task_id": str(hitl_request.task_id),
+            "hitl_action": hitl_action
+        }

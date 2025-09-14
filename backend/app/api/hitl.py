@@ -13,6 +13,7 @@ from app.database.connection import get_session
 from app.services.orchestrator import OrchestratorService
 from app.database.models import HitlRequestDB
 from app.websocket.events import WebSocketEvent, EventType
+from app.websocket.manager import websocket_manager
 from app.services.audit_service import AuditService
 from app.models.event_log import EventType as AuditEventType, EventSource
 import structlog
@@ -210,6 +211,27 @@ async def get_hitl_request(
     )
 
 
+@router.get("/{request_id}/history", response_model=dict)
+async def get_hitl_request_history(
+    request_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Get the history of a HITL request."""
+
+    hitl_request = db.query(HitlRequestDB).filter(HitlRequestDB.id == request_id).first()
+
+    if not hitl_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"HITL request {request_id} not found"
+        )
+
+    # Return history in the expected format
+    return {
+        "history": hitl_request.history or []
+    }
+
+
 @router.get("/project/{project_id}/requests", response_model=List[HitlRequestResponse])
 async def get_project_hitl_requests(
     project_id: UUID,
@@ -217,9 +239,9 @@ async def get_project_hitl_requests(
     status_filter: Optional[str] = None
 ):
     """Get all HITL requests for a project."""
-    
+
     query = db.query(HitlRequestDB).filter(HitlRequestDB.project_id == project_id)
-    
+
     if status_filter:
         try:
             status_enum = HitlStatus(status_filter)
@@ -229,9 +251,9 @@ async def get_project_hitl_requests(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status filter: {status_filter}"
             )
-    
+
     hitl_requests = query.order_by(HitlRequestDB.created_at.desc()).all()
-    
+
     return [
         HitlRequestResponse(
             request_id=req.id,
@@ -241,9 +263,13 @@ async def get_project_hitl_requests(
             options=req.options or [],
             status=req.status,
             user_response=req.user_response,
+            response_comment=req.response_comment,
             amended_content=req.amended_content,
+            history=req.history or [],
             created_at=req.created_at.isoformat(),
-            updated_at=req.updated_at.isoformat()
+            updated_at=req.updated_at.isoformat(),
+            expires_at=req.expires_at.isoformat() if req.expires_at else None,
+            responded_at=req.responded_at.isoformat() if req.responded_at else None
         )
         for req in hitl_requests
     ]
