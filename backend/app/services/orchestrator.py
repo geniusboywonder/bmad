@@ -1,7 +1,8 @@
-"""Orchestrator service for managing agent workflows."""
+"""Orchestrator service for managing agent workflows with dynamic workflow execution."""
 
 from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 import structlog
 import autogen_agentchat as autogen
@@ -16,114 +17,202 @@ from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
 from app.services.context_store import ContextStoreService
 from app.services.autogen_service import AutoGenService
+from app.services.workflow_engine import WorkflowExecutionEngine
 
 logger = structlog.get_logger(__name__)
 
-# SDLC Process Flow as a structured dictionary
-SDLC_PROCESS_FLOW = {
-    "Phase 0: Discovery & Planning": [
-        {"task_name": "Project Planning", "agent": AgentType.ANALYST, "input": "user_idea", "output": "project_plan.json", "hitl": True},
-    ],
-    "Phase 1: Plan": [
-        {"task_name": "Requirements Analysis", "agent": AgentType.ANALYST, "input": "project_plan.json", "output": "software_specification.json", "hitl": True},
-    ],
-    "Phase 2: Design": [
-        {"task_name": "Architectural Design", "agent": AgentType.ARCHITECT, "input": "software_specification.json", "output": "implementation_plan.json"},
-        {"task_name": "Implementation Planning", "agent": AgentType.ARCHITECT, "input": "implementation_plan.json", "output": "implementation_plan.json"},
-    ],
-    "Phase 3: Build": [
-        {"task_name": "Code Generation", "agent": AgentType.CODER, "input": "implementation_plan.json", "output": "source_code"},
-        {"task_name": "Code Refinement", "agent": AgentType.CODER, "input": "source_code", "output": "source_code"},
-    ],
-    "Phase 4: Validate": [
-        {"task_name": "Code Testing", "agent": AgentType.TESTER, "input": "source_code", "output": "test_results.json"},
-        {"task_name": "Bug Fix", "agent": AgentType.CODER, "input": "test_results.json", "output": "source_code", "loop_until_pass": True},
-    ],
-    "Phase 5: Launch": [
-        {"task_name": "Deployment", "agent": AgentType.DEPLOYER, "input": "source_code", "output": "deployment_log.json"},
-        {"task_name": "Final Check", "agent": AgentType.DEPLOYER, "input": "deployment_log.json", "output": "project_status_completed"},
-    ],
-}
-
 
 class OrchestratorService:
-    """Service for orchestrating agent workflows."""
-    
+    """Service for orchestrating agent workflows with dynamic workflow execution."""
+
     def __init__(self, db: Session):
         self.db = db
         self.context_store = ContextStoreService(db)
         self.autogen_service = AutoGenService()
+        self.workflow_engine = WorkflowExecutionEngine(db)
 
-    async def run_project_workflow(self, project_id: UUID, user_idea: str):
-        """Runs the full SDLC workflow for a project using HandoffSchema."""
-        logger.info("Starting project workflow", project_id=project_id)
+    async def run_project_workflow(self, project_id: UUID, user_idea: str, workflow_id: str = "greenfield-fullstack"):
+        """
+        Runs a dynamic workflow for a project using the WorkflowExecutionEngine.
 
-        # Initial context is the user's idea
-        current_context = {"user_idea": user_idea}
-        context_artifact = self.context_store.create_artifact(
-            project_id=project_id,
-            source_agent=AgentType.ORCHESTRATOR.value,
-            artifact_type="user_input",
-            content=current_context
-        )
-        last_artifact_id = context_artifact.context_id
-        previous_agent = AgentType.ORCHESTRATOR.value
+        Args:
+            project_id: UUID of the project
+            user_idea: User's project idea/description
+            workflow_id: ID of the workflow to execute (defaults to greenfield-fullstack)
+        """
+        logger.info("Starting dynamic project workflow",
+                   project_id=project_id,
+                   workflow_id=workflow_id,
+                   user_idea=user_idea[:100])
 
-        for phase, tasks in SDLC_PROCESS_FLOW.items():
-            logger.info(f"Starting {phase}", project_id=project_id)
-            for task_info in tasks:
-                task_name = task_info["task_name"]
-                agent_type = task_info["agent"]
-                
-                # Create HandoffSchema for structured agent communication
-                handoff = HandoffSchema(
-                    handoff_id=uuid4(),
-                    from_agent=previous_agent,
-                    to_agent=agent_type.value,
-                    project_id=project_id,
-                    phase=phase,
-                    context_ids=[last_artifact_id],
-                    instructions=f"Execute {task_name}. Expected input: {task_info.get('input', 'previous_output')}. Expected output: {task_info.get('output', 'task_result')}.",
-                    expected_outputs=[task_info.get('output', 'task_result')],
-                    priority=1
-                )
-                
-                task = self.create_task_from_handoff(handoff)
-                
-                # Process the task through AutoGen
-                task_result = await self.process_task_with_autogen(task, handoff)
-                
-                # Create output artifact
-                output_artifact = self.context_store.create_artifact(
-                    project_id=project_id,
-                    source_agent=agent_type.value,
-                    artifact_type=task_info.get('output', 'agent_output'),
-                    content=task_result
-                )
-                last_artifact_id = output_artifact.context_id
-                previous_agent = agent_type.value
-                
-                self.update_task_status(task.task_id, TaskStatus.COMPLETED, output=task_result)
+        try:
+            # Create initial context artifact with user idea
+            initial_context = {
+                "user_idea": user_idea,
+                "project_id": str(project_id),
+                "workflow_id": workflow_id
+            }
 
-                # Handle HITL checkpoint if required
-                if task_info.get("hitl"):
-                    hitl_response = await self.handle_hitl_checkpoint(
-                        project_id, 
-                        task.task_id, 
-                        f"Review and approve {task_name}",
-                        task_result
+            context_artifact = self.context_store.create_artifact(
+                project_id=project_id,
+                source_agent=AgentType.ORCHESTRATOR.value,
+                artifact_type="user_input",
+                content=initial_context
+            )
+
+            # Start workflow execution
+            execution = await self.workflow_engine.start_workflow_execution(
+                workflow_id=workflow_id,
+                project_id=str(project_id),
+                context_data=initial_context
+            )
+
+            logger.info("Workflow execution started",
+                       execution_id=execution.execution_id,
+                       workflow_id=workflow_id,
+                       total_steps=execution.total_steps)
+
+            # Execute workflow steps sequentially
+            while not execution.is_complete():
+                try:
+                    # Execute next step
+                    result = await self.workflow_engine.execute_workflow_step(execution.execution_id)
+
+                    if result.get("status") == "no_pending_steps":
+                        break
+
+                    logger.info("Workflow step completed",
+                               execution_id=execution.execution_id,
+                               step_index=result.get("step_index"),
+                               agent=result.get("agent"))
+
+                    # Check for HITL requirements in step results
+                    if result.get("requires_hitl"):
+                        hitl_result = await self._handle_workflow_hitl(
+                            execution.execution_id,
+                            result
+                        )
+                        if not hitl_result.get("approved", True):
+                            logger.warning("Workflow paused for HITL approval",
+                                         execution_id=execution.execution_id)
+                            break
+
+                except Exception as e:
+                    logger.error("Workflow step execution failed",
+                               execution_id=execution.execution_id,
+                               error=str(e))
+
+                    # Mark execution as failed
+                    await self.workflow_engine.cancel_workflow_execution(
+                        execution.execution_id,
+                        f"Step execution failed: {str(e)}"
                     )
-                    
-                    if hitl_response == "rejected":
-                        logger.warning("Workflow halted by user rejection", project_id=project_id)
-                        return
-                    elif hitl_response == "amended":
-                        # Re-process task with amended input
-                        amended_artifact = self.get_latest_amended_artifact(project_id, task.task_id)
-                        if amended_artifact:
-                            last_artifact_id = amended_artifact.context_id
+                    raise
 
-        logger.info("Project workflow completed", project_id=project_id)
+            # Check final status
+            final_status = self.workflow_engine.get_workflow_execution_status(execution.execution_id)
+            if final_status and final_status.get("is_complete"):
+                if final_status.get("status") == "completed":
+                    logger.info("Workflow execution completed successfully",
+                               execution_id=execution.execution_id,
+                               total_steps=final_status.get("total_steps"))
+                else:
+                    logger.warning("Workflow execution completed with failures",
+                                 execution_id=execution.execution_id,
+                                 failed_steps=final_status.get("failed_steps"))
+            else:
+                logger.warning("Workflow execution did not complete",
+                             execution_id=execution.execution_id)
+
+        except Exception as e:
+            logger.error("Project workflow execution failed",
+                        project_id=project_id,
+                        workflow_id=workflow_id,
+                        error=str(e))
+            raise
+
+    def run_project_workflow_sync(self, project_id: UUID, user_idea: str, workflow_id: str = "greenfield-fullstack"):
+        """
+        Synchronous wrapper for running project workflow (for testing purposes).
+
+        This method provides a synchronous interface to the async workflow execution
+        for use in test environments where async/await is not directly supported.
+        """
+        import asyncio
+
+        async def _run():
+            return await self.run_project_workflow(project_id, user_idea, workflow_id)
+
+        # Create new event loop for testing
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is already running, we need to handle differently
+                import nest_asyncio
+                nest_asyncio.apply()
+                return loop.run_until_complete(_run())
+            else:
+                return loop.run_until_complete(_run())
+        except RuntimeError:
+            # No event loop, create new one
+            return asyncio.run(_run())
+
+    async def _handle_workflow_hitl(self, execution_id: str, step_result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle HITL requirements during workflow execution.
+
+        Args:
+            execution_id: Workflow execution ID
+            step_result: Result from workflow step execution
+
+        Returns:
+            HITL handling result
+        """
+        # Get execution details
+        execution = self.workflow_engine._get_execution_state(execution_id)
+        if not execution:
+            return {"approved": False, "error": "Execution not found"}
+
+        # Create HITL request based on step result
+        question = step_result.get("hitl_question", "Please review and approve this step result")
+        task_id = step_result.get("task_id")
+
+        if task_id:
+            hitl_request = self.create_hitl_request(
+                project_id=UUID(execution.project_id),
+                task_id=UUID(task_id),
+                question=question,
+                options=["Approve", "Reject", "Amend"]
+            )
+
+            # Pause workflow execution immediately
+            await self.workflow_engine.pause_workflow_execution(
+                execution_id,
+                f"HITL approval required for step {step_result.get('step_index')}: {question}"
+            )
+
+            # Update agent status to waiting for HITL
+            agent_type = step_result.get("agent")
+            if agent_type:
+                self.update_agent_status(agent_type, AgentStatus.WAITING_FOR_HITL, UUID(task_id))
+
+            # Emit WebSocket event for HITL request
+            await self.notify_hitl_request_created(hitl_request.id)
+
+            logger.info("Workflow paused for HITL approval",
+                       execution_id=execution_id,
+                       hitl_request_id=str(hitl_request.id),
+                       agent=agent_type,
+                       step_index=step_result.get("step_index"))
+
+            return {
+                "approved": False,
+                "paused": True,
+                "hitl_request_id": str(hitl_request.id),
+                "reason": "HITL approval required"
+            }
+
+        return {"approved": True}
 
     async def wait_for_hitl_response(self, request_id: UUID):
         # In a real app, this would involve waiting for an external event.
@@ -160,8 +249,7 @@ class OrchestratorService:
         expires_at = None
         expiration_time = None
         if ttl_hours is not None:
-            from datetime import datetime, timedelta
-            expires_at = datetime.utcnow() + timedelta(hours=ttl_hours)
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=ttl_hours)
             expiration_time = expires_at
         
         hitl_request = HitlRequestDB(
@@ -187,67 +275,181 @@ class OrchestratorService:
         amended_data: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Process a HITL response (approve, reject, or amend)."""
-        
+        """Process a HITL response (approve, reject, or amend) and resume workflow if needed."""
+
         # Get the HITL request
         hitl_request = self.db.query(HitlRequestDB).filter(
             HitlRequestDB.id == hitl_request_id
         ).first()
-        
+
         if not hitl_request:
             raise ValueError(f"HITL request {hitl_request_id} not found")
-        
+
         if hitl_request.status != HitlStatus.PENDING:
             raise ValueError(f"HITL request {hitl_request_id} is not in pending status")
-        
-        from datetime import datetime
-        
+
+
         # Update the request based on action
-        response_data = {"action": action, "workflow_resumed": True}
-        
+        response_data = {"action": action, "workflow_resumed": False}
+
         if action == "approve":
             hitl_request.status = HitlStatus.APPROVED
             hitl_request.user_response = "approved"
-            
+
         elif action == "reject":
             hitl_request.status = HitlStatus.REJECTED
             hitl_request.user_response = "rejected"
-            
+
         elif action == "amend":
             hitl_request.status = HitlStatus.AMENDED
             hitl_request.user_response = "amended"
             if amended_data:
                 hitl_request.amended_content = amended_data
-                
+
         else:
             raise ValueError(f"Invalid action: {action}")
-        
+
         # Common updates
         hitl_request.response_comment = comment
-        hitl_request.responded_at = datetime.utcnow()
-        
+        hitl_request.responded_at = datetime.now(timezone.utc)
+
         # Add to history
         history_entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": action,
             "user_id": user_id,
             "comment": comment,
             "amended_data": amended_data
         }
-        
+
         if hitl_request.history is None:
             hitl_request.history = []
         hitl_request.history.append(history_entry)
-        
+
         self.db.commit()
         self.db.refresh(hitl_request)
-        
-        logger.info("HITL response processed", 
+
+        logger.info("HITL response processed",
                    hitl_request_id=hitl_request_id,
                    action=action,
                    new_status=hitl_request.status)
-        
+
+        # Attempt to resume workflow after HITL response
+        try:
+            resume_result = self._resume_workflow_after_hitl(hitl_request, action)
+            response_data.update(resume_result)
+        except Exception as e:
+            logger.error("Failed to resume workflow after HITL",
+                        hitl_request_id=hitl_request_id,
+                        error=str(e))
+            response_data["workflow_resume_error"] = str(e)
+
         return response_data
+
+    def _resume_workflow_after_hitl(self, hitl_request: HitlRequestDB, action: str) -> Dict[str, Any]:
+        """
+        Resume workflow execution after HITL response.
+
+        Args:
+            hitl_request: The processed HITL request
+            action: The HITL action taken (approve/reject/amend)
+
+        Returns:
+            Dictionary with workflow resume results
+        """
+        # Get the task associated with this HITL request
+        task = self.db.query(TaskDB).filter(TaskDB.id == hitl_request.task_id).first()
+        if not task:
+            logger.warning("Task not found for HITL resume", task_id=hitl_request.task_id)
+            return {"workflow_resumed": False, "error": "Associated task not found"}
+
+        # Update agent status based on HITL action
+        if action == "approve":
+            # Agent can continue with approved work
+            self.update_agent_status(task.agent_type, AgentStatus.IDLE)
+            task_status = TaskStatus.COMPLETED
+        elif action == "reject":
+            # Agent work was rejected, mark as failed
+            self.update_agent_status(task.agent_type, AgentStatus.IDLE)
+            task_status = TaskStatus.FAILED
+            task.error_message = f"Task rejected via HITL: {hitl_request.response_comment or 'No comment provided'}"
+        elif action == "amend":
+            # Agent needs to incorporate amendments
+            self.update_agent_status(task.agent_type, AgentStatus.IDLE)
+            task_status = TaskStatus.COMPLETED
+            # Store amended content as task output
+            if hitl_request.amended_content:
+                task.output = hitl_request.amended_content
+
+        # Update task status
+        self.update_task_status(task.task_id, task_status)
+
+        # Try to find and resume any paused workflows
+        workflow_resumed = False
+        execution_id = None
+
+        try:
+            # Look for workflow executions that might be paused for this task
+            # This is a simplified approach - in production, you'd have better tracking
+            from app.database.models import WorkflowStateDB
+            from app.models.workflow_state import WorkflowExecutionState as ExecutionStateEnum
+
+            paused_workflows = self.db.query(WorkflowStateDB).filter(
+                WorkflowStateDB.project_id == hitl_request.project_id,
+                WorkflowStateDB.status == ExecutionStateEnum.PAUSED.value
+            ).all()
+
+            for workflow_state in paused_workflows:
+                # Check if this workflow contains the task that was waiting for HITL
+                if workflow_state.steps_data:
+                    for step_data in workflow_state.steps_data:
+                        if step_data.get("task_id") == str(hitl_request.task_id):
+                            # Found the workflow, attempt to resume it
+                            execution_id = workflow_state.execution_id
+
+                            # Resume the workflow
+                            resume_success = self.workflow_engine.resume_workflow_execution_sync(execution_id)
+                            if resume_success:
+                                workflow_resumed = True
+                                logger.info("Workflow resumed after HITL response",
+                                           execution_id=execution_id,
+                                           hitl_request_id=str(hitl_request.id),
+                                           action=action)
+                            break
+
+                if workflow_resumed:
+                    break
+
+        except Exception as e:
+            logger.error("Error resuming workflow after HITL",
+                        hitl_request_id=str(hitl_request.id),
+                        error=str(e))
+
+        # Emit workflow resume event
+        event = WebSocketEvent(
+            event_type=EventType.WORKFLOW_RESUMED,
+            project_id=hitl_request.project_id,
+            task_id=hitl_request.task_id,
+            data={
+                "message": f"Workflow resumed after HITL {action}",
+                "task_id": str(hitl_request.task_id),
+                "agent_type": task.agent_type,
+                "hitl_action": action,
+                "execution_id": execution_id
+            }
+        )
+
+        logger.info("HITL response processing completed",
+                   hitl_request_id=str(hitl_request.id),
+                   action=action,
+                   workflow_resumed=workflow_resumed,
+                   task_status=task_status.value)
+
+        return {
+            "workflow_resumed": workflow_resumed,
+            "task_status": task_status.value,
+            "execution_id": execution_id
+        }
 
     def create_project(self, name: str, description: str = None) -> UUID:
         """Create a new project."""
@@ -380,12 +582,10 @@ class OrchestratorService:
             db_task.error_message = error_message
         
         if status == TaskStatus.WORKING and db_task.started_at is None:
-            from datetime import datetime
-            db_task.started_at = datetime.utcnow()
+                db_task.started_at = datetime.now(timezone.utc)
         
         if status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]:
-            from datetime import datetime
-            db_task.completed_at = datetime.utcnow()
+                db_task.completed_at = datetime.now(timezone.utc)
         
         self.db.commit()
         

@@ -14,6 +14,7 @@ from app.models.workflow import (
     WorkflowDefinition,
     WorkflowStep,
     WorkflowExecution,
+    WorkflowExecutionStep,
     WorkflowExecutionState,
     WorkflowType
 )

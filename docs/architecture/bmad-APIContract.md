@@ -30,11 +30,13 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/projects` | Creates a new project and initiates the first task. | `{ "product_idea": "string" }` | `{ "project_id": "uuid", "status": "string" }` |
 | `GET` | `/projects/{project_id}` | Retrieves a project's full status and all artifacts. | None | `{ "project_id": "uuid", "status": "string", "tasks": [], "artifacts": [] }` |
+| `GET` | `/projects/{project_id}/tasks` | Get all tasks for a project. | None | `{ "tasks": [{ "task_id": "uuid", "agent_type": "string", "status": "string" }] }` |
+| `POST` | `/projects/{project_id}/tasks` | Create a new task for a project. | `{ "agent_type": "string", "instructions": "string", "context_ids": [] }` | `{ "task_id": "uuid", "celery_task_id": "string", "status": "submitted" }` |
 | `GET` | `/projects/{project_id}/completion` | Get detailed project completion status and metrics. | None | `{ "project_id": "uuid", "completion_percentage": 85.5, "total_tasks": 12, "completed_tasks": 10, "artifacts_available": true }` |
 | `POST` | `/projects/{project_id}/check-completion` | Trigger manual project completion check. | None | `{ "is_complete": false, "completion_indicators": [] }` |
 | `POST` | `/projects/{project_id}/force-complete` | Force project completion (admin function). | None | `{ "status": "completed", "artifacts_generated": true }` |
 
-**Agent Status Management (Sprint 3):**
+**Agent Status Management:**
 
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
@@ -43,7 +45,7 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | `GET` | `/agents/status-history/{agent_type}` | Get agent status history from database. | None | `{ "history": [{ "status": "working", "timestamp": "datetime" }] }` |
 | `POST` | `/agents/status/{agent_type}/reset` | Reset agent status to idle (admin function). | None | `{ "message": "Agent analyst status reset to idle", "status": "idle" }` |
 
-**Artifact Management (Sprint 3):**
+**Artifact Management:**
 
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
@@ -53,7 +55,7 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 | `DELETE` | `/artifacts/{project_id}/artifacts` | Clean up project artifacts. | None | `{ "cleaned_files": 3, "status": "success" }` |
 | `DELETE` | `/artifacts/cleanup-old` | Admin endpoint to cleanup old artifacts. | `{ "max_age_hours": 24 }` | `{ "cleaned_files": 15, "freed_space_mb": 128 }` |
 
-**BMAD Core Template System (Task 3):**
+**BMAD Core Template System:**
 
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
@@ -72,15 +74,43 @@ The backend will expose a REST API for command-and-control functions and a WebSo
 
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/hitl/{request_id}/respond` | Submits a user's response to a HITL request. | `{ "action": "string", "response_content": "string" }` | `{ "request_id": "uuid", "new_status": "string" }` |
-| `GET` | `/hitl/{request_id}` | Get HITL request details. | None | `{ "request_id": "uuid", "question": "string", "status": "pending" }` |
-| `GET` | `/hitl/project/{project_id}/requests` | Get all HITL requests for a project. | None | `{ "requests": [], "pending_count": 2 }` |
+| `POST` | `/hitl/{request_id}/respond` | Submits a user's response to a HITL request. | `{ "action": "approve|reject|amend", "response": "string", "amended_content": {}, "comment": "string" }` | `{ "status": "success", "message": "Response recorded successfully", "workflow_resumed": true }` |
+| `GET` | `/hitl/{request_id}` | Get HITL request details with full context. | None | `{ "request_id": "uuid", "project_id": "uuid", "task_id": "uuid", "question": "string", "options": [], "status": "pending", "history": [] }` |
+| `GET` | `/hitl/{request_id}/history` | Get complete HITL request history. | None | `{ "history": [{ "timestamp": "datetime", "action": "string", "user_id": "string", "comment": "string" }] }` |
+| `GET` | `/hitl/{request_id}/context` | Get full request context and artifacts. | None | `{ "task_details": {}, "artifacts": [], "workflow_state": {}, "project_context": {} }` |
+| `GET` | `/hitl/project/{project_id}/requests` | Get all HITL requests for a project. | None | `{ "requests": [], "pending_count": 2, "total_count": 15 }` |
+| `GET` | `/hitl/pending` | Get all pending HITL requests with filtering. | None | `{ "requests": [], "count": 5, "filters_applied": [] }` |
+| `POST` | `/hitl/bulk/approve` | Bulk approval of multiple HITL requests. | `{ "request_ids": ["uuid"], "comment": "string" }` | `{ "approved_count": 5, "failed_count": 0, "results": [] }` |
+| `GET` | `/hitl/statistics` | Get HITL system usage statistics. | None | `{ "total_requests": 100, "approval_rate": 0.85, "average_response_time": 300 }` |
+| `POST` | `/hitl/config/trigger-condition` | Configure HITL trigger conditions. | `{ "condition": "string", "enabled": true }` | `{ "condition_updated": true, "active_conditions": [] }` |
+| `POST` | `/hitl/project/{project_id}/oversight-level` | Set project oversight level. | `{ "level": "high|medium|low" }` | `{ "oversight_level": "high", "trigger_conditions": [] }` |
+| `GET` | `/hitl/project/{project_id}/oversight-level` | Get project oversight level. | None | `{ "oversight_level": "medium", "trigger_conditions": [], "last_updated": "datetime" }` |
+| `POST` | `/hitl/cleanup-expired` | Clean up expired HITL requests. | None | `{ "cleaned_count": 5, "expired_requests": [] }` |
 
-**System Health:**
+**Audit Trail System:**
 
 | Method | Endpoint | Description | Request Body | Response Body |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/healthz` | Health check endpoint for system monitoring. | None | `{ "api_status": "ok", "db_status": "ok", "celery_status": "ok", "llm_status": "ok" }` |
+| `GET` | `/audit/events` | Get filtered audit events with pagination. | Query params: `event_type`, `start_date`, `end_date`, `limit`, `offset` | `{ "events": [], "total_count": 150, "page": 1, "page_size": 50 }` |
+| `GET` | `/audit/events/{event_id}` | Get specific audit event details. | None | `{ "event_id": "uuid", "event_type": "string", "timestamp": "datetime", "payload": {}, "metadata": {} }` |
+| `GET` | `/audit/projects/{project_id}/events` | Get project-specific audit events. | Query params: `event_type`, `limit`, `offset` | `{ "project_id": "uuid", "events": [], "count": 25 }` |
+| `GET` | `/audit/tasks/{task_id}/events` | Get task-specific audit events. | Query params: `limit`, `offset` | `{ "task_id": "uuid", "events": [], "count": 10 }` |
+
+**System Health & Monitoring:**
+
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Basic health check endpoint. | None | `{ "status": "healthy", "timestamp": "datetime" }` |
+| `GET` | `/health/detailed` | Detailed component health breakdown. | None | `{ "status": "healthy", "components": { "database": "healthy", "redis": "healthy", "celery": "healthy" }, "detail": "All systems operational" }` |
+| `GET` | `/health/ready` | Kubernetes readiness probe endpoint. | None | `{ "status": "ready", "services_ready": true }` |
+| `GET` | `/health/z` | Comprehensive healthz endpoint for orchestration. | None | `{ "status": "healthy", "components": {}, "timestamp": "datetime", "version": "string" }` |
+
+**Context Store:**
+
+| Method | Endpoint | Description | Request Body | Response Body |
+| :--- | :--- | :--- | :--- | :--- |
+| `GET` | `/context/project/{project_id}/artifacts` | Get all artifacts for a project. | None | `{ "artifacts": [{ "context_id": "uuid", "artifact_type": "string", "source_agent": "string", "created_at": "datetime" }] }` |
+| `GET` | `/context/artifacts/{artifact_id}` | Get specific artifact content. | None | `{ "context_id": "uuid", "project_id": "uuid", "source_agent": "string", "artifact_type": "string", "content": {}, "metadata": {} }` |
 
 #### **WebSocket Service (`/ws`)**
 

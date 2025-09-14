@@ -5,7 +5,7 @@ solely on event logging and audit trail management.
 """
 
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -78,7 +78,7 @@ class AuditService:
             # Add additional system metadata
             enriched_metadata = {
                 **(metadata or {}),
-                "logged_at": datetime.utcnow().isoformat(),
+                "logged_at": datetime.now(timezone.utc).isoformat(),
                 "service_version": "1.0.0"
             }
             

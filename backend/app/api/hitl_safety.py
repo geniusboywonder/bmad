@@ -1,0 +1,495 @@
+"""HITL Safety API endpoints for mandatory agent approval controls."""
+
+from typing import List, Optional
+from uuid import UUID
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.database.connection import get_session
+from app.services.hitl_safety_service import HITLSafetyService
+from app.database.models import HitlAgentApprovalDB, AgentBudgetControlDB, EmergencyStopDB
+from app.websocket.events import WebSocketEvent, EventType
+from app.websocket.manager import websocket_manager
+import structlog
+
+logger = structlog.get_logger(__name__)
+
+router = APIRouter(prefix="/api/v1/hitl-safety", tags=["hitl-safety"])
+
+
+class AgentExecutionRequest(BaseModel):
+    """Request model for agent execution approval."""
+    project_id: UUID
+    task_id: UUID
+    agent_type: str
+    instructions: str
+    estimated_tokens: Optional[int] = 100
+    context_ids: Optional[List[str]] = []
+
+
+class ApprovalResponse(BaseModel):
+    """Response model for approval decisions."""
+    approved: bool
+    response: Optional[str] = None
+    comment: Optional[str] = None
+
+
+class EmergencyStopRequest(BaseModel):
+    """Request model for emergency stop."""
+    project_id: Optional[UUID] = None
+    agent_type: Optional[str] = None
+    reason: str
+
+
+class BudgetControlUpdate(BaseModel):
+    """Request model for budget control updates."""
+    daily_token_limit: Optional[int] = None
+    session_token_limit: Optional[int] = None
+
+
+class HitlApprovalResponse(BaseModel):
+    """Response model for HITL approval requests."""
+    approval_id: UUID
+    project_id: UUID
+    task_id: UUID
+    agent_type: str
+    request_type: str
+    status: str
+    estimated_tokens: Optional[int]
+    estimated_cost: Optional[float]
+    expires_at: str
+    created_at: str
+    user_response: Optional[str] = None
+    user_comment: Optional[str] = None
+    responded_at: Optional[str] = None
+
+
+class BudgetControlResponse(BaseModel):
+    """Response model for budget controls."""
+    id: UUID
+    project_id: UUID
+    agent_type: str
+    daily_token_limit: int
+    session_token_limit: int
+    tokens_used_today: int
+    tokens_used_session: int
+    budget_reset_at: str
+    created_at: str
+    updated_at: str
+
+
+class EmergencyStopResponse(BaseModel):
+    """Response model for emergency stops."""
+    id: UUID
+    project_id: Optional[UUID]
+    agent_type: Optional[str]
+    stop_reason: str
+    triggered_by: str
+    active: bool
+    created_at: str
+    deactivated_at: Optional[str]
+
+
+@router.post("/request-agent-execution", response_model=dict)
+async def request_agent_execution(
+    request: AgentExecutionRequest,
+    db: Session = Depends(get_session)
+):
+    """Request permission to execute an agent with estimated costs."""
+
+    logger.info("Creating agent execution approval request",
+                project_id=str(request.project_id),
+                task_id=str(request.task_id),
+                agent_type=request.agent_type)
+
+    hitl_service = HITLSafetyService()
+
+    try:
+        approval_id = await hitl_service.create_approval_request(
+            project_id=request.project_id,
+            task_id=request.task_id,
+            agent_type=request.agent_type,
+            request_type="PRE_EXECUTION",
+            request_data={
+                "instructions": request.instructions,
+                "estimated_tokens": request.estimated_tokens,
+                "context_ids": request.context_ids
+            },
+            estimated_tokens=request.estimated_tokens
+        )
+
+        return {
+            "approval_id": str(approval_id),
+            "status": "awaiting_approval",
+            "message": "Approval request created. Human approval required before agent execution."
+        }
+
+    except Exception as e:
+        logger.error("Failed to create agent execution approval request",
+                    project_id=str(request.project_id),
+                    agent_type=request.agent_type,
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create approval request: {str(e)}"
+        )
+
+
+@router.post("/approve-agent-execution/{approval_id}", response_model=dict)
+async def approve_agent_execution(
+    approval_id: UUID,
+    approval: ApprovalResponse,
+    db: Session = Depends(get_session)
+):
+    """Approve or reject agent execution request."""
+
+    logger.info("Processing agent execution approval",
+                approval_id=str(approval_id),
+                approved=approval.approved)
+
+    hitl_service = HITLSafetyService()
+
+    try:
+        # Get the approval request
+        approval_record = db.query(HitlAgentApprovalDB).filter(
+            HitlAgentApprovalDB.id == approval_id
+        ).first()
+
+        if not approval_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Approval request {approval_id} not found"
+            )
+
+        if approval_record.status != "PENDING":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Approval request {approval_id} is not pending (current status: {approval_record.status})"
+            )
+
+        if approval_record.expires_at < datetime.utcnow():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Approval request {approval_id} has expired"
+            )
+
+        # Update the approval record
+        approval_record.status = "APPROVED" if approval.approved else "REJECTED"
+        approval_record.user_response = approval.response
+        approval_record.user_comment = approval.comment
+        approval_record.responded_at = datetime.utcnow()
+        db.commit()
+
+        # Broadcast approval decision
+        event = WebSocketEvent(
+            event_type=EventType.HITL_RESPONSE,
+            project_id=approval_record.project_id,
+            data={
+                "approval_id": str(approval_id),
+                "decision": approval_record.status,
+                "comment": approval.comment,
+                "agent_type": approval_record.agent_type,
+                "request_type": approval_record.request_type
+            }
+        )
+
+        await websocket_manager.broadcast_to_project(event, str(approval_record.project_id))
+
+        message = "Agent execution approved. Workflow will resume." if approval.approved else "Agent execution rejected. Workflow will be halted."
+
+        logger.info("Agent execution approval processed",
+                   approval_id=str(approval_id),
+                   decision=approval_record.status)
+
+        return {
+            "approval_id": str(approval_id),
+            "status": approval_record.status,
+            "message": message,
+            "workflow_resumed": approval.approved
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to process agent execution approval",
+                    approval_id=str(approval_id),
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process approval: {str(e)}"
+        )
+
+
+@router.post("/emergency-stop", response_model=dict)
+async def trigger_emergency_stop(
+    stop_request: EmergencyStopRequest,
+    db: Session = Depends(get_session)
+):
+    """Immediately stop all agents or specific agent types."""
+
+    logger.warning("Triggering emergency stop",
+                  project_id=str(stop_request.project_id) if stop_request.project_id else None,
+                  agent_type=stop_request.agent_type,
+                  reason=stop_request.reason)
+
+    hitl_service = HITLSafetyService()
+
+    try:
+        await hitl_service.trigger_emergency_stop(
+            project_id=stop_request.project_id,
+            agent_type=stop_request.agent_type,
+            reason=stop_request.reason,
+            triggered_by="USER"
+        )
+
+        return {
+            "status": "emergency_stop_activated",
+            "message": f"Emergency stop activated: {stop_request.reason}",
+            "project_id": str(stop_request.project_id) if stop_request.project_id else None,
+            "agent_type": stop_request.agent_type
+        }
+
+    except Exception as e:
+        logger.error("Failed to trigger emergency stop",
+                    project_id=str(stop_request.project_id) if stop_request.project_id else None,
+                    agent_type=stop_request.agent_type,
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to trigger emergency stop: {str(e)}"
+        )
+
+
+@router.delete("/emergency-stop/{stop_id}", response_model=dict)
+async def deactivate_emergency_stop(
+    stop_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Deactivate an emergency stop."""
+
+    logger.info("Deactivating emergency stop", stop_id=str(stop_id))
+
+    hitl_service = HITLSafetyService()
+
+    try:
+        await hitl_service.deactivate_emergency_stop(stop_id)
+
+        return {
+            "status": "emergency_stop_deactivated",
+            "message": f"Emergency stop {stop_id} has been deactivated",
+            "stop_id": str(stop_id)
+        }
+
+    except Exception as e:
+        logger.error("Failed to deactivate emergency stop",
+                    stop_id=str(stop_id),
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to deactivate emergency stop: {str(e)}"
+        )
+
+
+@router.get("/approvals/{approval_id}", response_model=HitlApprovalResponse)
+async def get_hitl_approval(
+    approval_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Get a specific HITL approval request."""
+
+    approval = db.query(HitlAgentApprovalDB).filter(
+        HitlAgentApprovalDB.id == approval_id
+    ).first()
+
+    if not approval:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"HITL approval {approval_id} not found"
+        )
+
+    return HitlApprovalResponse(
+        approval_id=approval.id,
+        project_id=approval.project_id,
+        task_id=approval.task_id,
+        agent_type=approval.agent_type,
+        request_type=approval.request_type,
+        status=approval.status,
+        estimated_tokens=approval.estimated_tokens,
+        estimated_cost=float(approval.estimated_cost) if approval.estimated_cost else None,
+        expires_at=approval.expires_at.isoformat(),
+        created_at=approval.created_at.isoformat(),
+        user_response=approval.user_response,
+        user_comment=approval.user_comment,
+        responded_at=approval.responded_at.isoformat() if approval.responded_at else None
+    )
+
+
+@router.get("/approvals/project/{project_id}", response_model=List[HitlApprovalResponse])
+async def get_project_hitl_approvals(
+    project_id: UUID,
+    status_filter: Optional[str] = None,
+    limit: int = 50,
+    db: Session = Depends(get_session)
+):
+    """Get HITL approval requests for a project."""
+
+    query = db.query(HitlAgentApprovalDB).filter(
+        HitlAgentApprovalDB.project_id == project_id
+    )
+
+    if status_filter:
+        query = query.filter(HitlAgentApprovalDB.status == status_filter)
+
+    approvals = query.order_by(HitlAgentApprovalDB.created_at.desc()).limit(limit).all()
+
+    return [
+        HitlApprovalResponse(
+            approval_id=approval.id,
+            project_id=approval.project_id,
+            task_id=approval.task_id,
+            agent_type=approval.agent_type,
+            request_type=approval.request_type,
+            status=approval.status,
+            estimated_tokens=approval.estimated_tokens,
+            estimated_cost=float(approval.estimated_cost) if approval.estimated_cost else None,
+            expires_at=approval.expires_at.isoformat(),
+            created_at=approval.created_at.isoformat(),
+            user_response=approval.user_response,
+            user_comment=approval.user_comment,
+            responded_at=approval.responded_at.isoformat() if approval.responded_at else None
+        )
+        for approval in approvals
+    ]
+
+
+@router.get("/budget/{project_id}/{agent_type}", response_model=BudgetControlResponse)
+async def get_budget_control(
+    project_id: UUID,
+    agent_type: str,
+    db: Session = Depends(get_session)
+):
+    """Get budget control for a project and agent type."""
+
+    budget = db.query(AgentBudgetControlDB).filter(
+        AgentBudgetControlDB.project_id == project_id,
+        AgentBudgetControlDB.agent_type == agent_type
+    ).first()
+
+    if not budget:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Budget control not found for project {project_id} and agent {agent_type}"
+        )
+
+    return BudgetControlResponse(
+        id=budget.id,
+        project_id=budget.project_id,
+        agent_type=budget.agent_type,
+        daily_token_limit=budget.daily_token_limit,
+        session_token_limit=budget.session_token_limit,
+        tokens_used_today=budget.tokens_used_today,
+        tokens_used_session=budget.tokens_used_session,
+        budget_reset_at=budget.budget_reset_at.isoformat(),
+        created_at=budget.created_at.isoformat(),
+        updated_at=budget.updated_at.isoformat()
+    )
+
+
+@router.put("/budget/{project_id}/{agent_type}", response_model=BudgetControlResponse)
+async def update_budget_control(
+    project_id: UUID,
+    agent_type: str,
+    updates: BudgetControlUpdate,
+    db: Session = Depends(get_session)
+):
+    """Update budget control limits."""
+
+    budget = db.query(AgentBudgetControlDB).filter(
+        AgentBudgetControlDB.project_id == project_id,
+        AgentBudgetControlDB.agent_type == agent_type
+    ).first()
+
+    if not budget:
+        # Create new budget control
+        budget = AgentBudgetControlDB(
+            project_id=project_id,
+            agent_type=agent_type
+        )
+        db.add(budget)
+
+    # Update fields
+    if updates.daily_token_limit is not None:
+        budget.daily_token_limit = updates.daily_token_limit
+    if updates.session_token_limit is not None:
+        budget.session_token_limit = updates.session_token_limit
+
+    budget.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(budget)
+
+    logger.info("Budget control updated",
+               project_id=str(project_id),
+               agent_type=agent_type,
+               daily_limit=budget.daily_token_limit,
+               session_limit=budget.session_token_limit)
+
+    return BudgetControlResponse(
+        id=budget.id,
+        project_id=budget.project_id,
+        agent_type=budget.agent_type,
+        daily_token_limit=budget.daily_token_limit,
+        session_token_limit=budget.session_token_limit,
+        tokens_used_today=budget.tokens_used_today,
+        tokens_used_session=budget.tokens_used_session,
+        budget_reset_at=budget.budget_reset_at.isoformat(),
+        created_at=budget.created_at.isoformat(),
+        updated_at=budget.updated_at.isoformat()
+    )
+
+
+@router.get("/emergency-stops", response_model=List[EmergencyStopResponse])
+async def get_active_emergency_stops(
+    project_id: Optional[UUID] = None,
+    db: Session = Depends(get_session)
+):
+    """Get all active emergency stops."""
+
+    query = db.query(EmergencyStopDB).filter(EmergencyStopDB.active == True)
+
+    if project_id:
+        query = query.filter(EmergencyStopDB.project_id == project_id)
+
+    stops = query.order_by(EmergencyStopDB.created_at.desc()).all()
+
+    return [
+        EmergencyStopResponse(
+            id=stop.id,
+            project_id=stop.project_id,
+            agent_type=stop.agent_type,
+            stop_reason=stop.stop_reason,
+            triggered_by=stop.triggered_by,
+            active=stop.active,
+            created_at=stop.created_at.isoformat(),
+            deactivated_at=stop.deactivated_at.isoformat() if stop.deactivated_at else None
+        )
+        for stop in stops
+    ]
+
+
+@router.get("/health", response_model=dict)
+async def hitl_safety_health_check():
+    """Health check for HITL safety system."""
+
+    return {
+        "status": "healthy",
+        "service": "hitl_safety",
+        "timestamp": datetime.utcnow().isoformat(),
+        "features": [
+            "mandatory_approval_controls",
+            "budget_limits",
+            "emergency_stop",
+            "real_time_notifications"
+        ]
+    }

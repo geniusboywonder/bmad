@@ -3,6 +3,7 @@
 from typing import Dict, Any, List, Optional
 from uuid import UUID
 import structlog
+from sqlalchemy.orm import Session
 
 from app.models.task import Task
 from app.models.context import ContextArtifact
@@ -27,15 +28,16 @@ class AgentService:
     - Error handling and recovery with comprehensive logging
     """
     
-    def __init__(self):
+    def __init__(self, db: Session):
         """Initialize agent service with factory and infrastructure dependencies."""
+        self.db = db
         self.agent_factory = get_agent_factory()
-        self.context_store = ContextStoreService()
+        self.context_store = ContextStoreService(db)
         self.agent_status_service = AgentStatusService()
-        
+
         # Register all agent classes with the factory
         self._register_all_agents()
-        
+
         logger.info("Agent service initialized with factory pattern integration")
     
     def _register_all_agents(self) -> None:
@@ -436,19 +438,3 @@ class AgentService:
             }
 
 
-# Global agent service instance
-_agent_service_instance = None
-
-
-def get_agent_service() -> AgentService:
-    """Get the global agent service instance.
-    
-    Returns:
-        Global AgentService instance
-    """
-    global _agent_service_instance
-    
-    if _agent_service_instance is None:
-        _agent_service_instance = AgentService()
-    
-    return _agent_service_instance

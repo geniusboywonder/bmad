@@ -44,6 +44,14 @@ class Settings(BaseSettings):
     llm_response_timeout: int = Field(default=30, env="LLM_RESPONSE_TIMEOUT")
     llm_max_response_size: int = Field(default=50000, env="LLM_MAX_RESPONSE_SIZE")
     llm_enable_usage_tracking: bool = Field(default=True, env="LLM_ENABLE_USAGE_TRACKING")
+
+    # HITL Safety Configuration
+    hitl_enabled: bool = Field(default=True, env="HITL_ENABLED")
+    hitl_approval_timeout_minutes: int = Field(default=30, env="HITL_APPROVAL_TIMEOUT_MINUTES")
+    hitl_budget_daily_limit: int = Field(default=10000, env="HITL_BUDGET_DAILY_LIMIT")
+    hitl_budget_session_limit: int = Field(default=2000, env="HITL_BUDGET_SESSION_LIMIT")
+    hitl_emergency_stop_enabled: bool = Field(default=True, env="HITL_EMERGENCY_STOP_ENABLED")
+    hitl_websocket_notifications: bool = Field(default=True, env="HITL_WEBSOCKET_NOTIFICATIONS")
     
     # Security
     secret_key: str = Field(env="SECRET_KEY")

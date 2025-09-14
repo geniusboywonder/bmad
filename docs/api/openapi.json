@@ -1,0 +1,3242 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BotArmy Backend",
+    "summary": "Complete backend API for BotArmy multi-agent system with HITL oversight and workflow orchestration",
+    "description": "BotArmy POC Backend Services - Multi-Agent Orchestration Platform",
+    "contact": {
+      "name": "BotArmy Development Team",
+      "url": "https://github.com/your-org/bmad"
+    },
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/projects/": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Project",
+        "description": "Create a new project.",
+        "operationId": "create_project_api_v1_projects__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/status": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project Status",
+        "description": "Get project status and tasks.",
+        "operationId": "get_project_status_api_v1_projects__project_id__status_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/tasks": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Task",
+        "description": "Create a new task for a project.",
+        "operationId": "create_task_api_v1_projects__project_id__tasks_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/completion": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project Completion Status",
+        "description": "Get detailed project completion status.",
+        "operationId": "get_project_completion_status_api_v1_projects__project_id__completion_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/check-completion": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Check Project Completion",
+        "description": "Check if project is complete and trigger completion if so.",
+        "operationId": "check_project_completion_api_v1_projects__project_id__check_completion_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/force-complete": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Force Project Completion",
+        "description": "Force project completion (admin function).",
+        "operationId": "force_project_completion_api_v1_projects__project_id__force_complete_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/{request_id}/respond": {
+      "post": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Respond To Hitl Request",
+        "description": "Respond to a HITL request with approve, reject, or amend actions.",
+        "operationId": "respond_to_hitl_request_api_v1_hitl__request_id__respond_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HitlResponseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitlProcessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/{request_id}": {
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Hitl Request",
+        "description": "Get a specific HITL request.",
+        "operationId": "get_hitl_request_api_v1_hitl__request_id__get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitlRequestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/{request_id}/history": {
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Hitl Request History",
+        "description": "Get the history of a HITL request.",
+        "operationId": "get_hitl_request_history_api_v1_hitl__request_id__history_get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Hitl Request History Api V1 Hitl  Request Id  History Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/project/{project_id}/requests": {
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Project Hitl Requests",
+        "description": "Get all HITL requests for a project.",
+        "operationId": "get_project_hitl_requests_api_v1_hitl_project__project_id__requests_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "status_filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status Filter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HitlRequestResponse"
+                  },
+                  "title": "Response Get Project Hitl Requests Api V1 Hitl Project  Project Id  Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/bulk/approve": {
+      "post": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Bulk Approve Hitl Requests",
+        "description": "Bulk approve multiple HITL requests.",
+        "operationId": "bulk_approve_hitl_requests_api_v1_hitl_bulk_approve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HitlBulkApproveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitlBulkResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/{request_id}/context": {
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Hitl Request Context",
+        "description": "Get full context for a HITL request including artifacts and task details.",
+        "operationId": "get_hitl_request_context_api_v1_hitl__request_id__context_get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitlContextResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/statistics": {
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Hitl Statistics",
+        "description": "Get HITL statistics for monitoring and analytics.",
+        "operationId": "get_hitl_statistics_api_v1_hitl_statistics_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HitlStatisticsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/config/trigger-condition": {
+      "post": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Configure Hitl Trigger Condition",
+        "description": "Configure a HITL trigger condition.",
+        "operationId": "configure_hitl_trigger_condition_api_v1_hitl_config_trigger_condition_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HitlConfigUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Configure Hitl Trigger Condition Api V1 Hitl Config Trigger Condition Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/project/{project_id}/oversight-level": {
+      "post": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Set Project Oversight Level",
+        "description": "Set oversight level for a project.",
+        "operationId": "set_project_oversight_level_api_v1_hitl_project__project_id__oversight_level_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OversightLevelUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Set Project Oversight Level Api V1 Hitl Project  Project Id  Oversight Level Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Project Oversight Level",
+        "description": "Get oversight level for a project.",
+        "operationId": "get_project_oversight_level_api_v1_hitl_project__project_id__oversight_level_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Project Oversight Level Api V1 Hitl Project  Project Id  Oversight Level Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/cleanup-expired": {
+      "post": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Cleanup Expired Hitl Requests",
+        "description": "Clean up expired HITL requests.",
+        "operationId": "cleanup_expired_hitl_requests_api_v1_hitl_cleanup_expired_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Cleanup Expired Hitl Requests Api V1 Hitl Cleanup Expired Post"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hitl/pending": {
+      "get": {
+        "tags": [
+          "hitl"
+        ],
+        "summary": "Get Pending Hitl Requests",
+        "description": "Get pending HITL requests with optional project filtering.",
+        "operationId": "get_pending_hitl_requests_api_v1_hitl_pending_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HitlRequestResponse"
+                  },
+                  "title": "Response Get Pending Hitl Requests Api V1 Hitl Pending Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health Check",
+        "description": "Basic health check endpoint.",
+        "operationId": "health_check_health__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/detailed": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Detailed Health Check",
+        "description": "Detailed health check with component status.",
+        "operationId": "detailed_health_check_health_detailed_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness Check",
+        "description": "Readiness check for Kubernetes/container orchestration.",
+        "operationId": "readiness_check_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/z": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Healthz Endpoint",
+        "description": "Kubernetes-style /healthz endpoint for comprehensive service monitoring.\n\nThis endpoint provides a comprehensive health check suitable for\nKubernetes liveness probes and external monitoring systems.",
+        "operationId": "healthz_endpoint_health_z_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/status": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get All Agent Statuses",
+        "description": "Get current status of all agents.",
+        "operationId": "get_all_agent_statuses_api_v1_agents_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/AgentStatusModel"
+                  },
+                  "type": "object",
+                  "title": "Response Get All Agent Statuses Api V1 Agents Status Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/status/{agent_type}": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent Status",
+        "description": "Get current status of a specific agent.",
+        "operationId": "get_agent_status_api_v1_agents_status__agent_type__get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgentType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentStatusModel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/status-history/{agent_type}": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent Status History",
+        "description": "Get status history for a specific agent from database.",
+        "operationId": "get_agent_status_history_api_v1_agents_status_history__agent_type__get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgentType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents/status/{agent_type}/reset": {
+      "post": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Reset Agent Status",
+        "description": "Reset agent status to idle (admin function).",
+        "operationId": "reset_agent_status_api_v1_agents_status__agent_type__reset_post",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AgentType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/{project_id}/generate": {
+      "post": {
+        "tags": [
+          "artifacts"
+        ],
+        "summary": "Generate Project Artifacts",
+        "description": "Generate downloadable artifacts for a completed project.",
+        "operationId": "generate_project_artifacts_api_v1_artifacts__project_id__generate_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactGenerationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/{project_id}/summary": {
+      "get": {
+        "tags": [
+          "artifacts"
+        ],
+        "summary": "Get Project Artifact Summary",
+        "description": "Get summary of available artifacts for a project.",
+        "operationId": "get_project_artifact_summary_api_v1_artifacts__project_id__summary_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/{project_id}/download": {
+      "get": {
+        "tags": [
+          "artifacts"
+        ],
+        "summary": "Download Project Artifacts",
+        "description": "Download project artifacts as a ZIP file.",
+        "operationId": "download_project_artifacts_api_v1_artifacts__project_id__download_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/{project_id}/artifacts": {
+      "delete": {
+        "tags": [
+          "artifacts"
+        ],
+        "summary": "Cleanup Project Artifacts",
+        "description": "Clean up generated artifacts for a project.",
+        "operationId": "cleanup_project_artifacts_api_v1_artifacts__project_id__artifacts_delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/cleanup-old": {
+      "post": {
+        "tags": [
+          "artifacts"
+        ],
+        "summary": "Cleanup Old Artifacts",
+        "description": "Clean up old artifact files (admin endpoint).",
+        "operationId": "cleanup_old_artifacts_api_v1_artifacts_cleanup_old_post",
+        "parameters": [
+          {
+            "name": "max_age_hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 24,
+              "title": "Max Age Hours"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/events": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Audit Events",
+        "description": "Retrieve filtered audit events.\n\nReturns a list of audit events based on the provided filters.\nEvents are ordered by creation time (newest first).",
+        "operationId": "get_audit_events_api_v1_audit_events_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Filter by project ID",
+              "title": "Project Id"
+            },
+            "description": "Filter by project ID"
+          },
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Filter by task ID",
+              "title": "Task Id"
+            },
+            "description": "Filter by task ID"
+          },
+          {
+            "name": "hitl_request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Filter by HITL request ID",
+              "title": "Hitl Request Id"
+            },
+            "description": "Filter by HITL request ID"
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/EventType",
+              "description": "Filter by event type"
+            },
+            "description": "Filter by event type"
+          },
+          {
+            "name": "event_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/EventSource",
+              "description": "Filter by event source"
+            },
+            "description": "Filter by event source"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "description": "Maximum number of events to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of events to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of events to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of events to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventLogResponse"
+                  },
+                  "title": "Response Get Audit Events Api V1 Audit Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/events/{event_id}": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Audit Event",
+        "description": "Retrieve a specific audit event by ID.",
+        "operationId": "get_audit_event_api_v1_audit_events__event_id__get",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLogResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/projects/{project_id}/events": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Project Audit Events",
+        "description": "Retrieve audit events for a specific project.\n\nReturns all audit events associated with the given project ID.",
+        "operationId": "get_project_audit_events_api_v1_audit_projects__project_id__events_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/EventType",
+              "description": "Filter by event type"
+            },
+            "description": "Filter by event type"
+          },
+          {
+            "name": "event_source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/EventSource",
+              "description": "Filter by event source"
+            },
+            "description": "Filter by event source"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "description": "Maximum number of events to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of events to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of events to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of events to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventLogResponse"
+                  },
+                  "title": "Response Get Project Audit Events Api V1 Audit Projects  Project Id  Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audit/tasks/{task_id}/events": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "Get Task Audit Events",
+        "description": "Retrieve audit events for a specific task.\n\nReturns all audit events associated with the given task ID.",
+        "operationId": "get_task_audit_events_api_v1_audit_tasks__task_id__events_get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "event_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/EventType",
+              "description": "Filter by event type"
+            },
+            "description": "Filter by event type"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "description": "Maximum number of events to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum number of events to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of events to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of events to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventLogResponse"
+                  },
+                  "title": "Response Get Task Audit Events Api V1 Audit Tasks  Task Id  Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/templates": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "List Templates",
+        "description": "List all available templates.\n\nReturns:\n    List of template metadata",
+        "operationId": "list_templates_api_v1_workflows_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Templates Api V1 Workflows Templates Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/templates/{template_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Template Metadata",
+        "description": "Get metadata for a specific template.\n\nArgs:\n    template_id: ID of the template\n\nReturns:\n    Template metadata",
+        "operationId": "get_template_metadata_api_v1_workflows_templates__template_id__get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/templates/render": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Render Template",
+        "description": "Render a template with provided variables.\n\nArgs:\n    request: Template render request\n\nReturns:\n    Rendered template content",
+        "operationId": "render_template_api_v1_workflows_templates_render_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/templates/validate": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Validate Template Variables",
+        "description": "Validate variables for a template without rendering.\n\nArgs:\n    request: Template validation request\n\nReturns:\n    Validation results",
+        "operationId": "validate_template_variables_api_v1_workflows_templates_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateRenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/workflows": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "List Workflows",
+        "description": "List all available workflows.\n\nReturns:\n    List of workflow metadata",
+        "operationId": "list_workflows_api_v1_workflows_workflows_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Workflows Api V1 Workflows Workflows Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/workflows/{workflow_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflow Metadata",
+        "description": "Get metadata for a specific workflow.\n\nArgs:\n    workflow_id: ID of the workflow\n\nReturns:\n    Workflow metadata",
+        "operationId": "get_workflow_metadata_api_v1_workflows_workflows__workflow_id__get",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/workflows/execute": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Start Workflow Execution",
+        "description": "Start execution of a workflow.\n\nArgs:\n    request: Workflow execution request\n\nReturns:\n    Workflow execution details",
+        "operationId": "start_workflow_execution_api_v1_workflows_workflows_execute_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowExecutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/workflows/advance": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Advance Workflow Execution",
+        "description": "Advance workflow execution to the next step.\n\nArgs:\n    request: Workflow advance request\n\nReturns:\n    Updated execution status",
+        "operationId": "advance_workflow_execution_api_v1_workflows_workflows_advance_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowAdvanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/executions/{execution_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflow Execution Status",
+        "description": "Get the current status of a workflow execution.\n\nArgs:\n    execution_id: ID of the workflow execution\n\nReturns:\n    Execution status information",
+        "operationId": "get_workflow_execution_status_api_v1_workflows_executions__execution_id__get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/executions/{execution_id}/handoff": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Generate Handoff",
+        "description": "Generate a handoff for agent transition.\n\nArgs:\n    execution_id: ID of the workflow execution\n    request: Handoff generation request\n\nReturns:\n    Generated handoff information",
+        "operationId": "generate_handoff_api_v1_workflows_executions__execution_id__handoff_post",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandoffGenerationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/executions/{execution_id}/validate": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Validate Workflow Execution",
+        "description": "Validate the current state of a workflow execution.\n\nArgs:\n    execution_id: ID of the workflow execution\n\nReturns:\n    Validation results",
+        "operationId": "validate_workflow_execution_api_v1_workflows_executions__execution_id__validate_get",
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/teams": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "List Agent Teams",
+        "description": "List all available agent teams.\n\nReturns:\n    List of team metadata",
+        "operationId": "list_agent_teams_api_v1_workflows_teams_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response List Agent Teams Api V1 Workflows Teams Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/teams/{team_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Team Metadata",
+        "description": "Get metadata for a specific agent team.\n\nArgs:\n    team_id: ID of the team\n\nReturns:\n    Team metadata",
+        "operationId": "get_team_metadata_api_v1_workflows_teams__team_id__get",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/teams/compatible/{workflow_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Compatible Teams",
+        "description": "Get agent teams compatible with a specific workflow.\n\nArgs:\n    workflow_id: ID of the workflow\n\nReturns:\n    List of compatible teams",
+        "operationId": "get_compatible_teams_api_v1_workflows_teams_compatible__workflow_id__get",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/teams/{team_id}/validate": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Validate Team Composition",
+        "description": "Validate the composition of an agent team.\n\nArgs:\n    team_id: ID of the team\n\nReturns:\n    Validation results",
+        "operationId": "validate_team_composition_api_v1_workflows_teams__team_id__validate_get",
+        "parameters": [
+          {
+            "name": "team_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Team Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/cache/clear": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Clear All Caches",
+        "description": "Clear all service caches.\n\nReturns:\n    Cache clearing status",
+        "operationId": "clear_all_caches_api_v1_workflows_cache_clear_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/health": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Bmad Core Health",
+        "description": "Get health status of BMAD Core services.\n\nReturns:\n    Health status information",
+        "operationId": "get_bmad_core_health_api_v1_workflows_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentStatus": {
+        "type": "string",
+        "enum": [
+          "idle",
+          "working",
+          "waiting_for_hitl",
+          "error"
+        ],
+        "title": "AgentStatus",
+        "description": "Agent status enumeration."
+      },
+      "AgentStatusModel": {
+        "properties": {
+          "agent_type": {
+            "$ref": "#/components/schemas/AgentType",
+            "description": "Type of agent"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AgentStatus",
+            "description": "Current agent status",
+            "default": "idle"
+          },
+          "current_task_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Task Id",
+            "description": "Currently assigned task ID"
+          },
+          "last_activity": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Activity",
+            "description": "Last activity timestamp"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message if status is error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type"
+        ],
+        "title": "AgentStatusModel",
+        "description": "Tracks the real-time status of each agent."
+      },
+      "AgentType": {
+        "type": "string",
+        "enum": [
+          "orchestrator",
+          "analyst",
+          "architect",
+          "coder",
+          "tester",
+          "deployer"
+        ],
+        "title": "AgentType",
+        "description": "Agent type enumeration."
+      },
+      "ArtifactGenerationResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "artifact_count": {
+            "type": "integer",
+            "title": "Artifact Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "status",
+          "message",
+          "artifact_count"
+        ],
+        "title": "ArtifactGenerationResponse",
+        "description": "Response model for artifact generation."
+      },
+      "ArtifactSummaryResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "project_name": {
+            "type": "string",
+            "title": "Project Name"
+          },
+          "artifact_count": {
+            "type": "integer",
+            "title": "Artifact Count"
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At"
+          },
+          "download_available": {
+            "type": "boolean",
+            "title": "Download Available"
+          },
+          "artifacts": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Artifacts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "project_name",
+          "artifact_count",
+          "generated_at",
+          "download_available",
+          "artifacts"
+        ],
+        "title": "ArtifactSummaryResponse",
+        "description": "Response model for artifact summary."
+      },
+      "EventLogResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "hitl_request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hitl Request Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "event_source": {
+            "type": "string",
+            "title": "Event Source"
+          },
+          "event_data": {
+            "type": "object",
+            "title": "Event Data"
+          },
+          "event_metadata": {
+            "type": "object",
+            "title": "Event Metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "task_id",
+          "hitl_request_id",
+          "event_type",
+          "event_source",
+          "event_data",
+          "event_metadata",
+          "created_at"
+        ],
+        "title": "EventLogResponse",
+        "description": "Event log response model."
+      },
+      "EventSource": {
+        "type": "string",
+        "enum": [
+          "agent",
+          "user",
+          "system",
+          "webhook",
+          "scheduler"
+        ],
+        "title": "EventSource",
+        "description": "Event sources for audit trail."
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "task_created",
+          "task_started",
+          "task_completed",
+          "task_failed",
+          "task_cancelled",
+          "hitl_request_created",
+          "hitl_response",
+          "hitl_timeout",
+          "hitl_cancelled",
+          "agent_status_changed",
+          "agent_error",
+          "project_created",
+          "project_completed",
+          "project_cancelled",
+          "system_error",
+          "system_warning",
+          "webhook_received"
+        ],
+        "title": "EventType",
+        "description": "Event types for audit trail."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HandoffGenerationRequest": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id",
+            "description": "ID of the workflow execution"
+          },
+          "from_agent": {
+            "type": "string",
+            "title": "From Agent",
+            "description": "Agent handing off"
+          },
+          "to_agent": {
+            "type": "string",
+            "title": "To Agent",
+            "description": "Agent receiving handoff"
+          },
+          "context_data": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Data",
+            "description": "Additional context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_id",
+          "from_agent",
+          "to_agent"
+        ],
+        "title": "HandoffGenerationRequest",
+        "description": "Request model for handoff generation."
+      },
+      "HitlAction": {
+        "type": "string",
+        "enum": [
+          "approve",
+          "reject",
+          "amend"
+        ],
+        "title": "HitlAction",
+        "description": "HITL response action enumeration."
+      },
+      "HitlBulkApproveRequest": {
+        "properties": {
+          "request_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Request Ids"
+          },
+          "comment": {
+            "type": "string",
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_ids",
+          "comment"
+        ],
+        "title": "HitlBulkApproveRequest",
+        "description": "Request model for bulk HITL approval."
+      },
+      "HitlBulkResponse": {
+        "properties": {
+          "approved_count": {
+            "type": "integer",
+            "title": "Approved Count"
+          },
+          "failed_count": {
+            "type": "integer",
+            "title": "Failed Count"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved_count",
+          "failed_count",
+          "errors",
+          "message"
+        ],
+        "title": "HitlBulkResponse",
+        "description": "Response model for bulk HITL operations."
+      },
+      "HitlConfigUpdateRequest": {
+        "properties": {
+          "trigger_condition": {
+            "type": "string",
+            "title": "Trigger Condition"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger_condition",
+          "enabled"
+        ],
+        "title": "HitlConfigUpdateRequest",
+        "description": "Request model for HITL configuration updates."
+      },
+      "HitlContextResponse": {
+        "properties": {
+          "hitl_request": {
+            "$ref": "#/components/schemas/HitlRequestResponse"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "context_artifacts": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Context Artifacts",
+            "default": []
+          },
+          "workflow_context": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Context"
+          },
+          "project_info": {
+            "type": "object",
+            "title": "Project Info"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hitl_request",
+          "project_info"
+        ],
+        "title": "HitlContextResponse",
+        "description": "Response model for HITL request context."
+      },
+      "HitlProcessResponse": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "workflow_resumed": {
+            "type": "boolean",
+            "title": "Workflow Resumed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "action",
+          "status",
+          "message",
+          "workflow_resumed"
+        ],
+        "title": "HitlProcessResponse",
+        "description": "Response model for HITL processing."
+      },
+      "HitlRequestResponse": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Task Id"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "user_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Response"
+          },
+          "response_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response Comment"
+          },
+          "amended_content": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amended Content"
+          },
+          "history": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "responded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responded At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "project_id",
+          "task_id",
+          "question",
+          "options",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "HitlRequestResponse",
+        "description": "Response model for HITL requests."
+      },
+      "HitlResponseRequest": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/HitlAction"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "HitlResponseRequest",
+        "description": "Request model for HITL responses."
+      },
+      "HitlStatisticsResponse": {
+        "properties": {
+          "total_requests": {
+            "type": "integer",
+            "title": "Total Requests"
+          },
+          "pending_requests": {
+            "type": "integer",
+            "title": "Pending Requests"
+          },
+          "approved_requests": {
+            "type": "integer",
+            "title": "Approved Requests"
+          },
+          "rejected_requests": {
+            "type": "integer",
+            "title": "Rejected Requests"
+          },
+          "amended_requests": {
+            "type": "integer",
+            "title": "Amended Requests"
+          },
+          "expired_requests": {
+            "type": "integer",
+            "title": "Expired Requests"
+          },
+          "approval_rate": {
+            "type": "number",
+            "title": "Approval Rate"
+          },
+          "average_response_time_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Response Time Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_requests",
+          "pending_requests",
+          "approved_requests",
+          "rejected_requests",
+          "amended_requests",
+          "expired_requests",
+          "approval_rate"
+        ],
+        "title": "HitlStatisticsResponse",
+        "description": "Response model for HITL statistics."
+      },
+      "OversightLevelUpdateRequest": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level"
+        ],
+        "title": "OversightLevelUpdateRequest",
+        "description": "Request model for oversight level updates."
+      },
+      "ProjectCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ProjectCreateRequest",
+        "description": "Request model for creating a project."
+      },
+      "ProjectResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "ProjectResponse",
+        "description": "Response model for project data."
+      },
+      "TaskCreateRequest": {
+        "properties": {
+          "agent_type": {
+            "type": "string",
+            "title": "Agent Type"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions"
+          },
+          "context_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Context Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type",
+          "instructions"
+        ],
+        "title": "TaskCreateRequest",
+        "description": "Request model for creating a task."
+      },
+      "TemplateRenderRequest": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id",
+            "description": "ID of the template to render"
+          },
+          "variables": {
+            "type": "object",
+            "title": "Variables",
+            "description": "Variable values for substitution"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Format",
+            "description": "Desired output format"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "variables"
+        ],
+        "title": "TemplateRenderRequest",
+        "description": "Request model for template rendering."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkflowAdvanceRequest": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id",
+            "description": "ID of the workflow execution"
+          },
+          "current_agent": {
+            "type": "string",
+            "title": "Current Agent",
+            "description": "Name of the agent that completed"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result",
+            "description": "Result data from agent"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "Error message if failed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_id",
+          "current_agent"
+        ],
+        "title": "WorkflowAdvanceRequest",
+        "description": "Request model for advancing workflow execution."
+      },
+      "WorkflowExecutionRequest": {
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id",
+            "description": "ID of the workflow to execute"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id",
+            "description": "ID of the project"
+          },
+          "context_data": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Data",
+            "description": "Additional context data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "project_id"
+        ],
+        "title": "WorkflowExecutionRequest",
+        "description": "Request model for workflow execution."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "projects",
+      "description": "Project lifecycle management and task orchestration"
+    },
+    {
+      "name": "hitl",
+      "description": "Human-in-the-Loop oversight and approval workflows"
+    },
+    {
+      "name": "agents",
+      "description": "Real-time agent status monitoring and management"
+    },
+    {
+      "name": "artifacts",
+      "description": "Project artifact generation and download management"
+    },
+    {
+      "name": "workflows",
+      "description": "BMAD Core template system and workflow orchestration"
+    },
+    {
+      "name": "audit",
+      "description": "Comprehensive audit trail and event logging system"
+    },
+    {
+      "name": "health",
+      "description": "System health monitoring and service status checks"
+    }
+  ]
+}

@@ -111,7 +111,11 @@ bmad/
 ```
 backend/
 ├── alembic/                # Database migration management
-│   └── env.py             # Alembic environment configuration
+│   ├── versions/           # Database migration scripts
+│   │   ├── 001_initial_tables.py        # Initial database schema (Task 0)
+│   │   └── 004_add_event_log_table.py   # Event log table for audit trail
+│   ├── env.py             # Alembic environment configuration
+│   └── alembic.ini        # Alembic configuration file
 ├── app/                   # Main application package
 │   ├── api/               # REST API endpoints
 │   │   ├── __init__.py
@@ -119,40 +123,52 @@ backend/
 │   │   ├── artifacts.py   # Artifact management endpoints
 │   │   ├── dependencies.py # FastAPI dependency injection
 │   │   ├── health.py      # Health check endpoints
-│   │   ├── hitl.py        # Human-in-the-loop endpoints
+│   │   ├── hitl.py        # Human-in-the-loop endpoints (Task 6)
+│   │   ├── hitl_request_endpoints.py # HITL request management (Task 6)
 │   │   ├── projects.py    # Project management endpoints
 │   │   └── websocket.py   # WebSocket endpoint handlers
 │   ├── database/          # Database layer
 │   │   ├── __init__.py
-│   │   ├── connection.py  # Database connection management
-│   │   └── models.py      # SQLAlchemy ORM models
+│   │   ├── connection.py  # Database connection management with session handling
+│   │   └── models.py      # SQLAlchemy ORM models with HITL safety architecture
 │   ├── models/            # Pydantic data models
 │   │   ├── __init__.py
-│   │   ├── agent.py       # Agent data models
-│   │   ├── context.py     # Context data models
-│   │   ├── handoff.py     # Handoff data models
-│   │   ├── hitl.py        # HITL data models
-│   │   ├── task.py        # Task data models
+│   │   ├── agent.py       # Agent data models with status enumeration
+│   │   ├── context.py     # Context data models with artifact types
+│   │   ├── handoff.py     # Enhanced handoff data models with priority and status
+│   │   ├── hitl.py        # HITL data models with safety controls and history (Task 6)
+│   │   ├── task.py        # Task data models with enhanced validation (Task 4)
 │   │   ├── template.py    # Template data models (Task 3)
-│   │   └── workflow.py    # Workflow data models (Task 3)
+│   │   ├── workflow.py    # Workflow data models with execution state (Task 5)
+│   │   └── workflow_state.py # Workflow state management models (Task 5)
 │   ├── schemas/           # API request/response schemas
 │   │   ├── __init__.py
 │   │   ├── handoff.py     # Handoff schemas
 │   │   └── hitl.py        # HITL schemas
 │   ├── services/          # Business logic services
 │   │   ├── __init__.py
+│   │   ├── agent_service.py        # Agent service with factory pattern and dependency injection
 │   │   ├── agent_status_service.py # Agent status management
 │   │   ├── artifact_service.py     # Artifact management
+│   │   ├── audit_service.py        # Audit trail and event logging (Task 0)
 │   │   ├── autogen_service.py      # AutoGen integration (enhanced with reliability features)
-│   │   ├── context_store.py        # Context storage service
+│   │   ├── context_store.py        # Context storage service with database integration
+│   │   ├── hitl_service.py         # Comprehensive HITL service (Task 6 - Completed)
+│   │   ├── hitl_trigger_manager.py # HITL trigger condition management (Task 6)
 │   │   ├── llm_monitoring.py       # LLM usage tracking and cost monitoring (Task 1)
 │   │   ├── llm_retry.py           # Exponential backoff retry logic (Task 1)
 │   │   ├── llm_validation.py      # Response validation and sanitization (Task 1)
-│   │   ├── orchestrator.py         # Main orchestration service
-│   │   └── project_completion_service.py # Project lifecycle
-│   ├── tasks/             # Celery task definitions
+│   │   ├── orchestrator.py         # Enhanced orchestration service with dynamic workflows
+│   │   ├── project_completion_service.py # Project lifecycle management
+│   │   ├── workflow_engine.py      # Complete workflow execution engine (Task 5 - Completed)
+│   │   ├── workflow_execution_manager.py # Workflow execution coordination (Task 5)
+│   │   ├── workflow_service.py     # Workflow definition loading and management (Task 5)
+│   │   ├── workflow_step_processor.py # Workflow step execution (Task 5)
+│   │   ├── workflow_persistence_manager.py # Workflow state persistence (Task 5)
+│   │   └── workflow_hitl_integrator.py # Workflow HITL integration (Task 5)
+│   ├── tasks/             # Celery task definitions (Task 4 Enhanced)
 │   │   ├── __init__.py
-│   │   ├── agent_tasks.py # Agent-related async tasks
+│   │   ├── agent_tasks.py # Real agent execution with LLM integration
 │   │   └── celery_app.py  # Celery application setup
 │   ├── websocket/         # WebSocket management
 │   │   ├── __init__.py
@@ -178,6 +194,7 @@ backend/
 │   │   └── test_sprint3_api_integration.py
 │   ├── unit/              # Unit tests
 │   │   ├── test_agent_status_service.py
+│   │   ├── test_agent_tasks.py      # Real agent task processing tests (Task 4)
 │   │   ├── test_artifact_service.py
 │   │   ├── test_context_persistence.py
 │   │   ├── test_context_persistence_sprint2.py
@@ -191,6 +208,7 @@ backend/
 │   ├── test_health.py     # Health endpoint tests
 │   └── README.md          # Test documentation
 ├── venv/                  # Python virtual environment
+├── .env.test              # Test environment configuration (Task 0)
 ├── docker-compose.dev.yml # Development Docker composition
 ├── docker-compose.yml     # Production Docker composition
 ├── install_deps.py        # Dependency installation script
@@ -206,11 +224,13 @@ backend/
 ```
 docs/
 ├── architecture/          # System architecture documentation
+│   ├── HITL-AGENT-SAFETY-ARCHITECTURE.md # HITL safety architecture and mandatory controls
+│   ├── HITL_ARCHITECTURE.md              # HITL system architecture documentation
 │   ├── ALL_FIXES_SUMMARY.md
 │   ├── FINAL_STATUS.md
 │   ├── FIXES_APPLIED.md
 │   ├── TROUBLESHOOTING.md
-│   ├── architecture.md    # Main architecture document
+│   ├── architecture.md    # Main architecture document (updated with Tasks 4-6)
 │   ├── autogen_dependency_issue.md
 │   ├── bmad-APIContract.md # API contract specification
 │   ├── bmad-FrontendComponentsStates.md
@@ -225,6 +245,11 @@ docs/
 │   ├── SPRINT2_COMPLETION_SUMMARY.md
 │   ├── SPRINT2_OUTSTANDING_WORK.md
 │   ├── SPRINT3_COMPLETION_SUMMARY.md
+│   ├── Task0-InfrastructureSetup.md     # Infrastructure foundation (Task 0 - Completed)
+│   ├── task4-Replace-Agent-Task-Simulation.md # Real agent processing (Task 4 - Completed)
+│   ├── task5-Implement-Workflow.md      # Workflow orchestration engine (Task 5 - Completed)
+│   ├── task5-Complete.md                # Task 5 completion documentation
+│   ├── task6-Implement-Human-in-the-Loop.md # HITL system (Task 6 - Completed)
 │   ├── bmad-Epic1-ProjectLifecycleOrch.md
 │   ├── bmad-Epic2-Human-in-the-Loop.md
 │   ├── bmad-Epic3-DataStateManagement.md
@@ -235,7 +260,10 @@ docs/
 │   ├── epics.md           # Epic definitions
 │   ├── stories.md         # User story collection
 │   └── task[1-11]-*.md    # Individual task specifications
-├── CHANGELOG.md           # Project change history
+├── TASK4-TestFailures.md  # Test failure analysis document for architectural fixes
+├── TASK3-TESTS-FIXED.md   # Task 3 test corrections documentation
+├── genericprompts.md       # Generic prompt templates for agent interactions
+├── CHANGELOG.md           # Project change history (updated with Tasks 4-6)
 ├── CODEPROTOCOL.md        # Development workflow protocol
 ├── SOLID.md               # SOLID principles guide
 └── STYLEGUIDE.md          # Code style guidelines

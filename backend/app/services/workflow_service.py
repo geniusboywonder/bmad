@@ -8,7 +8,7 @@ with agent orchestration and handoff management.
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from ..utils.yaml_parser import YAMLParser, ParserError
@@ -129,7 +129,7 @@ class WorkflowService:
                 execution_id=execution_id,
                 status=WorkflowExecutionState.PENDING,
                 context_data=context_data or {},
-                started_at=datetime.utcnow().isoformat()
+                started_at=datetime.now(timezone.utc).isoformat()
             )
 
             # Initialize execution steps
@@ -211,7 +211,7 @@ class WorkflowService:
             raise ValueError(f"No running step found for agent '{current_agent}' in execution '{execution_id}'")
 
         # Update step status
-        current_step.completed_at = datetime.utcnow().isoformat()
+        current_step.completed_at = datetime.now(timezone.utc).isoformat()
         if error_message:
             current_step.status = WorkflowExecutionState.FAILED
             current_step.error_message = error_message
@@ -224,7 +224,7 @@ class WorkflowService:
             # Check if all steps are completed
             if all(step.status == WorkflowExecutionState.COMPLETED for step in execution.steps):
                 execution.status = WorkflowExecutionState.COMPLETED
-                execution.completed_at = datetime.utcnow().isoformat()
+                execution.completed_at = datetime.now(timezone.utc).isoformat()
 
         # Update execution in cache
         if self._cache_enabled:

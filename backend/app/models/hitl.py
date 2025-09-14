@@ -13,6 +13,7 @@ class HitlStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     AMENDED = "amended"
+    EXPIRED = "expired"
 
 
 class HitlAction(str, Enum):

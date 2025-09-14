@@ -1,6 +1,7 @@
 """Health check API endpoints."""
 
 import time
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -49,14 +50,21 @@ async def check_llm_providers():
         except Exception as e:
             error_msg = str(e)
             error_type = "connection_error"
-            
-            # Classify error types
-            if "api key" in error_msg.lower() or "unauthorized" in error_msg.lower():
+
+            # Get the exception type name for better classification
+            exception_type = type(e).__name__
+
+            # Classify error types based on both message and exception type
+            if "api key" in error_msg.lower() or "unauthorized" in error_msg.lower() or "auth" in error_msg.lower():
                 error_type = "authentication_error"
-            elif "rate limit" in error_msg.lower():
+            elif "rate limit" in error_msg.lower() or "quota" in error_msg.lower():
                 error_type = "rate_limit_error"
-            elif "timeout" in error_msg.lower():
+            elif ("timeout" in error_msg.lower() or
+                  "timed out" in error_msg.lower() or
+                  exception_type in ["TimeoutError", "ConnectTimeout", "ReadTimeout", "Timeout"]):
                 error_type = "timeout_error"
+            elif exception_type in ["ConnectionError", "ConnectError", "HTTPError"]:
+                error_type = "connection_error"
             
             providers_status["openai"] = {
                 "status": "unhealthy",
@@ -173,14 +181,14 @@ async def detailed_health_check(db: Session = Depends(get_session)):
         if health_status["status"] == "healthy":
             health_status["status"] = "degraded"
     
-    # Return appropriate status code
+    # Return appropriate status code with standardized format
     if health_status["status"] == "unhealthy":
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=health_status
         )
-    
-    return health_status
+
+    return {"detail": health_status}
 
 
 @router.get("/ready", status_code=status.HTTP_200_OK)
@@ -277,7 +285,7 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
             "status": "healthy" if healthy_services == total_services else "degraded",
             "service": "BotArmy Backend",
             "version": settings.app_version,
-            "timestamp": "2024-09-13T12:00:00Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {
                 "database": "pass" if checks["database"] else "fail",
                 "redis": "pass" if checks["redis"] else "fail", 

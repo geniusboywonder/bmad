@@ -34,8 +34,47 @@ logger = structlog.get_logger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="BotArmy POC Backend Services",
-    debug=settings.debug
+    description="BotArmy POC Backend Services - Multi-Agent Orchestration Platform",
+    summary="Complete backend API for BotArmy multi-agent system with HITL oversight and workflow orchestration",
+    debug=settings.debug,
+    contact={
+        "name": "BotArmy Development Team",
+        "url": "https://github.com/your-org/bmad",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=[
+        {
+            "name": "projects",
+            "description": "Project lifecycle management and task orchestration",
+        },
+        {
+            "name": "hitl",
+            "description": "Human-in-the-Loop oversight and approval workflows",
+        },
+        {
+            "name": "agents",
+            "description": "Real-time agent status monitoring and management",
+        },
+        {
+            "name": "artifacts",
+            "description": "Project artifact generation and download management",
+        },
+        {
+            "name": "workflows",
+            "description": "BMAD Core template system and workflow orchestration",
+        },
+        {
+            "name": "audit",
+            "description": "Comprehensive audit trail and event logging system",
+        },
+        {
+            "name": "health",
+            "description": "System health monitoring and service status checks",
+        },
+    ]
 )
 
 # Add CORS middleware

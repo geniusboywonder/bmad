@@ -1,8 +1,8 @@
 """Human-in-the-Loop (HITL) API endpoints."""
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -57,6 +57,53 @@ class HitlProcessResponse(BaseModel):
     workflow_resumed: bool
 
 
+class HitlBulkApproveRequest(BaseModel):
+    """Request model for bulk HITL approval."""
+    request_ids: List[UUID]
+    comment: str
+
+
+class HitlBulkResponse(BaseModel):
+    """Response model for bulk HITL operations."""
+    approved_count: int
+    failed_count: int
+    errors: List[str]
+    message: str
+
+
+class HitlContextResponse(BaseModel):
+    """Response model for HITL request context."""
+    hitl_request: HitlRequestResponse
+    task: Optional[dict] = None
+    context_artifacts: List[dict] = []
+    workflow_context: Optional[dict] = None
+    project_info: dict
+
+
+class HitlStatisticsResponse(BaseModel):
+    """Response model for HITL statistics."""
+    total_requests: int
+    pending_requests: int
+    approved_requests: int
+    rejected_requests: int
+    amended_requests: int
+    expired_requests: int
+    approval_rate: float
+    average_response_time_hours: Optional[float] = None
+
+
+class HitlConfigUpdateRequest(BaseModel):
+    """Request model for HITL configuration updates."""
+    trigger_condition: str
+    enabled: bool
+    config: Optional[Dict[str, Any]] = None
+
+
+class OversightLevelUpdateRequest(BaseModel):
+    """Request model for oversight level updates."""
+    level: str  # "high", "medium", "low"
+
+
 @router.post("/{request_id}/respond", response_model=HitlProcessResponse)
 async def respond_to_hitl_request(
     request_id: UUID,
@@ -87,7 +134,7 @@ async def respond_to_hitl_request(
     
     # 2. Create history entry
     history_entry = HitlHistoryEntry(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         action=request.action.value,
         content={"user_content": request.content} if request.content else None,
         comment=request.comment
@@ -123,13 +170,13 @@ async def respond_to_hitl_request(
     
     # Set the response comment and responded timestamp
     hitl_request.response_comment = request.comment
-    hitl_request.responded_at = datetime.utcnow()
+    hitl_request.responded_at = datetime.now(timezone.utc)
     
     # Add history entry
     if not hitl_request.history:
         hitl_request.history = []
     hitl_request.history.append(history_entry.model_dump(mode="json"))
-    hitl_request.updated_at = datetime.utcnow()
+    hitl_request.updated_at = datetime.now(timezone.utc)
     
     db.commit()
     db.refresh(hitl_request)
@@ -153,7 +200,7 @@ async def respond_to_hitl_request(
         metadata={
             "endpoint": "/hitl/{request_id}/respond",
             "user_action": request.action.value,
-            "request_timestamp": datetime.utcnow().isoformat()
+            "request_timestamp": datetime.now(timezone.utc).isoformat()
         }
     )
     
@@ -305,3 +352,273 @@ async def emit_hitl_response_event(hitl_request: HitlRequestDB, action: HitlActi
                     request_id=hitl_request.id,
                     error=str(e),
                     exc_info=True)
+
+
+@router.post("/bulk/approve", response_model=HitlBulkResponse)
+async def bulk_approve_hitl_requests(
+    request: HitlBulkApproveRequest,
+    db: Session = Depends(get_session)
+):
+    """Bulk approve multiple HITL requests."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        result = await hitl_service.bulk_approve_requests(
+            request_ids=request.request_ids,
+            comment=request.comment
+        )
+
+        return HitlBulkResponse(**result)
+
+    except Exception as e:
+        logger.error("Bulk HITL approval failed", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bulk approval failed: {str(e)}"
+        )
+
+
+@router.get("/{request_id}/context", response_model=HitlContextResponse)
+async def get_hitl_request_context(
+    request_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Get full context for a HITL request including artifacts and task details."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        context = await hitl_service.get_hitl_request_context(request_id)
+
+        # Convert to API response format
+        return HitlContextResponse(
+            hitl_request=HitlRequestResponse(
+                request_id=context["hitl_request"].request_id,
+                project_id=context["hitl_request"].project_id,
+                task_id=context["hitl_request"].task_id,
+                question=context["hitl_request"].question,
+                options=context["hitl_request"].options,
+                status=context["hitl_request"].status.value,
+                user_response=context["hitl_request"].user_response,
+                response_comment=context["hitl_request"].response_comment,
+                amended_content=context["hitl_request"].amended_content,
+                history=[entry.model_dump() for entry in context["hitl_request"].history],
+                created_at=context["hitl_request"].created_at.isoformat(),
+                updated_at=context["hitl_request"].updated_at.isoformat(),
+                expires_at=context["hitl_request"].expires_at.isoformat() if context["hitl_request"].expires_at else None,
+                responded_at=context["hitl_request"].responded_at.isoformat() if context["hitl_request"].responded_at else None
+            ),
+            task=context.get("task"),
+            context_artifacts=context.get("context_artifacts", []),
+            workflow_context=context.get("workflow_context"),
+            project_info=context.get("project_info", {})
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Failed to get HITL request context", request_id=request_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get context: {str(e)}"
+        )
+
+
+@router.get("/statistics", response_model=HitlStatisticsResponse)
+async def get_hitl_statistics(
+    project_id: Optional[UUID] = None,
+    db: Session = Depends(get_session)
+):
+    """Get HITL statistics for monitoring and analytics."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        stats = await hitl_service.get_hitl_statistics(project_id)
+        return HitlStatisticsResponse(**stats)
+
+    except Exception as e:
+        logger.error("Failed to get HITL statistics", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get statistics: {str(e)}"
+        )
+
+
+@router.post("/config/trigger-condition", response_model=dict)
+async def configure_hitl_trigger_condition(
+    request: HitlConfigUpdateRequest,
+    db: Session = Depends(get_session)
+):
+    """Configure a HITL trigger condition."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        hitl_service.configure_trigger_condition(
+            condition=request.trigger_condition,
+            enabled=request.enabled,
+            config=request.config
+        )
+
+        return {
+            "message": f"HITL trigger condition '{request.trigger_condition}' configured successfully",
+            "condition": request.trigger_condition,
+            "enabled": request.enabled
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Failed to configure HITL trigger condition",
+                    condition=request.trigger_condition,
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Configuration failed: {str(e)}"
+        )
+
+
+@router.post("/project/{project_id}/oversight-level", response_model=dict)
+async def set_project_oversight_level(
+    project_id: UUID,
+    request: OversightLevelUpdateRequest,
+    db: Session = Depends(get_session)
+):
+    """Set oversight level for a project."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        hitl_service.set_oversight_level(project_id, request.level)
+
+        return {
+            "message": f"Oversight level set to '{request.level}' for project",
+            "project_id": str(project_id),
+            "oversight_level": request.level
+        }
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error("Failed to set oversight level",
+                    project_id=str(project_id),
+                    level=request.level,
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to set oversight level: {str(e)}"
+        )
+
+
+@router.get("/project/{project_id}/oversight-level", response_model=dict)
+async def get_project_oversight_level(
+    project_id: UUID,
+    db: Session = Depends(get_session)
+):
+    """Get oversight level for a project."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        level = hitl_service.get_oversight_level(project_id)
+
+        return {
+            "project_id": str(project_id),
+            "oversight_level": level
+        }
+
+    except Exception as e:
+        logger.error("Failed to get oversight level",
+                    project_id=str(project_id),
+                    error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get oversight level: {str(e)}"
+        )
+
+
+@router.post("/cleanup-expired", response_model=dict)
+async def cleanup_expired_hitl_requests(
+    db: Session = Depends(get_session)
+):
+    """Clean up expired HITL requests."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        cleaned_count = await hitl_service.cleanup_expired_requests()
+
+        return {
+            "message": f"Cleaned up {cleaned_count} expired HITL requests",
+            "expired_requests_cleaned": cleaned_count
+        }
+
+    except Exception as e:
+        logger.error("Failed to cleanup expired HITL requests", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Cleanup failed: {str(e)}"
+        )
+
+
+@router.get("/pending", response_model=List[HitlRequestResponse])
+async def get_pending_hitl_requests(
+    project_id: Optional[UUID] = None,
+    limit: int = 50,
+    db: Session = Depends(get_session)
+):
+    """Get pending HITL requests with optional project filtering."""
+    from app.services.hitl_service import HitlService
+
+    hitl_service = HitlService(db)
+
+    try:
+        pending_requests = await hitl_service.get_pending_hitl_requests(
+            project_id=project_id,
+            limit=limit
+        )
+
+        return [
+            HitlRequestResponse(
+                request_id=req.request_id,
+                project_id=req.project_id,
+                task_id=req.task_id,
+                question=req.question,
+                options=req.options,
+                status=req.status.value,
+                user_response=req.user_response,
+                response_comment=req.response_comment,
+                amended_content=req.amended_content,
+                history=[entry.model_dump() for entry in req.history],
+                created_at=req.created_at.isoformat(),
+                updated_at=req.updated_at.isoformat(),
+                expires_at=req.expires_at.isoformat() if req.expires_at else None,
+                responded_at=req.responded_at.isoformat() if req.responded_at else None
+            )
+            for req in pending_requests
+        ]
+
+    except Exception as e:
+        logger.error("Failed to get pending HITL requests", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get pending requests: {str(e)}"
+        )

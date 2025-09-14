@@ -9,7 +9,7 @@ from app.models.task import Task, TaskStatus
 from app.models.context import ContextArtifact, ArtifactType
 from app.models.handoff import HandoffSchema
 from app.models.agent import AgentType
-from app.services.agent_service import AgentService, get_agent_service
+from app.services.agent_service import AgentService
 from app.agents.factory import get_agent_factory
 
 

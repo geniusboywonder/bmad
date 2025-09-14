@@ -13,6 +13,9 @@ from app.models.agent import AgentType
 from app.services.llm_validation import LLMResponseValidator
 from app.services.llm_retry import LLMRetryHandler, RetryConfig
 from app.services.llm_monitoring import LLMUsageTracker
+from app.services.hitl_safety_service import HITLSafetyService, ApprovalTimeoutError
+from app.database.models import ResponseApprovalDB
+from app.services.response_safety_analyzer import ResponseSafetyAnalyzer
 from app.config import settings
 
 logger = structlog.get_logger(__name__)
@@ -54,10 +57,13 @@ class BaseAgent(ABC):
             enable_tracking=settings.llm_enable_usage_tracking
         )
         
+        # HITL Safety Service for mandatory controls
+        self.hitl_service = HITLSafetyService()
+
         # AutoGen agent instance (initialized by subclasses)
         self.autogen_agent: Optional[AssistantAgent] = None
-        
-        logger.info("Base agent initialized", 
+
+        logger.info("Base agent initialized",
                    agent_type=agent_type.value,
                    llm_model=llm_config.get("model", "unknown"))
     
@@ -349,9 +355,230 @@ class BaseAgent(ABC):
         
         return "\n".join(context_parts)
     
+    async def execute_with_hitl_control(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Execute agent task with mandatory HITL approval at each step.
+
+        This method implements the core HITL safety architecture requiring:
+        1. Pre-execution approval from human
+        2. Response approval before proceeding
+        3. Next step authorization
+        4. Budget verification
+
+        Args:
+            task: Task to execute
+            context: List of context artifacts
+
+        Returns:
+            Execution result with HITL safety controls applied
+
+        Raises:
+            AgentExecutionDenied: When human denies agent execution
+            BudgetLimitExceeded: When budget limits are exceeded
+            EmergencyStopActivated: When emergency stop is active
+            ApprovalTimeoutError: When approval requests timeout
+        """
+        from app.services.hitl_safety_service import (
+            AgentExecutionDenied,
+            BudgetLimitExceeded,
+            EmergencyStopActivated
+        )
+
+        logger.info("Starting agent execution with HITL controls",
+                   agent_type=self.agent_type.value,
+                   task_id=str(task.task_id),
+                   project_id=str(task.project_id))
+
+        try:
+            # Step 1: Request permission to execute
+            execution_approval = await self._request_execution_approval(task)
+            if not execution_approval:
+                raise AgentExecutionDenied("Human rejected agent execution")
+
+            # Step 2: Check budget limits
+            estimated_tokens = getattr(task, 'estimated_tokens', 100)
+            budget_check = await self.hitl_service.check_budget_limits(
+                task.project_id, self.agent_type.value, estimated_tokens
+            )
+            if not budget_check.approved:
+                raise BudgetLimitExceeded(f"Budget limit exceeded: {budget_check.reason}")
+
+            # Step 3: Execute task with monitoring
+            result = await self._execute_with_hitl_monitoring(task, context)
+
+            # Step 4: Request approval for response
+            response_approval = await self._request_response_approval(task, result)
+            if not response_approval:
+                # Human rejected the response - return termination result
+                return self._create_termination_result("Human rejected agent response")
+
+            # Step 5: Check if next step is needed and request approval
+            if self._has_next_step(result):
+                next_step_approval = await self._request_next_step_approval(task, result)
+                if not next_step_approval:
+                    return self._create_termination_result("Human stopped workflow progression")
+
+            # Update budget usage
+            tokens_used = result.get('tokens_used', estimated_tokens)
+            await self.hitl_service.update_budget_usage(
+                task.project_id, self.agent_type.value, tokens_used
+            )
+
+            logger.info("Agent execution completed with HITL approval",
+                       agent_type=self.agent_type.value,
+                       task_id=str(task.task_id),
+                       tokens_used=tokens_used)
+
+            return result
+
+        except (AgentExecutionDenied, BudgetLimitExceeded, EmergencyStopActivated, ApprovalTimeoutError):
+            # Re-raise HITL-specific exceptions
+            raise
+        except Exception as e:
+            logger.error("Unexpected error during HITL-controlled execution",
+                        agent_type=self.agent_type.value,
+                        task_id=str(task.task_id),
+                        error=str(e))
+            raise
+
+    async def _request_execution_approval(self, task: Task) -> bool:
+        """Request human approval before executing agent."""
+        try:
+            approval_id = await self.hitl_service.create_approval_request(
+                project_id=task.project_id,
+                task_id=task.task_id,
+                agent_type=self.agent_type.value,
+                request_type="PRE_EXECUTION",
+                request_data={
+                    "instructions": task.instructions,
+                    "estimated_tokens": getattr(task, 'estimated_tokens', 100),
+                    "context_ids": getattr(task, 'context_ids', []),
+                    "agent_type": self.agent_type.value
+                },
+                estimated_tokens=getattr(task, 'estimated_tokens', 100)
+            )
+
+            # Wait for human approval
+            approval = await self.hitl_service.wait_for_approval(approval_id, timeout_minutes=30)
+            return approval.approved
+
+        except ApprovalTimeoutError:
+            logger.warning("Execution approval request timed out",
+                          agent_type=self.agent_type.value,
+                          task_id=str(task.task_id))
+            return False
+
+    async def _request_response_approval(self, task: Task, result: Dict[str, Any]) -> bool:
+        """Request human approval for agent response with advanced safety analysis."""
+        try:
+            # First, analyze the response for safety and quality
+            analysis_result = await self.hitl_service.analyze_agent_response(
+                project_id=task.project_id,
+                task_id=task.task_id,
+                agent_type=self.agent_type.value,
+                approval_request_id=None,  # Will be set when approval is created
+                response_content=result
+            )
+
+            # If response is auto-approved based on safety analysis, skip human approval
+            if analysis_result.get("auto_approved", False):
+                logger.info("Response auto-approved based on safety analysis",
+                           agent_type=self.agent_type.value,
+                           task_id=str(task.task_id),
+                           safety_score=analysis_result.get("analysis_result", {}).get("content_safety_score", 0))
+                return True
+
+            # Create approval request with safety analysis data
+            approval_id = await self.hitl_service.create_approval_request(
+                project_id=task.project_id,
+                task_id=task.task_id,
+                agent_type=self.agent_type.value,
+                request_type="RESPONSE_APPROVAL",
+                request_data={
+                    "agent_response": result.get('output', ''),
+                    "artifacts": result.get('artifacts', []),
+                    "confidence_score": result.get('confidence', 0.0),
+                    "tokens_used": result.get('tokens_used', 0),
+                    "status": result.get('status', 'unknown'),
+                    "safety_analysis": analysis_result.get("analysis_result", {}),
+                    "auto_approved": analysis_result.get("auto_approved", False),
+                    "requires_manual_review": analysis_result.get("requires_manual_review", True)
+                }
+            )
+
+            # Update the response approval record with the approval request ID
+            if analysis_result.get("response_approval_id"):
+                from app.database.connection import get_session
+                db = next(get_session())
+                try:
+                    # Convert string UUID to UUID object for database query
+                    response_approval_uuid = UUID(analysis_result["response_approval_id"])
+                    db.query(ResponseApprovalDB).filter(
+                        ResponseApprovalDB.id == response_approval_uuid
+                    ).update({
+                        "approval_request_id": approval_id
+                    })
+                    db.commit()
+                finally:
+                    db.close()
+
+            approval = await self.hitl_service.wait_for_approval(approval_id, timeout_minutes=15)
+            return approval.approved
+
+        except ApprovalTimeoutError:
+            logger.warning("Response approval request timed out",
+                          agent_type=self.agent_type.value,
+                          task_id=str(task.task_id))
+            return False
+
+    async def _request_next_step_approval(self, task: Task, result: Dict[str, Any]) -> bool:
+        """Request approval before proceeding to next workflow step."""
+        try:
+            approval_id = await self.hitl_service.create_approval_request(
+                project_id=task.project_id,
+                task_id=task.task_id,
+                agent_type=self.agent_type.value,
+                request_type="NEXT_STEP",
+                request_data={
+                    "current_output": result.get('output', ''),
+                    "proposed_next_action": result.get('next_action', ''),
+                    "workflow_status": result.get('workflow_status', ''),
+                    "completion_percentage": result.get('completion_percentage', 0)
+                }
+            )
+
+            approval = await self.hitl_service.wait_for_approval(approval_id, timeout_minutes=10)
+            return approval.approved
+
+        except ApprovalTimeoutError:
+            logger.warning("Next step approval request timed out",
+                          agent_type=self.agent_type.value,
+                          task_id=str(task.task_id))
+            return False
+
+    async def _execute_with_hitl_monitoring(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Execute task with HITL monitoring and emergency stop checks."""
+        # This is a placeholder - subclasses should override this or use execute_task
+        return await self.execute_task(task, context)
+
+    def _has_next_step(self, result: Dict[str, Any]) -> bool:
+        """Check if the result indicates a next step is needed."""
+        return result.get('has_next_step', False) or result.get('next_action', '') != ''
+
+    def _create_termination_result(self, reason: str) -> Dict[str, Any]:
+        """Create a termination result when workflow is stopped."""
+        return {
+            "status": "terminated",
+            "output": f"Workflow terminated: {reason}",
+            "artifacts": [],
+            "confidence": 0.0,
+            "tokens_used": 0,
+            "termination_reason": reason,
+            "agent_type": self.agent_type.value
+        }
+
     def get_agent_info(self) -> Dict[str, Any]:
         """Get agent information and status.
-        
+
         Returns:
             Dictionary with agent type, status, and configuration
         """
@@ -362,6 +589,7 @@ class BaseAgent(ABC):
             "reliability_features": {
                 "validator": self.response_validator is not None,
                 "retry_handler": self.retry_handler is not None,
-                "usage_tracker": self.usage_tracker is not None
+                "usage_tracker": self.usage_tracker is not None,
+                "hitl_service": self.hitl_service is not None
             }
         }
