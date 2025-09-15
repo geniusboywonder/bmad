@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-09-15T09:43:59.863498",
+  "global_flags": {
+    "adk_migration_enabled": true,
+    "rollback_mode": true,
+    "emergency_stop": false
+  },
+  "agent_flags": {
+    "analyst_adk_enabled": true,
+    "architect_adk_enabled": false,
+    "developer_adk_enabled": false,
+    "tester_adk_enabled": false,
+    "deployer_adk_enabled": false
+  },
+  "rollout_flags": {
+    "canary_percentage": 0,
+    "user_whitelist": [],
+    "project_whitelist": [],
+    "gradual_rollout_schedule": {}
+  },
+  "monitoring_flags": {
+    "performance_monitoring": true,
+    "error_tracking": true,
+    "audit_logging": true,
+    "real_time_alerts": true
+  }
+}
