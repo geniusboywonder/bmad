@@ -70,7 +70,7 @@ class TestSprintFourFullWorkflowE2E:
                 mock_project.id = project_id
                 mock_project.name = project_setup["name"]
                 mock_project.status = "active"
-                mock_project.created_at = datetime.utcnow()
+                mock_project.created_at = datetime.now(timezone.utc)
                 mock_project_db.return_value = mock_project
                 mock_db.add.return_value = None
                 mock_db.commit.return_value = None
@@ -98,7 +98,7 @@ class TestSprintFourFullWorkflowE2E:
                 mock_task.project_id = project_id
                 mock_task.agent_type = AgentType.CODER.value
                 mock_task.status = TaskStatus.PENDING
-                mock_task.created_at = datetime.utcnow()
+                mock_task.created_at = datetime.now(timezone.utc)
                 mock_task_db.return_value = mock_task
                 
                 response = client.post(f"/api/v1/projects/{project_id}/tasks", json={
@@ -121,7 +121,7 @@ class TestSprintFourFullWorkflowE2E:
                 mock_hitl_request.task_id = task_id
                 mock_hitl_request.question = "Please review the generated code"
                 mock_hitl_request.status = HitlStatus.PENDING
-                mock_hitl_request.created_at = datetime.utcnow()
+                mock_hitl_request.created_at = datetime.now(timezone.utc)
                 mock_hitl_request.options = ["approve", "reject", "amend"]
                 mock_hitl_request.history = []
                 mock_hitl_db.return_value = mock_hitl_request
@@ -168,7 +168,7 @@ class TestSprintFourFullWorkflowE2E:
                     event_type=AuditEventType.TASK_CREATED.value,
                     event_source=EventSource.SYSTEM.value,
                     event_data={"test": "data"},
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 ) for _ in range(100)
             ]
             mock_audit_instance.get_events.return_value = mock_events
@@ -353,14 +353,14 @@ class TestSprintFourFullWorkflowE2E:
                     "error_code": "EXECUTION_ERROR",
                     "stack_trace": "Full error stack trace here",
                     "retry_count": 3,
-                    "failed_at": datetime.utcnow().isoformat()
+                    "failed_at": datetime.now(timezone.utc).isoformat()
                 },
                 metadata={
-                    "logged_at": datetime.utcnow().isoformat(),
+                    "logged_at": datetime.now(timezone.utc).isoformat(),
                     "service_version": "1.0.0",
                     "endpoint": "/api/v1/tasks/execute"
                 },
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
             
             mock_audit_instance.get_event_by_id.return_value = mock_event

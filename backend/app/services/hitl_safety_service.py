@@ -2,7 +2,7 @@
 
 from typing import Dict, Any, Optional, List
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import asyncio
 import structlog
@@ -100,7 +100,7 @@ class HITLSafetyService:
             request_data=request_data,
             estimated_tokens=estimated_tokens,
             estimated_cost=estimated_cost,
-            expires_at=datetime.utcnow() + timedelta(minutes=timeout_minutes)
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
         )
 
         db = next(get_session())
@@ -130,12 +130,12 @@ class HITLSafetyService:
     ) -> ApprovalResult:
         """Wait for human approval with timeout."""
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         timeout_time = start_time + timedelta(minutes=timeout_minutes)
 
         db = next(get_session())
         try:
-            while datetime.utcnow() < timeout_time:
+            while datetime.now(timezone.utc) < timeout_time:
                 # Check for emergency stops
                 if await self._is_emergency_stopped():
                     raise EmergencyStopActivated("Emergency stop is active")
@@ -236,7 +236,7 @@ class HITLSafetyService:
             if budget:
                 budget.tokens_used_today += tokens_used
                 budget.tokens_used_session += tokens_used
-                budget.updated_at = datetime.utcnow()
+                budget.updated_at = datetime.now(timezone.utc)
                 db.commit()
 
                 logger.info("Budget usage updated",
@@ -311,7 +311,7 @@ class HITLSafetyService:
 
             if stop and stop.active:
                 stop.active = False
-                stop.deactivated_at = datetime.utcnow()
+                stop.deactivated_at = datetime.now(timezone.utc)
                 db.commit()
 
                 # Remove from active stops
@@ -386,7 +386,7 @@ class HITLSafetyService:
     async def _reset_budget_counters_if_needed(self, budget: AgentBudgetControlDB, db: Session):
         """Reset budget counters if needed (daily reset)."""
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         budget_reset_date = budget.budget_reset_at.date()
         today = now.date()
 
@@ -468,7 +468,7 @@ class HITLSafetyService:
             budget.daily_token_limit = max(100, budget.daily_token_limit // 2)
             budget.session_token_limit = max(50, budget.session_token_limit // 2)
             budget.emergency_stop_enabled = True
-            budget.updated_at = datetime.utcnow()
+            budget.updated_at = datetime.now(timezone.utc)
             db.commit()
 
             logger.warning("Budget limits reduced due to emergency stop",
@@ -497,8 +497,8 @@ class HITLSafetyService:
                 from app.models.task import TaskStatus
                 task.status = TaskStatus.CANCELLED
                 task.error_message = f"Task cancelled due to emergency stop: {stop.stop_reason}"
-                task.completed_at = datetime.utcnow()
-                task.updated_at = datetime.utcnow()
+                task.completed_at = datetime.now(timezone.utc)
+                task.updated_at = datetime.now(timezone.utc)
                 cancelled_count += 1
 
                 logger.info("Task cancelled due to emergency stop",
@@ -528,7 +528,7 @@ class HITLSafetyService:
                 "triggered_by": stop.triggered_by,
                 "budget_based": budget_based,
                 "task_cancellation": task_cancellation,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
 
@@ -614,7 +614,7 @@ class HITLSafetyService:
             error_triggered = query.filter(EmergencyStopDB.triggered_by == "ERROR").count()
 
             # Get recent stops (last 24 hours)
-            yesterday = datetime.utcnow() - timedelta(hours=24)
+            yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
             recent_stops = query.filter(EmergencyStopDB.created_at >= yesterday).count()
 
             return {
@@ -652,8 +652,8 @@ class HITLSafetyService:
             from app.models.task import TaskStatus
             task.status = TaskStatus.CANCELLED
             task.error_message = f"Task cancelled due to emergency stop: {reason}"
-            task.completed_at = datetime.utcnow()
-            task.updated_at = datetime.utcnow()
+            task.completed_at = datetime.now(timezone.utc)
+            task.updated_at = datetime.now(timezone.utc)
             db.commit()
 
             # Cancel any pending approvals for this task
@@ -668,7 +668,7 @@ class HITLSafetyService:
                 approval.status = "REJECTED"
                 approval.user_response = f"Approval cancelled due to emergency stop: {reason}"
                 approval.user_comment = "Automatically rejected due to emergency stop"
-                approval.responded_at = datetime.utcnow()
+                approval.responded_at = datetime.now(timezone.utc)
 
             if pending_approvals:
                 db.commit()
@@ -780,8 +780,8 @@ class HITLSafetyService:
             response_approval.status = "APPROVED" if approved else "REJECTED"
             response_approval.approved_by = approved_by
             response_approval.approval_reason = approval_reason
-            response_approval.approved_at = datetime.utcnow()
-            response_approval.updated_at = datetime.utcnow()
+            response_approval.approved_at = datetime.now(timezone.utc)
+            response_approval.updated_at = datetime.now(timezone.utc)
 
             # Update the main approval request if this is the final decision
             main_approval = db.query(HitlAgentApprovalDB).filter(
@@ -792,7 +792,7 @@ class HITLSafetyService:
                 main_approval.status = response_approval.status
                 main_approval.user_response = approval_reason
                 main_approval.user_comment = f"Response {'approved' if approved else 'rejected'} by {approved_by}"
-                main_approval.responded_at = datetime.utcnow()
+                main_approval.responded_at = datetime.now(timezone.utc)
 
             db.commit()
 

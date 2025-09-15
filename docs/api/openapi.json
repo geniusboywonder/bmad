@@ -2249,6 +2249,1174 @@
           }
         }
       }
+    },
+    "/api/v1/adk/agents/create": {
+      "post": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Create ADK Agent",
+        "description": "Create a new ADK-powered agent instance with specified configuration.\n\nThis endpoint creates an agent using the ADK (Agent Development Kit) framework,\nproviding enhanced capabilities and enterprise controls.",
+        "operationId": "create_adk_agent_api_v1_adk_agents_create_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ADKAgentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKAgentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Get ADK Agent",
+        "description": "Get details of a specific ADK agent instance.",
+        "operationId": "get_adk_agent_api_v1_adk_agents__agent_id__get",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKAgentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Delete ADK Agent",
+        "description": "Delete an ADK agent instance and clean up resources.",
+        "operationId": "delete_adk_agent_api_v1_adk_agents__agent_id__delete",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKAgentDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/agents": {
+      "get": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "List ADK Agents",
+        "description": "List all active ADK agent instances with their status and configuration.",
+        "operationId": "list_adk_agents_api_v1_adk_agents_get",
+        "parameters": [
+          {
+            "name": "agent_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AgentType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Type"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ADKAgentResponse"
+                  },
+                  "title": "Response List Adk Agents Api V1 Adk Agents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/rollout/config": {
+      "get": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Get ADK Rollout Configuration",
+        "description": "Get current ADK rollout configuration and percentages for each agent type.",
+        "operationId": "get_adk_rollout_config_api_v1_adk_rollout_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKRolloutConfigResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Update ADK Rollout Configuration",
+        "description": "Update ADK rollout percentages for different agent types.\n\nThis allows gradual rollout of ADK features with user-based consistency.",
+        "operationId": "update_adk_rollout_config_api_v1_adk_rollout_config_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ADKRolloutConfigUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKRolloutConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/orchestration/workflows": {
+      "post": {
+        "tags": [
+          "adk-orchestration"
+        ],
+        "summary": "Create Multi-Agent Workflow",
+        "description": "Create a collaborative workflow with multiple ADK agents.\n\nThis endpoint initiates a GroupChat-based workflow where multiple agents\ncollaborate on complex tasks using structured handoffs and context sharing.",
+        "operationId": "create_multi_agent_workflow_api_v1_adk_orchestration_workflows_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultiAgentWorkflowRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiAgentWorkflowResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "adk-orchestration"
+        ],
+        "summary": "List Active Workflows",
+        "description": "List all active multi-agent workflows with their current status.",
+        "operationId": "list_active_workflows_api_v1_adk_orchestration_workflows_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MultiAgentWorkflowResponse"
+                  },
+                  "title": "Response List Active Workflows Api V1 Adk Orchestration Workflows Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/orchestration/workflows/{workflow_id}": {
+      "get": {
+        "tags": [
+          "adk-orchestration"
+        ],
+        "summary": "Get Workflow Status",
+        "description": "Get detailed status and progress of a specific multi-agent workflow.",
+        "operationId": "get_workflow_status_api_v1_adk_orchestration_workflows__workflow_id__get",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MultiAgentWorkflowStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "adk-orchestration"
+        ],
+        "summary": "Terminate Workflow",
+        "description": "Terminate an active multi-agent workflow and clean up resources.",
+        "operationId": "terminate_workflow_api_v1_adk_orchestration_workflows__workflow_id__delete",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowTerminationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/orchestration/analysis": {
+      "post": {
+        "tags": [
+          "adk-orchestration"
+        ],
+        "summary": "Execute Collaborative Analysis",
+        "description": "Execute a collaborative analysis using multiple ADK agents.\n\nThis endpoint triggers a structured analysis workflow where agents work\ntogether to provide comprehensive insights and recommendations.",
+        "operationId": "execute_collaborative_analysis_api_v1_adk_orchestration_analysis_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollaborativeAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollaborativeAnalysisResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/handoffs": {
+      "post": {
+        "tags": [
+          "adk-handoff"
+        ],
+        "summary": "Create Agent Handoff",
+        "description": "Create a structured handoff between two ADK agents.\n\nThis endpoint establishes a formal handoff with context preservation,\nvalidation, and progress tracking between agents in a workflow.",
+        "operationId": "create_agent_handoff_api_v1_adk_handoffs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentHandoffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentHandoffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "adk-handoff"
+        ],
+        "summary": "List Active Handoffs",
+        "description": "List all active agent handoffs with their current status.",
+        "operationId": "list_active_handoffs_api_v1_adk_handoffs_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentHandoffResponse"
+                  },
+                  "title": "Response List Active Handoffs Api V1 Adk Handoffs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/handoffs/{handoff_id}": {
+      "get": {
+        "tags": [
+          "adk-handoff"
+        ],
+        "summary": "Get Handoff Status",
+        "description": "Get detailed status and progress of a specific agent handoff.",
+        "operationId": "get_handoff_status_api_v1_adk_handoffs__handoff_id__get",
+        "parameters": [
+          {
+            "name": "handoff_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handoff Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentHandoffStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "adk-handoff"
+        ],
+        "summary": "Cancel Handoff",
+        "description": "Cancel an active agent handoff and notify involved agents.",
+        "operationId": "cancel_handoff_api_v1_adk_handoffs__handoff_id__delete",
+        "parameters": [
+          {
+            "name": "handoff_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handoff Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffCancellationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/handoffs/{handoff_id}/execute": {
+      "post": {
+        "tags": [
+          "adk-handoff"
+        ],
+        "summary": "Execute Handoff",
+        "description": "Execute an agent handoff by transferring context and initiating the receiving agent's work.\n\nThis endpoint streams the handoff execution progress and results.",
+        "operationId": "execute_handoff_api_v1_adk_handoffs__handoff_id__execute_post",
+        "parameters": [
+          {
+            "name": "handoff_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Handoff Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffExecutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/templates": {
+      "get": {
+        "tags": [
+          "adk-templates"
+        ],
+        "summary": "List ADK Workflow Templates",
+        "description": "List all available ADK workflow templates with their metadata.\n\nTemplates provide structured workflows for different types of collaborative tasks.",
+        "operationId": "list_adk_workflow_templates_api_v1_adk_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ADKWorkflowTemplateResponse"
+                  },
+                  "title": "Response List Adk Workflow Templates Api V1 Adk Templates Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/templates/{template_id}": {
+      "get": {
+        "tags": [
+          "adk-templates"
+        ],
+        "summary": "Get ADK Workflow Template",
+        "description": "Get detailed information about a specific ADK workflow template.",
+        "operationId": "get_adk_workflow_template_api_v1_adk_templates__template_id__get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKWorkflowTemplateDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/templates/{template_id}/agents": {
+      "get": {
+        "tags": [
+          "adk-templates"
+        ],
+        "summary": "Get Compatible Agents",
+        "description": "Get list of agents compatible with a specific ADK workflow template.",
+        "operationId": "get_template_compatible_agents_api_v1_adk_templates__template_id__agents_get",
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentCompatibilityResponse"
+                  },
+                  "title": "Response Get Template Compatible Agents Api V1 Adk Templates Template Id Agents Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/tools": {
+      "get": {
+        "tags": [
+          "adk-tools"
+        ],
+        "summary": "List Available Tools",
+        "description": "List all available ADK tools with their capabilities and status.\n\nThis includes OpenAPI tools, function tools, and specialized tools.",
+        "operationId": "list_available_adk_tools_api_v1_adk_tools_get",
+        "parameters": [
+          {
+            "name": "tool_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": ["function", "openapi", "specialized"]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tool Type"
+            }
+          },
+          {
+            "name": "agent_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AgentType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ADKToolResponse"
+                  },
+                  "title": "Response List Available Adk Tools Api V1 Adk Tools Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/tools/{tool_name}": {
+      "get": {
+        "tags": [
+          "adk-tools"
+        ],
+        "summary": "Get Tool Details",
+        "description": "Get detailed information about a specific ADK tool including capabilities and usage.",
+        "operationId": "get_adk_tool_details_api_v1_adk_tools__tool_name__get",
+        "parameters": [
+          {
+            "name": "tool_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKToolDetailResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/tools/{tool_name}/execute": {
+      "post": {
+        "tags": [
+          "adk-tools"
+        ],
+        "summary": "Execute ADK Tool",
+        "description": "Execute an ADK tool with enterprise controls and HITL oversight.\n\nThis endpoint applies risk assessment, parameter sanitization, and human approval\nfor high-risk operations before tool execution.",
+        "operationId": "execute_adk_tool_api_v1_adk_tools__tool_name__execute_post",
+        "parameters": [
+          {
+            "name": "tool_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Tool Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ADKToolExecutionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKToolExecutionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/tools/openapi/register": {
+      "post": {
+        "tags": [
+          "adk-tools"
+        ],
+        "summary": "Register OpenAPI Tool",
+        "description": "Register a new OpenAPI specification as an ADK tool.\n\nThis endpoint parses the OpenAPI spec and creates enterprise-controlled\ntool wrappers for each endpoint with risk assessment and HITL integration.",
+        "operationId": "register_openapi_tool_api_v1_adk_tools_openapi_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenAPIToolRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAPIToolRegistrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/tools/search": {
+      "get": {
+        "tags": [
+          "adk-tools"
+        ],
+        "summary": "Search ADK Tools",
+        "description": "Search for ADK tools by name, description, or capabilities.\n\nSupports fuzzy matching and filtering by tool type and agent compatibility.",
+        "operationId": "search_adk_tools_api_v1_adk_tools_search_get",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Query"
+            }
+          },
+          {
+            "name": "tool_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": ["function", "openapi", "specialized"]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tool Type"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "maximum": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ADKToolSearchResult"
+                  },
+                  "title": "Response Search Adk Tools Api V1 Adk Tools Search Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/health": {
+      "get": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Get ADK System Health",
+        "description": "Get comprehensive health status of the ADK system including agents, tools, and orchestration services.",
+        "operationId": "get_adk_system_health_api_v1_adk_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/adk/metrics": {
+      "get": {
+        "tags": [
+          "adk"
+        ],
+        "summary": "Get ADK Metrics",
+        "description": "Get usage metrics and performance statistics for ADK components.\n\nIncludes agent performance, tool usage, workflow success rates, and system utilization.",
+        "operationId": "get_adk_metrics_api_v1_adk_metrics_get",
+        "parameters": [
+          {
+            "name": "time_range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "24h",
+              "enum": ["1h", "24h", "7d", "30d"],
+              "title": "Time Range"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ADKMetricsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3206,6 +4374,1342 @@
         ],
         "title": "WorkflowExecutionRequest",
         "description": "Request model for workflow execution."
+      },
+      "ADKAgentCreateRequest": {
+        "properties": {
+          "agent_type": {
+            "$ref": "#/components/schemas/AgentType"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Human-readable name for the agent"
+          },
+          "configuration": {
+            "type": "object",
+            "title": "Configuration",
+            "description": "Agent-specific configuration parameters"
+          },
+          "tool_assignments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Assignments",
+            "description": "List of tools to assign to this agent",
+            "default": []
+          },
+          "rollout_percentage": {
+            "type": "integer",
+            "title": "Rollout Percentage",
+            "description": "Percentage of requests to route to this ADK agent",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type",
+          "name"
+        ],
+        "title": "ADKAgentCreateRequest",
+        "description": "Request model for creating ADK agents."
+      },
+      "ADKAgentResponse": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "agent_type": {
+            "$ref": "#/components/schemas/AgentType"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "enum": ["initializing", "active", "inactive", "error"]
+          },
+          "configuration": {
+            "type": "object",
+            "title": "Configuration"
+          },
+          "tool_assignments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Assignments"
+          },
+          "rollout_percentage": {
+            "type": "integer",
+            "title": "Rollout Percentage"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_activity": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Activity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "agent_type",
+          "name",
+          "status",
+          "created_at"
+        ],
+        "title": "ADKAgentResponse",
+        "description": "Response model for ADK agent information."
+      },
+      "ADKAgentDeleteResponse": {
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "title": "Agent Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "cleanup_completed": {
+            "type": "boolean",
+            "title": "Cleanup Completed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_id",
+          "status",
+          "message",
+          "cleanup_completed"
+        ],
+        "title": "ADKAgentDeleteResponse",
+        "description": "Response model for ADK agent deletion."
+      },
+      "ADKRolloutConfigResponse": {
+        "properties": {
+          "analyst_percentage": {
+            "type": "integer",
+            "title": "Analyst Percentage"
+          },
+          "architect_percentage": {
+            "type": "integer",
+            "title": "Architect Percentage"
+          },
+          "coder_percentage": {
+            "type": "integer",
+            "title": "Coder Percentage"
+          },
+          "tester_percentage": {
+            "type": "integer",
+            "title": "Tester Percentage"
+          },
+          "deployer_percentage": {
+            "type": "integer",
+            "title": "Deployer Percentage"
+          },
+          "orchestrator_percentage": {
+            "type": "integer",
+            "title": "Orchestrator Percentage"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          },
+          "consistency_hashing_enabled": {
+            "type": "boolean",
+            "title": "Consistency Hashing Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analyst_percentage",
+          "architect_percentage",
+          "coder_percentage",
+          "tester_percentage",
+          "deployer_percentage",
+          "orchestrator_percentage",
+          "last_updated",
+          "consistency_hashing_enabled"
+        ],
+        "title": "ADKRolloutConfigResponse",
+        "description": "Response model for ADK rollout configuration."
+      },
+      "ADKRolloutConfigUpdateRequest": {
+        "properties": {
+          "analyst_percentage": {
+            "type": "integer",
+            "title": "Analyst Percentage",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "architect_percentage": {
+            "type": "integer",
+            "title": "Architect Percentage",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "coder_percentage": {
+            "type": "integer",
+            "title": "Coder Percentage",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "tester_percentage": {
+            "type": "integer",
+            "title": "Tester Percentage",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "deployer_percentage": {
+            "type": "integer",
+            "title": "Deployer Percentage",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "orchestrator_percentage": {
+            "type": "integer",
+            "title": "Orchestrator Percentage",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "type": "object",
+        "title": "ADKRolloutConfigUpdateRequest",
+        "description": "Request model for updating ADK rollout configuration."
+      },
+      "MultiAgentWorkflowRequest": {
+        "properties": {
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents",
+            "description": "List of agent IDs to include in the workflow"
+          },
+          "workflow_type": {
+            "type": "string",
+            "title": "Workflow Type",
+            "enum": ["requirements_analysis", "system_design", "code_review", "testing_strategy", "deployment_planning"]
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "initial_prompt": {
+            "type": "string",
+            "title": "Initial Prompt",
+            "description": "Initial prompt to start the collaborative workflow"
+          },
+          "context_data": {
+            "type": "object",
+            "title": "Context Data",
+            "description": "Additional context data for the workflow"
+          },
+          "max_rounds": {
+            "type": "integer",
+            "title": "Max Rounds",
+            "description": "Maximum number of conversation rounds",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "workflow_type",
+          "project_id",
+          "initial_prompt"
+        ],
+        "title": "MultiAgentWorkflowRequest",
+        "description": "Request model for creating multi-agent workflows."
+      },
+      "MultiAgentWorkflowResponse": {
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "enum": ["created", "running", "completed", "failed", "terminated"]
+          },
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "workflow_type": {
+            "type": "string",
+            "title": "Workflow Type"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "current_round": {
+            "type": "integer",
+            "title": "Current Round"
+          },
+          "max_rounds": {
+            "type": "integer",
+            "title": "Max Rounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "status",
+          "agents",
+          "workflow_type",
+          "project_id",
+          "created_at",
+          "current_round",
+          "max_rounds"
+        ],
+        "title": "MultiAgentWorkflowResponse",
+        "description": "Response model for multi-agent workflow information."
+      },
+      "MultiAgentWorkflowStatusResponse": {
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "current_round": {
+            "type": "integer",
+            "title": "Current Round"
+          },
+          "max_rounds": {
+            "type": "integer",
+            "title": "Max Rounds"
+          },
+          "participants": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Participants"
+          },
+          "conversation_history": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Conversation History"
+          },
+          "artifacts_generated": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Artifacts Generated"
+          },
+          "estimated_completion_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Estimated Completion Time"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "status",
+          "current_round",
+          "max_rounds"
+        ],
+        "title": "MultiAgentWorkflowStatusResponse",
+        "description": "Response model for detailed multi-agent workflow status."
+      },
+      "WorkflowTerminationResponse": {
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "title": "Workflow Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "resources_cleaned": {
+            "type": "boolean",
+            "title": "Resources Cleaned"
+          },
+          "final_artifacts": {
+            "type": "object",
+            "title": "Final Artifacts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "status",
+          "message",
+          "resources_cleaned"
+        ],
+        "title": "WorkflowTerminationResponse",
+        "description": "Response model for workflow termination."
+      },
+      "CollaborativeAnalysisRequest": {
+        "properties": {
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents",
+            "description": "List of agent IDs for collaborative analysis"
+          },
+          "analysis_type": {
+            "type": "string",
+            "title": "Analysis Type",
+            "enum": ["requirements", "architecture", "code_quality", "security", "performance"]
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "target_content": {
+            "type": "string",
+            "title": "Target Content",
+            "description": "Content to be analyzed"
+          },
+          "context_documents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Context Documents",
+            "description": "Additional context documents",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "analysis_type",
+          "project_id",
+          "target_content"
+        ],
+        "title": "CollaborativeAnalysisRequest",
+        "description": "Request model for collaborative analysis."
+      },
+      "CollaborativeAnalysisResponse": {
+        "properties": {
+          "analysis_id": {
+            "type": "string",
+            "title": "Analysis Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "analysis_type": {
+            "type": "string",
+            "title": "Analysis Type"
+          },
+          "agents_contributed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents Contributed"
+          },
+          "consolidated_findings": {
+            "type": "object",
+            "title": "Consolidated Findings"
+          },
+          "recommendations": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "confidence_score": {
+            "type": "number",
+            "title": "Confidence Score",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "analysis_id",
+          "status",
+          "analysis_type",
+          "agents_contributed"
+        ],
+        "title": "CollaborativeAnalysisResponse",
+        "description": "Response model for collaborative analysis results."
+      },
+      "AgentHandoffRequest": {
+        "properties": {
+          "from_agent": {
+            "type": "string",
+            "title": "From Agent",
+            "description": "Agent initiating the handoff"
+          },
+          "to_agent": {
+            "type": "string",
+            "title": "To Agent",
+            "description": "Agent receiving the handoff"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "description": "Current workflow phase"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "Detailed instructions for the receiving agent"
+          },
+          "expected_outputs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Expected Outputs",
+            "description": "Expected deliverables from the handoff"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority",
+            "enum": ["low", "medium", "high", "critical"],
+            "default": "medium"
+          },
+          "context_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Context Ids",
+            "description": "IDs of context artifacts",
+            "default": []
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_agent",
+          "to_agent",
+          "phase",
+          "instructions",
+          "project_id"
+        ],
+        "title": "AgentHandoffRequest",
+        "description": "Request model for creating agent handoffs."
+      },
+      "AgentHandoffResponse": {
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "title": "Handoff Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "enum": ["pending", "accepted", "in_progress", "completed", "failed", "cancelled"]
+          },
+          "from_agent": {
+            "type": "string",
+            "title": "From Agent"
+          },
+          "to_agent": {
+            "type": "string",
+            "title": "To Agent"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "priority": {
+            "type": "string",
+            "title": "Priority"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "accepted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Accepted At"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Completed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handoff_id",
+          "status",
+          "from_agent",
+          "to_agent",
+          "phase",
+          "priority",
+          "created_at"
+        ],
+        "title": "AgentHandoffResponse",
+        "description": "Response model for agent handoff information."
+      },
+      "AgentHandoffStatusResponse": {
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "title": "Handoff Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "progress_percentage": {
+            "type": "integer",
+            "title": "Progress Percentage",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "current_step": {
+            "type": "string",
+            "title": "Current Step"
+          },
+          "estimated_completion": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Estimated Completion"
+          },
+          "artifacts_generated": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Artifacts Generated"
+          },
+          "issues_encountered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issues Encountered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handoff_id",
+          "status",
+          "progress_percentage"
+        ],
+        "title": "AgentHandoffStatusResponse",
+        "description": "Response model for detailed handoff status."
+      },
+      "HandoffCancellationResponse": {
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "title": "Handoff Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "resources_cleaned": {
+            "type": "boolean",
+            "title": "Resources Cleaned"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handoff_id",
+          "status",
+          "message",
+          "resources_cleaned"
+        ],
+        "title": "HandoffCancellationResponse",
+        "description": "Response model for handoff cancellation."
+      },
+      "HandoffExecutionResponse": {
+        "properties": {
+          "handoff_id": {
+            "type": "string",
+            "title": "Handoff Id"
+          },
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "results": {
+            "type": "object",
+            "title": "Results"
+          },
+          "artifacts_created": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Artifacts Created"
+          },
+          "execution_time_seconds": {
+            "type": "number",
+            "title": "Execution Time Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "handoff_id",
+          "execution_id",
+          "status"
+        ],
+        "title": "HandoffExecutionResponse",
+        "description": "Response model for handoff execution results."
+      },
+      "ADKWorkflowTemplateResponse": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "workflow_type": {
+            "type": "string",
+            "title": "Workflow Type"
+          },
+          "required_agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Agents"
+          },
+          "max_duration_minutes": {
+            "type": "integer",
+            "title": "Max Duration Minutes"
+          },
+          "step_count": {
+            "type": "integer",
+            "title": "Step Count"
+          },
+          "success_criteria": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Success Criteria"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "name",
+          "description",
+          "workflow_type",
+          "required_agents",
+          "max_duration_minutes",
+          "step_count",
+          "success_criteria"
+        ],
+        "title": "ADKWorkflowTemplateResponse",
+        "description": "Response model for ADK workflow templates."
+      },
+      "ADKWorkflowTemplateDetailResponse": {
+        "properties": {
+          "template_id": {
+            "type": "string",
+            "title": "Template Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "workflow_type": {
+            "type": "string",
+            "title": "Workflow Type"
+          },
+          "steps": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "required_agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Agents"
+          },
+          "max_duration_minutes": {
+            "type": "integer",
+            "title": "Max Duration Minutes"
+          },
+          "success_criteria": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Success Criteria"
+          },
+          "fallback_strategies": {
+            "type": "object",
+            "title": "Fallback Strategies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "template_id",
+          "name",
+          "description",
+          "workflow_type",
+          "steps",
+          "required_agents",
+          "max_duration_minutes",
+          "success_criteria"
+        ],
+        "title": "ADKWorkflowTemplateDetailResponse",
+        "description": "Response model for detailed ADK workflow template information."
+      },
+      "AgentCompatibilityResponse": {
+        "properties": {
+          "agent_type": {
+            "type": "string",
+            "title": "Agent Type"
+          },
+          "compatible": {
+            "type": "boolean",
+            "title": "Compatible"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "required_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Tools"
+          },
+          "available_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Available Tools"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent_type",
+          "compatible"
+        ],
+        "title": "AgentCompatibilityResponse",
+        "description": "Response model for agent compatibility assessment."
+      },
+      "ADKToolResponse": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name"
+          },
+          "tool_type": {
+            "type": "string",
+            "title": "Tool Type",
+            "enum": ["function", "openapi", "specialized"]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "enum": ["active", "inactive", "error"]
+          },
+          "compatible_agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Compatible Agents"
+          },
+          "last_used": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Used"
+          },
+          "usage_count": {
+            "type": "integer",
+            "title": "Usage Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_name",
+          "tool_type",
+          "description",
+          "status"
+        ],
+        "title": "ADKToolResponse",
+        "description": "Response model for ADK tool information."
+      },
+      "ADKToolDetailResponse": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name"
+          },
+          "tool_type": {
+            "type": "string",
+            "title": "Tool Type"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "parameters": {
+            "type": "object",
+            "title": "Parameters"
+          },
+          "output_schema": {
+            "type": "object",
+            "title": "Output Schema"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "risk_level": {
+            "type": "string",
+            "title": "Risk Level",
+            "enum": ["low", "medium", "high"]
+          },
+          "requires_approval": {
+            "type": "boolean",
+            "title": "Requires Approval"
+          },
+          "usage_statistics": {
+            "type": "object",
+            "title": "Usage Statistics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_name",
+          "tool_type",
+          "description",
+          "status",
+          "parameters",
+          "capabilities",
+          "risk_level",
+          "requires_approval"
+        ],
+        "title": "ADKToolDetailResponse",
+        "description": "Response model for detailed ADK tool information."
+      },
+      "ADKToolExecutionRequest": {
+        "properties": {
+          "parameters": {
+            "type": "object",
+            "title": "Parameters",
+            "description": "Tool execution parameters"
+          },
+          "context_data": {
+            "type": "object",
+            "title": "Context Data",
+            "description": "Additional context for execution"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Task Id"
+          },
+          "bypass_approval": {
+            "type": "boolean",
+            "title": "Bypass Approval",
+            "description": "Bypass HITL approval for high-risk operations",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameters"
+        ],
+        "title": "ADKToolExecutionRequest",
+        "description": "Request model for ADK tool execution."
+      },
+      "ADKToolExecutionResponse": {
+        "properties": {
+          "execution_id": {
+            "type": "string",
+            "title": "Execution Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "enum": ["success", "pending_approval", "failed", "error"]
+          },
+          "result": {
+            "type": "object",
+            "title": "Result"
+          },
+          "execution_time_ms": {
+            "type": "integer",
+            "title": "Execution Time Ms"
+          },
+          "risk_level": {
+            "type": "string",
+            "title": "Risk Level"
+          },
+          "approval_required": {
+            "type": "boolean",
+            "title": "Approval Required"
+          },
+          "approval_request_id": {
+            "type": "string",
+            "title": "Approval Request Id"
+          },
+          "error_message": {
+            "type": "string",
+            "title": "Error Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "execution_id",
+          "status"
+        ],
+        "title": "ADKToolExecutionResponse",
+        "description": "Response model for ADK tool execution results."
+      },
+      "OpenAPIToolRegistrationRequest": {
+        "properties": {
+          "openapi_spec": {
+            "type": "object",
+            "title": "Openapi Spec",
+            "description": "Complete OpenAPI specification"
+          },
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name",
+            "description": "Unique name for the tool"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Human-readable description"
+          },
+          "base_url_override": {
+            "type": "string",
+            "title": "Base Url Override",
+            "description": "Override the base URL from the spec"
+          },
+          "authentication_config": {
+            "type": "object",
+            "title": "Authentication Config",
+            "description": "Authentication configuration"
+          },
+          "risk_assessment_overrides": {
+            "type": "object",
+            "title": "Risk Assessment Overrides",
+            "description": "Custom risk assessment rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "openapi_spec",
+          "tool_name",
+          "description"
+        ],
+        "title": "OpenAPIToolRegistrationRequest",
+        "description": "Request model for registering OpenAPI tools."
+      },
+      "OpenAPIToolRegistrationResponse": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "endpoints_registered": {
+            "type": "integer",
+            "title": "Endpoints Registered"
+          },
+          "validation_errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Validation Errors"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "risk_assessment": {
+            "type": "object",
+            "title": "Risk Assessment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_name",
+          "status",
+          "endpoints_registered"
+        ],
+        "title": "OpenAPIToolRegistrationResponse",
+        "description": "Response model for OpenAPI tool registration."
+      },
+      "ADKToolSearchResult": {
+        "properties": {
+          "tool_name": {
+            "type": "string",
+            "title": "Tool Name"
+          },
+          "tool_type": {
+            "type": "string",
+            "title": "Tool Type"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "relevance_score": {
+            "type": "number",
+            "title": "Relevance Score",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "compatible_agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Compatible Agents"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_name",
+          "tool_type",
+          "description",
+          "relevance_score"
+        ],
+        "title": "ADKToolSearchResult",
+        "description": "Response model for ADK tool search results."
+      },
+      "ADKHealthResponse": {
+        "properties": {
+          "overall_status": {
+            "type": "string",
+            "title": "Overall Status",
+            "enum": ["healthy", "degraded", "unhealthy"]
+          },
+          "components": {
+            "type": "object",
+            "title": "Components",
+            "properties": {
+              "agent_factory": {
+                "type": "object",
+                "properties": {
+                  "status": {"type": "string"},
+                  "active_agents": {"type": "integer"},
+                  "error_count": {"type": "integer"}
+                }
+              },
+              "orchestration_service": {
+                "type": "object",
+                "properties": {
+                  "status": {"type": "string"},
+                  "active_workflows": {"type": "integer"},
+                  "completed_workflows": {"type": "integer"}
+                }
+              },
+              "tool_registry": {
+                "type": "object",
+                "properties": {
+                  "status": {"type": "string"},
+                  "total_tools": {"type": "integer"},
+                  "active_tools": {"type": "integer"}
+                }
+              },
+              "handoff_service": {
+                "type": "object",
+                "properties": {
+                  "status": {"type": "string"},
+                  "active_handoffs": {"type": "integer"},
+                  "completed_handoffs": {"type": "integer"}
+                }
+              }
+            }
+          },
+          "system_metrics": {
+            "type": "object",
+            "title": "System Metrics",
+            "properties": {
+              "uptime_seconds": {"type": "integer"},
+              "memory_usage_mb": {"type": "number"},
+              "cpu_usage_percent": {"type": "number"},
+              "active_connections": {"type": "integer"}
+            }
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall_status",
+          "components",
+          "system_metrics",
+          "last_updated"
+        ],
+        "title": "ADKHealthResponse",
+        "description": "Response model for ADK system health status."
+      },
+      "ADKMetricsResponse": {
+        "properties": {
+          "time_range": {
+            "type": "string",
+            "title": "Time Range"
+          },
+          "agent_metrics": {
+            "type": "object",
+            "title": "Agent Metrics",
+            "description": "Metrics for each agent type"
+          },
+          "workflow_metrics": {
+            "type": "object",
+            "title": "Workflow Metrics",
+            "description": "Multi-agent workflow performance metrics"
+          },
+          "tool_metrics": {
+            "type": "object",
+            "title": "Tool Metrics",
+            "description": "Tool usage and performance metrics"
+          },
+          "handoff_metrics": {
+            "type": "object",
+            "title": "Handoff Metrics",
+            "description": "Agent handoff success and timing metrics"
+          },
+          "system_performance": {
+            "type": "object",
+            "title": "System Performance",
+            "description": "Overall system performance indicators"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "time_range",
+          "agent_metrics",
+          "workflow_metrics",
+          "tool_metrics",
+          "handoff_metrics",
+          "system_performance",
+          "generated_at"
+        ],
+        "title": "ADKMetricsResponse",
+        "description": "Response model for comprehensive ADK metrics."
       }
     }
   },
@@ -3237,6 +5741,26 @@
     {
       "name": "health",
       "description": "System health monitoring and service status checks"
+    },
+    {
+      "name": "adk",
+      "description": "ADK (Agent Development Kit) agent lifecycle management and rollout configuration"
+    },
+    {
+      "name": "adk-orchestration",
+      "description": "Multi-agent workflow orchestration and collaborative analysis"
+    },
+    {
+      "name": "adk-handoff",
+      "description": "Agent handoff management and context transfer between agents"
+    },
+    {
+      "name": "adk-templates",
+      "description": "ADK workflow templates and agent compatibility management"
+    },
+    {
+      "name": "adk-tools",
+      "description": "ADK tool registry, execution, and enterprise controls"
     }
   ]
 }

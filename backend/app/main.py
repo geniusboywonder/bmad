@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from app.config import settings
-from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows
+from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk
 from app.database.connection import engine, Base
 
 # Configure structured logging
@@ -74,6 +74,26 @@ app = FastAPI(
             "name": "health",
             "description": "System health monitoring and service status checks",
         },
+        {
+            "name": "adk",
+            "description": "ADK (Agent Development Kit) agent lifecycle management and rollout configuration",
+        },
+        {
+            "name": "adk-orchestration",
+            "description": "Multi-agent workflow orchestration and collaborative analysis",
+        },
+        {
+            "name": "adk-handoff",
+            "description": "Agent handoff management and context transfer between agents",
+        },
+        {
+            "name": "adk-templates",
+            "description": "ADK workflow templates and agent compatibility management",
+        },
+        {
+            "name": "adk-tools",
+            "description": "ADK tool registry, execution, and enterprise controls",
+        },
     ]
 )
 
@@ -98,6 +118,7 @@ app.include_router(agents.router)
 app.include_router(artifacts.router)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
 app.include_router(workflows.router)
+app.include_router(adk.router)
 
 
 @app.on_event("startup")

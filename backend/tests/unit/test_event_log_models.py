@@ -1,7 +1,7 @@
 """Unit tests for event log Pydantic models."""
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from pydantic import ValidationError
 
@@ -225,7 +225,7 @@ class TestEventLogResponse:
         project_id = uuid4()
         task_id = uuid4()
         hitl_request_id = uuid4()
-        created_at = datetime.utcnow()
+        created_at = datetime.now(timezone.utc)
         
         event_data = {"action": "response_test", "result": "success"}
         metadata = {"service_version": "1.0.0", "endpoint": "/api/test"}
@@ -255,7 +255,7 @@ class TestEventLogResponse:
     def test_event_log_response_optional_fields_none(self):
         """Test EventLogResponse with optional fields as None."""
         event_id = uuid4()
-        created_at = datetime.utcnow()
+        created_at = datetime.now(timezone.utc)
         
         response = EventLogResponse(
             id=event_id,
@@ -279,7 +279,7 @@ class TestEventLogResponse:
         """Test EventLogResponse JSON serialization."""
         event_id = uuid4()
         project_id = uuid4()
-        created_at = datetime.utcnow()
+        created_at = datetime.now(timezone.utc)
         
         response = EventLogResponse(
             id=event_id,
@@ -325,8 +325,8 @@ class TestEventLogFilter:
         """Test EventLogFilter with custom parameters."""
         project_id = uuid4()
         task_id = uuid4()
-        start_date = datetime.utcnow() - timedelta(days=1)
-        end_date = datetime.utcnow()
+        start_date = datetime.now(timezone.utc) - timedelta(days=1)
+        end_date = datetime.now(timezone.utc)
         
         filter_obj = EventLogFilter(
             project_id=project_id,
@@ -396,7 +396,7 @@ class TestEventLogFilter:
     
     def test_event_log_filter_date_validation(self):
         """Test EventLogFilter date field validation."""
-        base_date = datetime.utcnow()
+        base_date = datetime.now(timezone.utc)
         
         # Valid date range
         filter_obj = EventLogFilter(
@@ -451,8 +451,8 @@ class TestEventLogFilter:
             hitl_request_id=hitl_request_id,
             event_type=EventType.HITL_RESPONSE,
             event_source=EventSource.USER,
-            start_date=datetime.utcnow() - timedelta(days=7),
-            end_date=datetime.utcnow(),
+            start_date=datetime.now(timezone.utc) - timedelta(days=7),
+            end_date=datetime.now(timezone.utc),
             limit=25,
             offset=0
         )

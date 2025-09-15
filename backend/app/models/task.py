@@ -1,6 +1,6 @@
 """Task model for agent work units."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, field_validator
@@ -27,8 +27,8 @@ class Task(BaseModel):
     instructions: str = Field(description="Detailed instructions for the agent")
     output: Optional[Dict[str, Any]] = Field(default=None, description="Task output data")
     error_message: Optional[str] = Field(default=None, description="Error message if task failed")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Task creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Task creation timestamp")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp")
     started_at: Optional[datetime] = Field(default=None, description="Task start timestamp")
     completed_at: Optional[datetime] = Field(default=None, description="Task completion timestamp")
 

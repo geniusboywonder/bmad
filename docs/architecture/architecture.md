@@ -28,9 +28,16 @@ The system follows a modern microservice-oriented architecture with multi-LLM su
   * **Health Monitoring**: LLM provider connectivity and performance tracking
   * **Structured Logging**: Machine-readable monitoring data for operational observability
 
-* **AutoGen Framework Integration**: Microsoft AutoGen framework managing agent conversations:
+* **Google ADK Integration** (Production-Ready): Advanced agent capabilities using Google's Agent Development Kit:
+  * **Correct API Usage**: Uses `instruction` parameter, `Runner`-based execution, proper session management
+  * **Enterprise Integration**: Full BMAD safety controls (HITL, audit, monitoring) with ADK agents
+  * **Tool Integration**: `FunctionTool` support with graceful fallback and error handling
+  * **Session Management**: Proper `InMemorySessionService` and `types.Content` message handling
+  * **Wrapper Architecture**: `BMADADKWrapper` preserves enterprise features while leveraging ADK capabilities
+
+* **AutoGen Framework Integration**: Microsoft AutoGen framework managing agent conversations (Legacy Support):
   * **Agent Conversation Management**: Structured multi-agent dialogues
-  * **Group Chat Capabilities**: Multi-agent collaboration scenarios  
+  * **Group Chat Capabilities**: Multi-agent collaboration scenarios
   * **Context Passing**: Proper handoff schemas between agents
   * **Configuration Loading**: Dynamic agent configs from `.bmad-core/agents/`
 
@@ -623,39 +630,83 @@ Response: 200 OK / 503 Service Unavailable
 
 ***
 
-### **5. Agent Framework Architecture (Task 2 Implementation)**
+### **5. Agent Framework Architecture (ADK Integration Complete)**
 
 #### **5.1 Agent Framework Foundation**
 
-**Purpose**: Implement core agent framework that integrates with AutoGen for conversation management and implements six specialized agent types with structured handoffs.
+**Purpose**: Implement enterprise-grade agent framework using Google ADK for enhanced capabilities while preserving BMAD safety controls.
 
-**Core Architecture:**
+**ADK Integration Architecture:**
 
 ```
 backend/app/agents/
-├── base_agent.py          # Abstract BaseAgent with LLM reliability integration
-├── orchestrator.py        # Orchestrator agent implementation
-├── analyst.py             # Analyst agent implementation  
-├── architect.py           # Architect agent implementation
-├── coder.py              # Developer/Coder agent implementation
-├── tester.py             # Tester agent implementation
-├── deployer.py           # Deployer agent implementation
-└── factory.py            # Agent factory for type-based instantiation
+├── base_agent.py              # Abstract BaseAgent (legacy support)
+├── bmad_adk_wrapper.py        # BMAD-ADK integration wrapper
+├── adk_agent_with_tools.py    # ADK agent with tools support
+├── adk_dev_tools.py           # ADK development and testing tools
+├── orchestrator.py            # Orchestrator agent (legacy)
+├── analyst.py                 # Analyst agent (legacy)
+├── architect.py               # Architect agent (legacy)
+├── coder.py                   # Developer/Coder agent (legacy)
+├── tester.py                  # Tester agent (legacy)
+├── deployer.py                # Deployer agent (legacy)
+└── agent_factory.py           # Enhanced factory with ADK support
+
+backend/app/tools/
+├── adk_tool_registry.py       # Tool registry and management
+├── adk_openapi_tools.py       # OpenAPI integration tools
+└── specialized_adk_tools.py   # Specialized function tools
 
 backend/app/services/
-└── agent_service.py      # Agent service layer with factory pattern
+├── agent_service.py           # Agent service layer
+├── adk_orchestration_service.py # Multi-agent orchestration
+└── adk_handoff_service.py     # Agent handoff management
 ```
 
-#### **5.2 BaseAgent Abstract Class**
+#### **5.2 BMAD-ADK Integration Wrapper**
 
-**Purpose**: Provides common functionality for all agents with LLM reliability integration from Task 1.
+**Purpose**: Enterprise wrapper that combines Google ADK capabilities with BMAD safety controls and audit requirements.
 
 **Core Features:**
 
-* **LLM Reliability Integration**: Response validation, retry logic, and usage tracking
-* **AutoGen Agent Management**: Wraps AutoGen ConversableAgent instances
-* **Context Artifact Processing**: Handles structured context consumption and creation
-* **HandoffSchema Support**: Enables structured inter-agent communication
+* **ADK Agent Management**: Proper `LlmAgent`, `Runner`, and `InMemorySessionService` usage
+* **Enterprise Integration**: Full HITL safety controls, audit trails, and usage tracking
+* **Session Management**: Correct `types.Content` and `types.Part` message handling
+* **Error Recovery**: Comprehensive fallback mechanisms and graceful degradation
+* **Cost Monitoring**: Token usage estimation and cost tracking per execution
+
+**Implementation Architecture:**
+
+```python
+class BMADADKWrapper:
+    """Integration wrapper combining ADK agents with BMAD enterprise features."""
+
+    def __init__(self, agent_name: str, agent_type: str = "general",
+                 model: str = "gemini-2.0-flash", instruction: str = "...",
+                 tools: Optional[List[FunctionTool]] = None):
+        # ADK components
+        self.adk_agent = None          # LlmAgent instance
+        self.adk_runner = None         # Runner for execution
+        self.session_service = None    # InMemorySessionService
+
+        # BMAD enterprise services
+        self.hitl_service = HITLSafetyService()
+        self.usage_tracker = LLMUsageTracker()
+        self.audit_service = AuditTrailService()
+
+    async def process_with_enterprise_controls(self, message: str,
+                                             project_id: str, task_id: str) -> Dict[str, Any]:
+        """Process message with full BMAD enterprise controls."""
+        # 1. HITL Safety Check
+        # 2. Audit Trail - Start
+        # 3. Execute ADK Agent
+        # 4. Usage Tracking
+        # 5. Audit Trail - Complete
+```
+
+#### **5.3 BaseAgent Abstract Class (Legacy)**
+
+**Purpose**: Provides legacy agent support with AutoGen integration for backward compatibility.
 
 **Implementation Architecture:**
 

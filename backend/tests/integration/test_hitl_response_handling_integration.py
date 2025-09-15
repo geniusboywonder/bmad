@@ -80,7 +80,7 @@ class TestHitlRequestCreationAndPersistence:
         project = project_factory.create(db_session)
         task = task_factory.create(db_session, project_id=project.id)
         
-        creation_time = datetime.utcnow()
+        creation_time = datetime.now(timezone.utc)
 
         # Create HITL request with custom TTL
         hitl_request = orchestrator_service.create_hitl_request(

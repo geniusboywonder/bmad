@@ -6,7 +6,7 @@ Handles workflow state persistence and recovery mechanisms.
 
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.workflow_state import WorkflowExecutionStateModel, WorkflowExecutionState as ExecutionStateEnum
@@ -49,7 +49,7 @@ class WorkflowPersistenceManager:
                 db_state.error_message = execution.error_message
                 db_state.started_at = datetime.fromisoformat(execution.started_at) if execution.started_at else None
                 db_state.completed_at = datetime.fromisoformat(execution.completed_at) if execution.completed_at else None
-                db_state.updated_at = datetime.utcnow()
+                db_state.updated_at = datetime.now(timezone.utc)
             else:
                 # Create new
                 db_state = WorkflowStateDB(
@@ -144,7 +144,7 @@ class WorkflowPersistenceManager:
         """
         try:
             from datetime import timedelta
-            cutoff_date = datetime.utcnow() - timedelta(days=days_old)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days_old)
 
             deleted_count = self.db.query(WorkflowStateDB).filter(
                 WorkflowStateDB.created_at < cutoff_date,

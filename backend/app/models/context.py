@@ -1,6 +1,6 @@
 """Context artifact model for persistent memory."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, field_serializer
@@ -32,8 +32,8 @@ class ContextArtifact(BaseModel):
     artifact_type: ArtifactType = Field(description="Type of artifact")
     content: Dict[str, Any] = Field(description="Artifact content data")
     artifact_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp")
     
     model_config = ConfigDict(
         json_encoders={

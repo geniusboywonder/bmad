@@ -789,8 +789,8 @@ class TestRecoveryProcedureManager:
         mock_session.status = "IN_PROGRESS"
         mock_session.current_step = 1
         mock_session.total_steps = 3
-        mock_session.created_at = datetime.utcnow()
-        mock_session.started_at = datetime.utcnow()
+        mock_session.created_at = datetime.now(timezone.utc)
+        mock_session.started_at = datetime.now(timezone.utc)
         mock_session.completed_at = None
 
         mock_steps = [Mock()]

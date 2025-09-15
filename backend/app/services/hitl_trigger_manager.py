@@ -6,7 +6,7 @@ Manages HITL trigger conditions and evaluation logic for the Human-in-the-Loop s
 
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.models.hitl import HitlStatus, HitlRequest, HitlHistoryEntry
@@ -353,7 +353,7 @@ class HitlTriggerManager:
 
         # Calculate expiration time
         timeout_hours = trigger_context.get("timeout_hours", self.default_timeout_hours)
-        expires_at = datetime.utcnow() + timedelta(hours=timeout_hours)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=timeout_hours)
 
         # Create HITL request
         hitl_request = HitlRequestDB(
@@ -371,7 +371,7 @@ class HitlTriggerManager:
 
         # Create initial history entry
         history_entry = HitlHistoryEntry(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             action="created",
             content={"trigger_condition": condition, "trigger_context": trigger_context},
             comment=f"HITL request created due to {condition}"

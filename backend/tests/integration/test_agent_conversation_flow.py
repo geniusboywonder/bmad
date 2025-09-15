@@ -79,7 +79,8 @@ class TestAgentConversationFlow:
         mock_status_service.return_value = mock_status_service_instance
         
         # Create agent service
-        agent_service = AgentService()
+        mock_db = MagicMock()
+        agent_service = AgentService(mock_db)
         
         # Create orchestrator task
         orchestrator_task = Task(
@@ -253,7 +254,8 @@ class TestAgentConversationFlow:
         mock_context_store_instance.create_artifact.return_value = MagicMock(context_id=uuid4())
         
         # Create agent service
-        agent_service = AgentService()
+        mock_db = MagicMock()
+        agent_service = AgentService(mock_db)
         
         # Create handoff from analyst to architect
         analyst_task = Task(
@@ -380,7 +382,8 @@ class TestAgentConversationFlow:
         mock_status_service.return_value = mock_status_service_instance
         
         # Create agent service
-        agent_service = AgentService()
+        mock_db = MagicMock()
+        agent_service = AgentService(mock_db)
         
         # Simulate context building through workflow
         artifacts = []
@@ -505,7 +508,8 @@ class TestAgentConversationFlow:
         mock_status_service.return_value = mock_status_service_instance
         
         # Create agent service
-        agent_service = AgentService()
+        mock_db = MagicMock()
+        agent_service = AgentService(mock_db)
         
         # Create test task
         task = Task(

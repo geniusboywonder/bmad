@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from ..utils.yaml_parser import YAMLParser, ParserError
 from ..models.workflow import (
@@ -276,9 +276,25 @@ class WorkflowService:
                 return None
 
             # Create handoff schema
+            # Convert project_id to UUID safely
+            try:
+                if isinstance(execution.project_id, UUID):
+                    project_uuid = execution.project_id
+                elif isinstance(execution.project_id, str):
+                    project_uuid = UUID(execution.project_id)
+                else:
+                    # Fallback for invalid project_id
+                    project_uuid = uuid4()
+                    logger.warning(f"Invalid project_id type for execution {execution_id}, using fallback UUID")
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Failed to convert project_id to UUID for execution {execution_id}: {str(e)}")
+                project_uuid = uuid4()
+
             handoff = HandoffSchema(
+                handoff_id=uuid4(),
                 from_agent=from_agent,
                 to_agent=to_agent,
+                project_id=project_uuid,
                 phase=f"workflow_{execution.workflow_id}",
                 instructions=handoff_prompt,
                 context_ids=[],  # Would be populated with actual artifact IDs

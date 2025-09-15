@@ -32,6 +32,7 @@ orjson==3.9.10
 
 # Additional dependencies
 click==8.1.7
+nest-asyncio==1.6.0
 
 # Autogen for multi-agent orchestration
 autogen-agentchat==0.7.4

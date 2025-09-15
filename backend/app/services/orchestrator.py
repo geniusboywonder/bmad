@@ -148,9 +148,13 @@ class OrchestratorService:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # If loop is already running, we need to handle differently
-                import nest_asyncio
-                nest_asyncio.apply()
-                return loop.run_until_complete(_run())
+                try:
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    return loop.run_until_complete(_run())
+                except ImportError:
+                    logger.warning("nest_asyncio not available, cannot run workflow in running event loop")
+                    return None
             else:
                 return loop.run_until_complete(_run())
         except RuntimeError:

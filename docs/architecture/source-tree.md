@@ -117,6 +117,19 @@ backend/
 │   ├── env.py             # Alembic environment configuration
 │   └── alembic.ini        # Alembic configuration file
 ├── app/                   # Main application package
+│   ├── agents/            # Agent implementations
+│   │   ├── __init__.py
+│   │   ├── adk_agent_with_tools.py    # ADK agent with tools support
+│   │   ├── adk_dev_tools.py           # ADK development and testing framework
+│   │   ├── analyst.py                 # Legacy analyst agent (AutoGen)
+│   │   ├── architect.py               # Legacy architect agent (AutoGen)
+│   │   ├── base_agent.py              # Legacy base agent class (AutoGen)
+│   │   ├── bmad_adk_wrapper.py        # BMAD-ADK integration wrapper
+│   │   ├── coder.py                   # Legacy coder agent (AutoGen)
+│   │   ├── deployer.py                # Legacy deployer agent (AutoGen)
+│   │   ├── factory.py                 # Agent factory with ADK support
+│   │   ├── orchestrator.py            # Legacy orchestrator agent (AutoGen)
+│   │   └── tester.py                  # Legacy tester agent (AutoGen)
 │   ├── api/               # REST API endpoints
 │   │   ├── __init__.py
 │   │   ├── agents.py      # Agent management endpoints
@@ -147,12 +160,15 @@ backend/
 │   │   └── hitl.py        # HITL schemas
 │   ├── services/          # Business logic services
 │   │   ├── __init__.py
+│   │   ├── adk_handoff_service.py  # ADK agent handoff management
+│   │   ├── adk_orchestration_service.py # ADK multi-agent orchestration
 │   │   ├── agent_service.py        # Agent service with factory pattern and dependency injection
 │   │   ├── agent_status_service.py # Agent status management
 │   │   ├── artifact_service.py     # Artifact management
 │   │   ├── audit_service.py        # Audit trail and event logging (Task 0)
-│   │   ├── autogen_service.py      # AutoGen integration (enhanced with reliability features)
+│   │   ├── autogen_service.py      # AutoGen integration (legacy support)
 │   │   ├── context_store.py        # Context storage service with database integration
+│   │   ├── hitl_safety_service.py  # HITL safety service for ADK integration
 │   │   ├── hitl_service.py         # Comprehensive HITL service (Task 6 - Completed)
 │   │   ├── hitl_trigger_manager.py # HITL trigger condition management (Task 6)
 │   │   ├── llm_monitoring.py       # LLM usage tracking and cost monitoring (Task 1)
@@ -166,6 +182,11 @@ backend/
 │   │   ├── workflow_step_processor.py # Workflow step execution (Task 5)
 │   │   ├── workflow_persistence_manager.py # Workflow state persistence (Task 5)
 │   │   └── workflow_hitl_integrator.py # Workflow HITL integration (Task 5)
+│   ├── tools/             # ADK tools integration
+│   │   ├── __init__.py
+│   │   ├── adk_openapi_tools.py    # OpenAPI integration tools
+│   │   ├── adk_tool_registry.py    # Tool registry and management
+│   │   └── specialized_adk_tools.py # Specialized function tools
 │   ├── tasks/             # Celery task definitions (Task 4 Enhanced)
 │   │   ├── __init__.py
 │   │   ├── agent_tasks.py # Real agent execution with LLM integration
@@ -209,12 +230,14 @@ backend/
 │   └── README.md          # Test documentation
 ├── venv/                  # Python virtual environment
 ├── .env.test              # Test environment configuration (Task 0)
+├── adk_feature_flags.json # ADK feature flag configuration
 ├── docker-compose.dev.yml # Development Docker composition
 ├── docker-compose.yml     # Production Docker composition
 ├── install_deps.py        # Dependency installation script
 ├── pyproject.toml         # Python project configuration
 ├── README.md              # Backend documentation
 ├── start_server.py        # Server startup script
+├── test_adk_enterprise_integration.py # ADK integration tests
 ├── test_basic_imports.py  # Basic import validation
 └── test_imports.py        # Import dependency validation
 ```
@@ -224,13 +247,16 @@ backend/
 ```
 docs/
 ├── architecture/          # System architecture documentation
+│   ├── ADK-Hybrid-Architecture.md        # ADK hybrid architecture design
+│   ├── ADK-Implementation-Plan.md        # ADK implementation guide
+│   ├── ADKPROGRESS.md                   # ADK implementation progress
 │   ├── HITL-AGENT-SAFETY-ARCHITECTURE.md # HITL safety architecture and mandatory controls
 │   ├── HITL_ARCHITECTURE.md              # HITL system architecture documentation
 │   ├── ALL_FIXES_SUMMARY.md
 │   ├── FINAL_STATUS.md
 │   ├── FIXES_APPLIED.md
 │   ├── TROUBLESHOOTING.md
-│   ├── architecture.md    # Main architecture document (updated with Tasks 4-6)
+│   ├── architecture.md    # Main architecture document (updated with ADK integration)
 │   ├── autogen_dependency_issue.md
 │   ├── bmad-APIContract.md # API contract specification
 │   ├── bmad-FrontendComponentsStates.md

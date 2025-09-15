@@ -11,7 +11,7 @@ Test scenarios:
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 from pydantic import ValidationError
 
@@ -32,8 +32,8 @@ class TestProjectModelValidation:
             "name": "Test Project",
             "description": "A test project",
             "status": "active",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
         
         # ProjectDB is SQLAlchemy model, so we test direct instantiation
@@ -99,8 +99,8 @@ class TestTaskModelValidation:
             "status": TaskStatus.PENDING,
             "context_ids": [uuid4(), uuid4()],
             "instructions": "Test task instructions",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
         
         task = Task(**task_data)
@@ -141,8 +141,8 @@ class TestTaskModelValidation:
             "status": TaskStatus.PENDING,
             "instructions": "Database task test",
             "context_ids": [str(uuid4())],  # Stored as JSON
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
         
         task_db = TaskDB(**task_db_data)

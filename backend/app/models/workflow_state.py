@@ -7,7 +7,7 @@ and persistence.
 
 from typing import Any, Dict, List, Optional
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -42,7 +42,12 @@ class WorkflowStepExecutionState(BaseModel):
     retry_count: int = Field(default=0, description="Number of retry attempts")
     last_retry_at: Optional[str] = Field(None, description="Timestamp of last retry attempt")
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={
+            UUID: lambda v: str(v),
+        }
+    )
 
 
 class WorkflowExecutionStateModel(BaseModel):
@@ -64,8 +69,8 @@ class WorkflowExecutionStateModel(BaseModel):
     error_message: Optional[str] = Field(None, description="Error message if execution failed")
     started_at: Optional[str] = Field(None, description="Timestamp when execution started")
     completed_at: Optional[str] = Field(None, description="Timestamp when execution completed")
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="Timestamp when execution was created")
-    updated_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="Timestamp when execution was last updated")
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat(), description="Timestamp when execution was created")
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat(), description="Timestamp when execution was last updated")
 
     # Recovery and resumption metadata
     recovery_attempts: int = Field(default=0, description="Number of recovery attempts")
@@ -73,7 +78,12 @@ class WorkflowExecutionStateModel(BaseModel):
     paused_reason: Optional[str] = Field(None, description="Reason for pausing if paused")
     cancelled_reason: Optional[str] = Field(None, description="Reason for cancellation if cancelled")
 
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={
+            UUID: lambda v: str(v),
+        }
+    )
 
     def get_pending_steps(self) -> List[WorkflowStepExecutionState]:
         """Get all steps that are pending execution."""
@@ -119,7 +129,7 @@ class WorkflowExecutionStateModel(BaseModel):
         if 0 <= step_index < len(self.steps):
             step = self.steps[step_index]
             step.status = status
-            step.completed_at = datetime.utcnow().isoformat()
+            step.completed_at = datetime.now(timezone.utc).isoformat()
 
             if result is not None:
                 step.result = result
@@ -129,7 +139,7 @@ class WorkflowExecutionStateModel(BaseModel):
 
             # Update overall execution status
             self._update_execution_status()
-            self.updated_at = datetime.utcnow().isoformat()
+            self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def _update_execution_status(self) -> None:
         """Update the overall execution status based on step statuses."""
@@ -142,7 +152,7 @@ class WorkflowExecutionStateModel(BaseModel):
 
         if all_completed:
             self.status = WorkflowExecutionState.COMPLETED
-            self.completed_at = datetime.utcnow().isoformat()
+            self.completed_at = datetime.now(timezone.utc).isoformat()
         elif any_failed:
             self.status = WorkflowExecutionState.FAILED
         elif any_running:
@@ -154,47 +164,47 @@ class WorkflowExecutionStateModel(BaseModel):
         """Add an artifact to the list of created artifacts."""
         if artifact_id not in self.created_artifacts:
             self.created_artifacts.append(artifact_id)
-            self.updated_at = datetime.utcnow().isoformat()
+            self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def mark_started(self) -> None:
         """Mark the workflow execution as started."""
         if not self.started_at:
-            self.started_at = datetime.utcnow().isoformat()
+            self.started_at = datetime.now(timezone.utc).isoformat()
         self.status = WorkflowExecutionState.RUNNING
-        self.updated_at = datetime.utcnow().isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def mark_completed(self) -> None:
         """Mark the workflow execution as completed."""
         self.status = WorkflowExecutionState.COMPLETED
-        self.completed_at = datetime.utcnow().isoformat()
-        self.updated_at = datetime.utcnow().isoformat()
+        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def mark_failed(self, error_message: str) -> None:
         """Mark the workflow execution as failed."""
         self.status = WorkflowExecutionState.FAILED
         self.error_message = error_message
-        self.completed_at = datetime.utcnow().isoformat()
-        self.updated_at = datetime.utcnow().isoformat()
+        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def pause(self, reason: str) -> None:
         """Pause the workflow execution."""
         self.status = WorkflowExecutionState.PAUSED
         self.paused_reason = reason
-        self.updated_at = datetime.utcnow().isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def resume(self) -> None:
         """Resume the workflow execution."""
         if self.status == WorkflowExecutionState.PAUSED:
             self.status = WorkflowExecutionState.RUNNING
             self.paused_reason = None
-            self.updated_at = datetime.utcnow().isoformat()
+            self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def cancel(self, reason: str) -> None:
         """Cancel the workflow execution."""
         self.status = WorkflowExecutionState.CANCELLED
         self.cancelled_reason = reason
-        self.completed_at = datetime.utcnow().isoformat()
-        self.updated_at = datetime.utcnow().isoformat()
+        self.completed_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
 
 class WorkflowRecoveryPoint(BaseModel):
@@ -209,7 +219,7 @@ class WorkflowRecoveryPoint(BaseModel):
     step_index: int = Field(..., description="Step index where recovery should resume")
     context_snapshot: Dict[str, Any] = Field(default_factory=dict, description="Snapshot of context data at recovery point")
     artifacts_snapshot: List[str] = Field(default_factory=list, description="Snapshot of created artifacts")
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat(), description="Timestamp when recovery point was created")
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat(), description="Timestamp when recovery point was created")
     reason: str = Field(..., description="Reason for creating this recovery point")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

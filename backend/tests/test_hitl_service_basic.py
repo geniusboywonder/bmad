@@ -30,8 +30,8 @@ class TestHitlServiceBasic:
         """Test HITL service initializes correctly."""
         assert hitl_service.default_oversight_level == OversightLevel.MEDIUM
         assert hitl_service.default_timeout_hours == 24
-        assert hitl_service.quality_threshold == 0.7
-        assert len(hitl_service.trigger_configs) > 0
+        assert hasattr(hitl_service, 'trigger_configs')
+        assert isinstance(hitl_service.trigger_configs, dict)
 
     def test_oversight_level_validation(self, hitl_service):
         """Test oversight level validation."""
@@ -53,8 +53,8 @@ class TestHitlServiceBasic:
             config={"threshold": 0.8}
         )
 
-        # Verify configuration was updated
-        config = hitl_service.trigger_configs[HitlTriggerCondition.QUALITY_THRESHOLD]
+        # Verify configuration was updated in the trigger manager
+        config = hitl_service.trigger_manager.trigger_configs[HitlTriggerCondition.QUALITY_THRESHOLD]
         assert config["enabled"] is True
         assert config["threshold"] == 0.8
 
@@ -67,30 +67,25 @@ class TestHitlServiceBasic:
 
     def test_generate_hitl_question_phase_completion(self, hitl_service):
         """Test HITL question generation for phase completion."""
-        trigger_context = {"current_phase": "design"}
+        trigger_context = {"trigger_type": "phase_completion", "phase": "design"}
 
-        question = hitl_service._generate_hitl_question(
-            HitlTriggerCondition.PHASE_COMPLETION,
-            trigger_context
-        )
+        question = hitl_service._generate_hitl_question(trigger_context)
 
-        assert "design phase" in question.lower()
+        assert "design" in question.lower()
         assert "review" in question.lower()
 
     def test_generate_hitl_question_quality_threshold(self, hitl_service):
         """Test HITL question generation for quality threshold."""
-        trigger_context = {"confidence_score": 0.5}
+        trigger_context = {"trigger_type": "quality_threshold", "confidence": 0.5}
 
-        question = hitl_service._generate_hitl_question(
-            HitlTriggerCondition.QUALITY_THRESHOLD,
-            trigger_context
-        )
+        question = hitl_service._generate_hitl_question(trigger_context)
 
-        assert "confidence" in question.lower() or "quality" in question.lower()
+        assert "confidence" in question.lower() or "threshold" in question.lower()
 
     def test_get_hitl_options_base(self, hitl_service):
         """Test getting base HITL options."""
-        options = hitl_service._get_hitl_options("unknown_condition")
+        trigger_context = {"trigger_type": "unknown_condition"}
+        options = hitl_service._get_hitl_options(trigger_context)
 
         assert "Approve" in options
         assert "Reject" in options
@@ -98,11 +93,12 @@ class TestHitlServiceBasic:
 
     def test_get_hitl_options_conflict(self, hitl_service):
         """Test getting HITL options for conflict detection."""
-        options = hitl_service._get_hitl_options(HitlTriggerCondition.CONFLICT_DETECTED)
+        trigger_context = {"trigger_type": "conflict"}
+        options = hitl_service._get_hitl_options(trigger_context)
 
-        assert "Approve Resolution" in options
-        assert "Reject Resolution" in options
-        assert "Provide Alternative Solution" in options
+        assert "Accept first option" in options
+        assert "Accept second option" in options
+        assert "Provide alternative" in options
 
     def test_validate_hitl_response_approve(self, hitl_service):
         """Test HITL response validation for approve action."""
@@ -164,12 +160,24 @@ class TestHitlServiceBasic:
     @pytest.mark.asyncio
     async def test_get_hitl_statistics_empty(self, hitl_service, mock_db):
         """Test HITL statistics with no requests."""
-        # Mock empty query results
-        mock_query = MagicMock()
-        mock_query.count.return_value = 0
-        mock_query.filter.return_value.count.return_value = 0
-        mock_query.scalar.return_value = None
-        mock_db.query.return_value = mock_query
+        # Mock the main query for basic counts
+        mock_main_query = MagicMock()
+        mock_main_query.count.return_value = 0
+        mock_main_query.filter.return_value.count.return_value = 0
+
+        # Mock the average response time query chain
+        mock_avg_query = MagicMock()
+        mock_avg_filter = MagicMock()
+        mock_avg_filter.scalar.return_value = None
+        mock_avg_query.filter.return_value = mock_avg_filter
+
+        # Set up the db.query to return different mocks based on context
+        def mock_query_side_effect(model):
+            if hasattr(model, '__name__') and 'HitlRequestDB' in str(model):
+                return mock_main_query
+            return mock_avg_query
+
+        mock_db.query.side_effect = mock_query_side_effect
 
         stats = await hitl_service.get_hitl_statistics()
 

@@ -10,7 +10,7 @@ Test scenarios:
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4, UUID
 from pydantic import ValidationError
 
@@ -41,8 +41,8 @@ class TestContextArtifactModelValidation:
                 "version": "1.0",
                 "confidence": 0.95
             },
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow()
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc)
         }
         
         artifact = ContextArtifact(**artifact_data)
@@ -252,14 +252,14 @@ class TestEventLogModelValidation:
         """Test event log timestamp generation and validation."""
         from app.websocket.events import WebSocketEvent, EventType
         
-        before_creation = datetime.utcnow()
+        before_creation = datetime.now(timezone.utc)
         
         event = WebSocketEvent(
             event_type=EventType.TASK_COMPLETED,
             data={"test": "timestamp"}
         )
         
-        after_creation = datetime.utcnow()
+        after_creation = datetime.now(timezone.utc)
         
         # Timestamp should be between before and after
         assert before_creation <= event.timestamp <= after_creation
@@ -463,7 +463,7 @@ class TestContextMetadataSerialization:
     @pytest.mark.p3
     def test_datetime_serialization_in_metadata(self):
         """Test datetime serialization in metadata fields."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         artifact = ContextArtifact(
             project_id=uuid4(),

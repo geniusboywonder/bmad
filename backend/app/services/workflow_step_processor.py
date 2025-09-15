@@ -5,7 +5,7 @@ Handles individual workflow step execution and agent coordination.
 """
 
 from typing import Any, Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 from sqlalchemy.orm import Session
 
@@ -62,7 +62,7 @@ class WorkflowStepProcessor:
 
             # Mark step as running
             step.status = "running"
-            step.started_at = datetime.utcnow().isoformat()
+            step.started_at = datetime.now(timezone.utc).isoformat()
 
             # Check conditional execution
             if workflow_step.condition and not self._evaluate_condition(workflow_step.condition, execution.context_data):
@@ -71,7 +71,7 @@ class WorkflowStepProcessor:
                            step_index=step.step_index,
                            condition=workflow_step.condition)
                 step.status = "completed"
-                step.completed_at = datetime.utcnow().isoformat()
+                step.completed_at = datetime.now(timezone.utc).isoformat()
                 return {"status": "skipped", "message": "Step condition not met"}
 
             # Create task for agent
@@ -87,7 +87,7 @@ class WorkflowStepProcessor:
 
             # Update step with results
             step.status = "completed"
-            step.completed_at = datetime.utcnow().isoformat()
+            step.completed_at = datetime.now(timezone.utc).isoformat()
             step.result = result
             step.task_id = str(task.task_id)
 
@@ -122,7 +122,7 @@ class WorkflowStepProcessor:
             # Mark step as failed
             step.status = "failed"
             step.error_message = str(e)
-            step.completed_at = datetime.utcnow().isoformat()
+            step.completed_at = datetime.now(timezone.utc).isoformat()
 
             raise ValueError(f"Step execution failed: {str(e)}")
 

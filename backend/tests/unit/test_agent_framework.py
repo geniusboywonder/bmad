@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4, UUID
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.task import Task, TaskStatus
 from app.models.context import ContextArtifact, ArtifactType
@@ -359,7 +359,8 @@ class TestAgentService:
     @patch('app.services.agent_service.AgentStatusService')
     def test_agent_service_initialization(self, mock_status_service, mock_context_store):
         """Test agent service initializes correctly."""
-        service = AgentService()
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
         
         assert service is not None
         assert service.agent_factory is not None
@@ -371,7 +372,8 @@ class TestAgentService:
     def test_agent_registration(self, mock_status_service, mock_context_store):
         """Test all agents are registered with factory."""
         with patch.object(AgentFactory, 'register_agent') as mock_register:
-            service = AgentService()
+            mock_db = MagicMock()
+            service = AgentService(mock_db)
             
             # Verify register_agent was called for each agent type
             assert mock_register.call_count == 6  # 6 agent types
@@ -406,8 +408,9 @@ class TestAgentService:
         mock_context_store_instance.create_artifact.return_value = MagicMock(context_id=uuid4())
         mock_context_store.return_value = mock_context_store_instance
         
-        service = AgentService()
-        
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
+
         with patch.object(service, '_get_agent_instance', return_value=mock_agent):
             result = await service.execute_task_with_agent(mock_task)
         
@@ -436,8 +439,9 @@ class TestAgentService:
         mock_context_store_instance.get_artifacts_by_project.return_value = []
         mock_context_store.return_value = mock_context_store_instance
         
-        service = AgentService()
-        
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
+
         with patch.object(service, '_get_agent_instance', return_value=mock_agent):
             result = await service.execute_task_with_agent(mock_task)
         
@@ -470,8 +474,9 @@ class TestAgentService:
         mock_context_store_instance.get_artifacts_by_project.return_value = []
         mock_context_store.return_value = mock_context_store_instance
         
-        service = AgentService()
-        
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
+
         with patch.object(service, '_get_agent_instance', return_value=mock_agent):
             handoff = await service.create_agent_handoff(
                 AgentType.ANALYST, AgentType.ARCHITECT, mock_task
@@ -493,8 +498,9 @@ class TestAgentService:
         mock_status_service_instance.get_all_agent_statuses.return_value = {}
         mock_status_service.return_value = mock_status_service_instance
         
-        service = AgentService()
-        
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
+
         with patch.object(service.agent_factory, 'get_factory_status', return_value={}):
             summary = await service.get_agent_status_summary()
         
@@ -511,8 +517,9 @@ class TestAgentService:
         mock_status_service_instance = AsyncMock()
         mock_status_service.return_value = mock_status_service_instance
         
-        service = AgentService()
-        
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
+
         with patch.object(service.agent_factory, 'remove_agent') as mock_remove:
             result = await service.reset_agent_status(AgentType.ANALYST)
         
@@ -526,7 +533,8 @@ class TestAgentService:
     @patch('app.services.agent_service.AgentStatusService')
     def test_get_service_status(self, mock_status_service, mock_context_store):
         """Test service status retrieval."""
-        service = AgentService()
+        mock_db = MagicMock()
+        service = AgentService(mock_db)
         
         with patch.object(service.agent_factory, 'get_factory_status', return_value={}):
             with patch.object(service.agent_factory, 'get_registered_types', return_value=[]):

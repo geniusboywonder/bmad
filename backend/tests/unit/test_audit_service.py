@@ -1,7 +1,7 @@
 """Unit tests for audit service."""
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -50,8 +50,8 @@ class TestAuditService:
             mock_event.event_type = EventType.TASK_CREATED.value
             mock_event.event_source = EventSource.SYSTEM.value
             mock_event.event_data = event_data
-            mock_event.event_metadata = {"logged_at": datetime.utcnow().isoformat(), "service_version": "1.0.0"}
-            mock_event.created_at = datetime.utcnow()
+            mock_event.event_metadata = {"logged_at": datetime.now(timezone.utc).isoformat(), "service_version": "1.0.0"}
+            mock_event.created_at = datetime.now(timezone.utc)
             
             mock_event_db_class.return_value = mock_event
             
@@ -122,8 +122,8 @@ class TestAuditService:
             mock_event.event_type = EventType.TASK_COMPLETED.value
             mock_event.event_source = EventSource.SYSTEM.value
             mock_event.event_data = event_data
-            mock_event.event_metadata = {"logged_at": datetime.utcnow().isoformat(), "service_version": "1.0.0"}
-            mock_event.created_at = datetime.utcnow()
+            mock_event.event_metadata = {"logged_at": datetime.now(timezone.utc).isoformat(), "service_version": "1.0.0"}
+            mock_event.created_at = datetime.now(timezone.utc)
             
             mock_event_db_class.return_value = mock_event
             
@@ -176,8 +176,8 @@ class TestAuditService:
             mock_event.event_type = EventType.HITL_RESPONSE.value
             mock_event.event_source = EventSource.USER.value
             mock_event.event_data = event_data
-            mock_event.event_metadata = {"logged_at": datetime.utcnow().isoformat(), "service_version": "1.0.0"}
-            mock_event.created_at = datetime.utcnow()
+            mock_event.event_metadata = {"logged_at": datetime.now(timezone.utc).isoformat(), "service_version": "1.0.0"}
+            mock_event.created_at = datetime.now(timezone.utc)
             
             mock_event_db_class.return_value = mock_event
             
@@ -234,7 +234,7 @@ class TestAuditService:
                 event_source=EventSource.SYSTEM.value,
                 event_data={"test": "data"},
                 event_metadata={"test": "metadata"},
-                created_at=datetime.utcnow()
+                created_at=datetime.now(timezone.utc)
             )
         ]
         
@@ -272,7 +272,7 @@ class TestAuditService:
             event_source=EventSource.SYSTEM.value,
             event_data={"test": "data"},
             event_metadata={"test": "metadata"},
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
         
         mock_result = Mock()

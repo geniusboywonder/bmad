@@ -4,7 +4,7 @@ import json
 import asyncio
 from typing import Dict, List, Set, Optional, Any
 from fastapi import WebSocket, WebSocketDisconnect
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import structlog
 from enum import Enum
 
@@ -38,7 +38,7 @@ class PriorityNotification:
         self.expires_at = expires_at
         self.max_retries = max_retries
         self.retry_count = 0
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
         self.delivered_at: Optional[datetime] = None
 
 
@@ -170,7 +170,7 @@ class WebSocketManager:
             max_retries=max_retries
         )
 
-        notification_id = f"{priority.value}_{event.event_type}_{datetime.utcnow().timestamp()}"
+        notification_id = f"{priority.value}_{event.event_type}_{datetime.now(timezone.utc).timestamp()}"
 
         # Add to appropriate priority queue
         self.priority_queues[priority.value].append(notification)
@@ -183,7 +183,7 @@ class WebSocketManager:
         success = await self._deliver_priority_notification(notification, project_id)
 
         if success:
-            notification.delivered_at = datetime.utcnow()
+            notification.delivered_at = datetime.now(timezone.utc)
             await self._mark_notification_delivered(notification_id)
             logger.info("Priority notification delivered immediately",
                        notification_id=notification_id,
@@ -222,7 +222,7 @@ class WebSocketManager:
             return
 
         # Check if notification has expired
-        if notification.expires_at and datetime.utcnow() > notification.expires_at:
+        if notification.expires_at and datetime.now(timezone.utc) > notification.expires_at:
             logger.warning("Notification expired, removing from retry queue",
                           notification_id=notification_id)
             await self._mark_notification_expired(notification_id)
@@ -236,7 +236,7 @@ class WebSocketManager:
 
             success = await self._deliver_priority_notification(notification, project_id)
             if success:
-                notification.delivered_at = datetime.utcnow()
+                notification.delivered_at = datetime.now(timezone.utc)
                 await self._mark_notification_delivered(notification_id)
                 logger.info("Priority notification delivered on retry",
                            notification_id=notification_id,
@@ -325,7 +325,7 @@ class WebSocketManager:
                 if notification.event_data and "notification_id" in notification.event_data:
                     if notification.event_data["notification_id"] == notification_id:
                         notification.delivered = True
-                        notification.delivered_at = datetime.utcnow()
+                        notification.delivered_at = datetime.now(timezone.utc)
                         db.commit()
                         break
 
@@ -410,7 +410,7 @@ class WebSocketManager:
 
         db = next(get_session())
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             expired_count = db.query(WebSocketNotificationDB).filter(
                 WebSocketNotificationDB.expires_at < now,
@@ -443,7 +443,7 @@ class WebSocketManager:
                 "title": title,
                 "message": message,
                 "priority": priority.value,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 **(event_data or {})
             }
         )
@@ -451,7 +451,7 @@ class WebSocketManager:
         # Calculate expiration
         expires_at = None
         if expires_in_minutes:
-            expires_at = datetime.utcnow() + timedelta(minutes=expires_in_minutes)
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_in_minutes)
 
         # Send as priority notification
         notification_id = await self.send_priority_notification(

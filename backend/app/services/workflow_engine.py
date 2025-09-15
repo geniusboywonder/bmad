@@ -7,7 +7,7 @@ execution, agent handoffs, state persistence, and recovery mechanisms.
 
 import asyncio
 from typing import Any, Dict, List, Optional, Union, Callable
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 import structlog
 import json
@@ -186,7 +186,7 @@ class WorkflowExecutionEngine:
 
             # Mark step as running
             step.status = ExecutionStateEnum.RUNNING
-            step.started_at = datetime.utcnow().isoformat()
+            step.started_at = datetime.now(timezone.utc).isoformat()
             self._persist_execution_state(execution)
 
             # Load workflow definition
@@ -203,7 +203,7 @@ class WorkflowExecutionEngine:
                            step_index=step.step_index,
                            condition=workflow_step.condition)
                 step.status = ExecutionStateEnum.COMPLETED
-                step.completed_at = datetime.utcnow().isoformat()
+                step.completed_at = datetime.now(timezone.utc).isoformat()
                 self._persist_execution_state(execution)
                 return {"status": "skipped", "message": "Step condition not met"}
 
@@ -220,7 +220,7 @@ class WorkflowExecutionEngine:
 
             # Update step with results
             step.status = ExecutionStateEnum.COMPLETED
-            step.completed_at = datetime.utcnow().isoformat()
+            step.completed_at = datetime.now(timezone.utc).isoformat()
             step.result = result
             step.task_id = str(task.task_id)
 
@@ -308,7 +308,7 @@ class WorkflowExecutionEngine:
             # Mark step as failed
             step.status = ExecutionStateEnum.FAILED
             step.error_message = str(e)
-            step.completed_at = datetime.utcnow().isoformat()
+            step.completed_at = datetime.now(timezone.utc).isoformat()
             execution.mark_failed(f"Step {step.step_index} failed: {str(e)}")
             self._persist_execution_state(execution)
 
@@ -501,8 +501,8 @@ class WorkflowExecutionEngine:
                 error_message=db_state.error_message,
                 started_at=db_state.started_at.isoformat() if db_state.started_at else None,
                 completed_at=db_state.completed_at.isoformat() if db_state.completed_at else None,
-                created_at=db_state.created_at.isoformat(),
-                updated_at=db_state.updated_at.isoformat()
+                created_at=db_state.created_at.isoformat() if isinstance(db_state.created_at, datetime) else db_state.created_at,
+                updated_at=db_state.updated_at.isoformat() if isinstance(db_state.updated_at, datetime) else db_state.updated_at
             )
 
             # Cache recovered execution
@@ -571,9 +571,13 @@ class WorkflowExecutionEngine:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # If loop is already running, we need to handle differently
-                import nest_asyncio
-                nest_asyncio.apply()
-                return loop.run_until_complete(_resume())
+                try:
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    return loop.run_until_complete(_resume())
+                except ImportError:
+                    logger.warning("nest_asyncio not available, cannot resume workflow in running event loop")
+                    return False
             else:
                 return loop.run_until_complete(_resume())
         except RuntimeError:
@@ -633,6 +637,11 @@ class WorkflowExecutionEngine:
             # Convert to database format
             steps_data = [step.model_dump() for step in execution.steps]
 
+            # Convert UUID objects to strings in context_data and created_artifacts for JSON serialization
+            context_data = self._convert_uuids_to_strings(execution.context_data)
+            created_artifacts = [str(artifact_id) if isinstance(artifact_id, UUID) else artifact_id
+                               for artifact_id in execution.created_artifacts]
+
             # Find existing record or create new
             db_state = self.db.query(WorkflowStateDB).filter(
                 WorkflowStateDB.execution_id == execution.execution_id
@@ -644,12 +653,12 @@ class WorkflowExecutionEngine:
                 db_state.current_step = execution.current_step
                 db_state.total_steps = execution.total_steps
                 db_state.steps_data = steps_data
-                db_state.context_data = execution.context_data
-                db_state.created_artifacts = execution.created_artifacts
+                db_state.context_data = context_data
+                db_state.created_artifacts = created_artifacts
                 db_state.error_message = execution.error_message
                 db_state.started_at = datetime.fromisoformat(execution.started_at) if execution.started_at else None
                 db_state.completed_at = datetime.fromisoformat(execution.completed_at) if execution.completed_at else None
-                db_state.updated_at = datetime.utcnow()
+                db_state.updated_at = datetime.now(timezone.utc)
             else:
                 # Create new
                 db_state = WorkflowStateDB(
@@ -660,8 +669,8 @@ class WorkflowExecutionEngine:
                     current_step=execution.current_step,
                     total_steps=execution.total_steps,
                     steps_data=steps_data,
-                    context_data=execution.context_data,
-                    created_artifacts=execution.created_artifacts,
+                    context_data=context_data,
+                    created_artifacts=created_artifacts,
                     error_message=execution.error_message,
                     started_at=datetime.fromisoformat(execution.started_at) if execution.started_at else None,
                     completed_at=datetime.fromisoformat(execution.completed_at) if execution.completed_at else None
@@ -769,8 +778,8 @@ class WorkflowExecutionEngine:
             from_agent="orchestrator",
             to_agent=task.agent_type,
             phase=f"workflow_{execution.workflow_id}",
-            instructions=task.instructions,
             context_ids=task.context_ids,
+            instructions=task.instructions,
             expected_outputs=["task_result"],
             metadata={
                 "execution_id": execution.execution_id,
@@ -914,3 +923,24 @@ class WorkflowExecutionEngine:
             return phase_mapping.get(current_step, "unknown")
 
         return "unknown"
+
+    def _convert_uuids_to_strings(self, data: Any) -> Any:
+        """
+        Recursively convert UUID objects to strings in nested data structures.
+
+        Args:
+            data: Data structure that may contain UUID objects
+
+        Returns:
+            Data structure with UUID objects converted to strings
+        """
+        if isinstance(data, UUID):
+            return str(data)
+        elif isinstance(data, dict):
+            return {key: self._convert_uuids_to_strings(value) for key, value in data.items()}
+        elif isinstance(data, list):
+            return [self._convert_uuids_to_strings(item) for item in data]
+        elif isinstance(data, tuple):
+            return tuple(self._convert_uuids_to_strings(item) for item in data)
+        else:
+            return data

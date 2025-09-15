@@ -33,20 +33,26 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
   - **Celery Broker**: Separate Redis instance for task queue
   - **Caching Layer**: High-performance caching for API responses
 
-### Agent Framework (Task 2 Enhanced, Task 4 Production-Ready)
+### Agent Framework (ADK Integration Complete)
 
-- **AutoGen AgentChat 0.7.4** - Microsoft's multi-agent conversation framework with enhanced integration
-  - **ConversableAgent Integration**: Each agent wraps AutoGen ConversableAgent instances
+- **Google ADK (Agent Development Kit)** - Production-grade agent framework with enterprise controls
+  - **Correct API Usage**: Uses `instruction` parameter, `Runner`-based execution, proper session management
+  - **LlmAgent Integration**: Advanced agent capabilities with `gemini-2.0-flash` model support
+  - **Session Management**: Proper `InMemorySessionService` and `types.Content` message handling
+  - **Tool Integration**: `FunctionTool` support with graceful fallback and error handling
+  - **BMAD-ADK Wrapper**: Enterprise wrapper preserving BMAD safety controls and audit requirements
+  - **Development Tools**: Comprehensive testing framework with benchmarking and HITL simulation
+- **Legacy AutoGen Support** - Microsoft's multi-agent conversation framework (backward compatibility)
+  - **ConversableAgent Integration**: Legacy agent wrapper for AutoGen instances
   - **GroupChat Support**: Multi-agent collaboration with round-robin speaker selection
-  - **Dynamic Configuration**: Runtime agent config loading from `.bmad-core/agents/`
   - **Context Passing**: Structured handoff management via HandoffSchema
-  - **Real Task Execution** (Task 4): Live LLM-powered agent processing with database persistence
-- **BaseAgent Architecture** - Abstract agent foundation with LLM reliability integration
-  - **Factory Pattern**: Type-based agent instantiation via AgentService
-  - **LLM Reliability**: Integration with Task 1 validation, retry, and monitoring
-  - **Context Management**: Artifact consumption and creation with validation
+- **Hybrid Agent Architecture** - Seamless integration between ADK and legacy systems
+  - **Agent Factory**: Enhanced factory with ADK support and gradual rollout capabilities
+  - **Feature Flags**: Configurable ADK adoption with `use_adk` flag support
+  - **Enterprise Integration**: Full HITL safety controls, audit trails, and usage tracking
+  - **Tool Registry**: Comprehensive tool management with OpenAPI integration support
 - **Celery 5.3.4** - Distributed task queue for asynchronous processing
-  - **Real Agent Processing** (Task 4): Production-ready task execution with lifecycle management
+  - **Real Agent Processing**: Production-ready task execution with lifecycle management
   - **Database Integration**: Full task status tracking with atomic updates
   - **WebSocket Events**: Real-time broadcasting of agent progress and results
   - **Artifact Management**: Dynamic context creation and retrieval during execution
@@ -240,14 +246,43 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 - **Mock Infrastructure** - Comprehensive mocking for external dependencies
 - **Performance Validation** - Sub-200ms response time validation for all endpoints
 
+## ADK Tools Integration
+
+### Tool Architecture
+
+- **ADK Tool Registry** - Centralized tool management and assignment system
+  - **Function Tools**: Custom Python function integration with ADK framework
+  - **OpenAPI Tools**: External API integration with enterprise safety controls
+  - **Specialized Tools**: Code analysis, API health checks, and project metrics
+  - **Agent-Specific Assignment**: Tool mapping based on agent type and capabilities
+
+### Enterprise Tool Safety
+
+- **HITL Tool Approval** - Human oversight for high-risk tool operations
+  - **Risk Assessment**: Automatic risk level evaluation (high/medium/low)
+  - **Approval Workflows**: HITL integration for external API calls and write operations
+  - **Audit Trails**: Complete tool execution logging with cost tracking
+- **BMADOpenAPITool** - Enterprise wrapper for external API integration
+  - **Safety Controls**: Risk assessment and HITL approval for external calls
+  - **Error Recovery**: Graceful failure handling with comprehensive logging
+  - **Cost Monitoring**: Token usage and API call cost estimation
+
+### Tool Development Framework
+
+- **ADK Development Tools** - Comprehensive testing and validation framework
+  - **Test Scenarios**: Predefined test cases for agent validation
+  - **Benchmarking Tools**: Performance metrics and quality scoring
+  - **HITL Simulation**: Development-time human interaction simulation
+  - **Integration Testing**: End-to-end tool execution validation
+
 ## LLM Provider Support
 
 ### Multi-Provider Architecture
 
-- **OpenAI GPT-4** - Primary reasoning and technical tasks
-- **Anthropic Claude** - Requirements analysis and documentation
-- **Google Gemini** - Alternative provider with fallback
-- **Provider Abstraction** - Unified interface for all LLMs
+- **Google Gemini (Primary)** - ADK-integrated agent execution with `gemini-2.0-flash`
+- **OpenAI GPT-4** - Legacy agent support for technical tasks
+- **Anthropic Claude** - Legacy agent support for requirements analysis
+- **Provider Abstraction** - Unified interface supporting both ADK and legacy agents
 
 ### LLM Reliability & Monitoring (Task 1 Implementation)
 
@@ -339,16 +374,23 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 - Excellent type hint integration
 - Native WebSocket support
 
-### Why AutoGen? (Task 2 Enhanced)
+### Why Google ADK? (Primary Agent Framework)
 
+- **Production-Grade Framework**: Google's enterprise-ready agent development toolkit
+- **Advanced Model Access**: Native integration with latest Gemini models (`gemini-2.0-flash`)
+- **Proper Session Management**: Built-in session handling with `InMemorySessionService`
+- **Tool Integration**: Native support for function tools and external API integration
+- **Enterprise Architecture**: Designed for production deployments with proper error handling
+- **Performance Optimization**: Efficient message passing with `types.Content` patterns
+- **Development Support**: Comprehensive testing and debugging tools
+
+### Why AutoGen? (Legacy Support)
+
+- **Backward Compatibility**: Maintains existing agent implementations during ADK transition
 - **Microsoft-backed Framework**: Enterprise-grade multi-agent conversation management
-- **Structured Conversation**: Built-in support for agent-to-agent communication patterns
-- **Extensible Architecture**: Easy integration with custom agent implementations via ConversableAgent
 - **GroupChat Capabilities**: Native support for multi-agent collaboration scenarios
-- **LLM Provider Agnostic**: Seamless integration with OpenAI, Claude, and other providers
-- **Code Execution**: Built-in support for code generation and execution workflows
-- **Context Management**: Sophisticated conversation context and state management
-- **Speaker Selection**: Configurable agent selection methods (round-robin, manual, auto)
+- **Structured Conversation**: Built-in support for agent-to-agent communication patterns
+- **Gradual Migration**: Allows phased transition to ADK without disrupting existing workflows
 
 ### Why PostgreSQL?
 

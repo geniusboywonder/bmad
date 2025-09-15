@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -169,7 +169,15 @@ async def approve_agent_execution(
                 detail=f"Approval request {approval_id} is not pending (current status: {approval_record.status})"
             )
 
-        if approval_record.expires_at < datetime.utcnow():
+        # Handle timezone comparison - ensure both datetimes have the same timezone awareness
+        now = datetime.now(timezone.utc)
+        expires_at = approval_record.expires_at
+
+        # If expires_at is naive, assume it's UTC
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at < now:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Approval request {approval_id} has expired"
@@ -179,7 +187,7 @@ async def approve_agent_execution(
         approval_record.status = "APPROVED" if approval.approved else "REJECTED"
         approval_record.user_response = approval.response
         approval_record.user_comment = approval.comment
-        approval_record.responded_at = datetime.utcnow()
+        approval_record.responded_at = datetime.now(timezone.utc)
         db.commit()
 
         # Broadcast approval decision
@@ -425,7 +433,7 @@ async def update_budget_control(
     if updates.session_token_limit is not None:
         budget.session_token_limit = updates.session_token_limit
 
-    budget.updated_at = datetime.utcnow()
+    budget.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(budget)
 
@@ -485,7 +493,7 @@ async def hitl_safety_health_check():
     return {
         "status": "healthy",
         "service": "hitl_safety",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "features": [
             "mandatory_approval_controls",
             "budget_limits",

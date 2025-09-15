@@ -3,7 +3,7 @@
 from typing import Dict, Any, List, Optional, Tuple
 from uuid import UUID
 import structlog
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from app.database.models import RecoverySessionDB, EmergencyStopDB
@@ -302,13 +302,13 @@ class RecoveryProcedureManager:
 
         # Execute the step
         step.status = "IN_PROGRESS"
-        step.started_at = datetime.utcnow()
+        step.started_at = datetime.now(timezone.utc)
 
         try:
             result = await self._execute_step_action(step, session)
 
             step.status = "COMPLETED"
-            step.completed_at = datetime.utcnow()
+            step.completed_at = datetime.now(timezone.utc)
             step.result = result
 
             logger.info("Recovery step completed",
@@ -318,7 +318,7 @@ class RecoveryProcedureManager:
 
         except Exception as e:
             step.status = "FAILED"
-            step.completed_at = datetime.utcnow()
+            step.completed_at = datetime.now(timezone.utc)
             step.error = str(e)
 
             logger.error("Recovery step failed",
@@ -560,7 +560,7 @@ class RecoveryProcedureManager:
                     (i for i, step in enumerate(steps) if step.status == "IN_PROGRESS"),
                     len(steps)
                 )
-                db_session.updated_at = datetime.utcnow()
+                db_session.updated_at = datetime.now(timezone.utc)
                 db.commit()
 
         finally:
@@ -602,7 +602,7 @@ class RecoveryProcedureManager:
             if db_session:
                 db_session.status = final_status
                 db_session.recovery_result = recovery_result
-                db_session.completed_at = datetime.utcnow()
+                db_session.completed_at = datetime.now(timezone.utc)
                 db.commit()
 
                 # Broadcast completion

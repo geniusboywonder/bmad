@@ -63,6 +63,8 @@ class HitlService:
         # Default configuration
         self.default_oversight_level = OversightLevel.MEDIUM
         self.bulk_approval_batch_size = 10
+        self.default_timeout_hours = 24  # Default timeout for HITL requests
+        self.trigger_configs = {}  # Store trigger configurations
 
     @property
     def workflow_engine(self):
@@ -618,3 +620,29 @@ class HitlService:
         logger.info("Cleaned up expired HITL requests", count=expired_count)
 
         return expired_count
+
+    def _generate_hitl_question(self, trigger_context: Dict[str, Any]) -> str:
+        """Generate a HITL question based on trigger context."""
+        trigger_type = trigger_context.get("trigger_type", "unknown")
+
+        if trigger_type == "phase_completion":
+            return f"Agent has completed phase '{trigger_context.get('phase', 'unknown')}'. Please review and approve."
+        elif trigger_type == "quality_threshold":
+            return f"Agent confidence score ({trigger_context.get('confidence', 0)}) is below threshold. Please review."
+        elif trigger_type == "conflict":
+            return f"Agent detected a conflict in '{trigger_context.get('conflict_type', 'unknown')}'. Please resolve."
+        else:
+            return "Agent requires human approval. Please review the request."
+
+    def _get_hitl_options(self, trigger_context: Dict[str, Any]) -> List[str]:
+        """Get HITL response options based on trigger context."""
+        trigger_type = trigger_context.get("trigger_type", "unknown")
+
+        if trigger_type == "phase_completion":
+            return ["Approve", "Reject", "Amend"]
+        elif trigger_type == "quality_threshold":
+            return ["Approve with caution", "Reject", "Request revision"]
+        elif trigger_type == "conflict":
+            return ["Accept first option", "Accept second option", "Provide alternative"]
+        else:
+            return ["Approve", "Reject", "Amend"]

@@ -221,7 +221,7 @@ class TestWorkflowService:
             assert handoff.from_agent == "analyst"
             assert handoff.to_agent == "architect"
             assert handoff.phase == "workflow_test-workflow"
-            assert "architect" in handoff.expected_outputs
+            assert "architecture.md" in handoff.expected_outputs
 
     def test_get_workflow_execution_status(self, workflow_service, mock_workflow_definition):
         """Test getting workflow execution status."""
@@ -257,14 +257,17 @@ class TestWorkflowService:
 
     def test_list_available_workflows(self, workflow_service, mock_workflow_definition):
         """Test listing available workflows."""
-        with patch.object(workflow_service.workflow_base_path, 'exists', return_value=True), \
-             patch.object(workflow_service.workflow_base_path, 'glob') as mock_glob, \
-             patch.object(workflow_service, 'load_workflow', return_value=mock_workflow_definition):
+        # Create a mock Path object that behaves correctly
+        mock_path = MagicMock(spec=Path)
+        mock_path.exists.return_value = True
 
-            # Mock workflow files
-            mock_file = Path("test-workflow.yaml")
-            mock_file.stem = "test-workflow"
-            mock_glob.return_value = [mock_file]
+        # Mock workflow files
+        mock_file = MagicMock(spec=Path)
+        mock_file.stem = "test-workflow"
+        mock_path.glob.return_value = [mock_file]
+
+        with patch.object(workflow_service, 'workflow_base_path', mock_path), \
+             patch.object(workflow_service, 'load_workflow', return_value=mock_workflow_definition):
 
             result = workflow_service.list_available_workflows()
 
@@ -334,17 +337,18 @@ class TestWorkflowService:
 
     def test_find_workflow_file(self, workflow_service):
         """Test workflow file finding."""
-        with patch.object(workflow_service.workflow_base_path, '__truediv__') as mock_div, \
-             patch('pathlib.Path.exists') as mock_exists:
+        # Create a mock Path object that behaves correctly
+        mock_path = MagicMock(spec=Path)
+        mock_file = MagicMock(spec=Path)
+        mock_path.__truediv__.return_value = mock_file
 
-            mock_file = Path("test-workflow.yaml")
-            mock_div.return_value = mock_file
-            mock_exists.return_value = True
+        with patch.object(workflow_service, 'workflow_base_path', mock_path), \
+             patch('pathlib.Path.exists', return_value=True):
 
             result = workflow_service._find_workflow_file("test-workflow")
 
             assert result == mock_file
-            mock_div.assert_called_with("test-workflow.yaml")
+            mock_path.__truediv__.assert_called_with("test-workflow.yaml")
 
     def test_workflow_definition_validation(self, mock_workflow_definition):
         """Test workflow definition validation."""

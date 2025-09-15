@@ -9,7 +9,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import ValidationError
 
@@ -234,7 +234,8 @@ class TemplateService:
         templates = []
 
         try:
-            if self.template_base_path.exists():
+            # Check if base path exists and is a directory
+            if self.template_base_path.exists() and self.template_base_path.is_dir():
                 for template_file in self.template_base_path.glob("*.yaml"):
                     try:
                         template_id = template_file.stem
@@ -272,11 +273,18 @@ class TemplateService:
         Returns:
             Path to template file or None if not found
         """
-        # Try different file extensions
-        for ext in ['.yaml', '.yml']:
-            template_file = self.template_base_path / f"{template_id}{ext}"
-            if template_file.exists():
-                return template_file
+        try:
+            # Ensure template_base_path is a Path object
+            base_path = Path(self.template_base_path)
+
+            # Try different file extensions
+            for ext in ['.yaml', '.yml']:
+                template_file = base_path / f"{template_id}{ext}"
+                if template_file.exists() and template_file.is_file():
+                    return template_file
+
+        except Exception as e:
+            logger.warning(f"Error finding template file for '{template_id}': {str(e)}")
 
         return None
 
@@ -424,7 +432,7 @@ class TemplateService:
         lines.append("---")
         lines.append(f"template: {template.id}")
         lines.append(f"version: {template.version}")
-        lines.append(f"generated: {datetime.utcnow().isoformat()}")
+        lines.append(f"generated: {datetime.now(timezone.utc).isoformat()}")
         lines.append("---")
         lines.append("")
 
@@ -468,7 +476,7 @@ class TemplateService:
             "template": template.id,
             "name": template.name,
             "version": template.version,
-            "generated": datetime.utcnow().isoformat(),
+            "generated": datetime.now(timezone.utc).isoformat(),
             "variables": variables,
             "content": content
         }
@@ -488,7 +496,7 @@ class TemplateService:
             "template": template.id,
             "name": template.name,
             "version": template.version,
-            "generated": datetime.utcnow().isoformat(),
+            "generated": datetime.now(timezone.utc).isoformat(),
             "variables": variables,
             "content": content
         }

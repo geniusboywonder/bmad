@@ -6,7 +6,7 @@ Manages workflow execution lifecycle and state transitions for the BMAD Core sys
 
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.workflow import WorkflowDefinition
@@ -282,7 +282,7 @@ class WorkflowExecutionManager:
                 db_state.error_message = execution.error_message
                 db_state.started_at = datetime.fromisoformat(execution.started_at) if execution.started_at else None
                 db_state.completed_at = datetime.fromisoformat(execution.completed_at) if execution.completed_at else None
-                db_state.updated_at = datetime.utcnow()
+                db_state.updated_at = datetime.now(timezone.utc)
             else:
                 # Create new
                 db_state = WorkflowStateDB(
