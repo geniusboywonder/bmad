@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     openai_api_key: Optional[str] = Field(default=None, env="OPENAI_API_KEY")
     anthropic_api_key: Optional[str] = Field(default=None, env="ANTHROPIC_API_KEY")
     google_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
+    gemini_key_key: Optional[str] = Field(default=None, env="GEMINI_KEY_KEY")
+    google_genai_api_key: Optional[str] = Field(default=None, env="GOOGLE_GENAI_API_KEY")
     
     # LLM Reliability Configuration
     llm_retry_max_attempts: int = Field(default=3, env="LLM_RETRY_MAX_ATTEMPTS")
