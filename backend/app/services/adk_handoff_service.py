@@ -1,8 +1,10 @@
 """ADK Agent Handoff Service for structured multi-agent communication."""
 
-from typing import Dict, Any, List, Optional, AsyncGenerator
+from typing import Dict, Any, List, Optional, AsyncGenerator, Union
 import structlog
 from datetime import datetime
+from sqlalchemy.orm import Session
+from uuid import uuid4, UUID
 
 from app.models.task import Task
 from app.models.handoff import HandoffSchema
@@ -17,9 +19,10 @@ logger = structlog.get_logger(__name__)
 class ADKHandoffService:
     """Manages structured handoffs between ADK agents with context preservation and workflow continuity."""
 
-    def __init__(self):
+    def __init__(self, db: Session):
+        self.db = db
         self.orchestration_service = ADKOrchestrationService()
-        self.context_store = ContextStoreService()
+        self.context_store = ContextStoreService(db)
         self.active_handoffs: Dict[str, Dict[str, Any]] = {}
         self.handoff_count = 0
 
@@ -29,7 +32,7 @@ class ADKHandoffService:
                                        from_agent: BMADADKWrapper,
                                        to_agent: BMADADKWrapper,
                                        handoff_data: Dict[str, Any],
-                                       project_id: str,
+                                       project_id: Union[str, UUID],
                                        workflow_id: Optional[str] = None) -> str:
         """Create a structured handoff between ADK agents.
 
@@ -44,23 +47,51 @@ class ADKHandoffService:
             Handoff ID for tracking
         """
         self.handoff_count += 1
-        handoff_id = f"adk_handoff_{project_id}_{self.handoff_count}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        handoff_uuid = uuid4()
+        handoff_id = str(handoff_uuid)
 
         try:
             # Validate handoff data
             self._validate_handoff_data(handoff_data)
 
+            # Convert project_id to UUID if it's a string
+            if isinstance(project_id, str):
+                try:
+                    project_uuid = UUID(project_id)
+                except ValueError:
+                    # If it's not a valid UUID string, generate a new one
+                    project_uuid = uuid4()
+            else:
+                project_uuid = project_id
+
+            # Convert context_ids to UUIDs
+            context_uuids = []
+            for context_id in handoff_data.get("context_ids", []):
+                if isinstance(context_id, str):
+                    try:
+                        context_uuids.append(UUID(context_id))
+                    except ValueError:
+                        # Skip invalid UUID strings
+                        continue
+                else:
+                    context_uuids.append(context_id)
+
+            # Convert priority to int
+            priority_map = {"low": 4, "medium": 2, "high": 1, "urgent": 0}
+            priority_str = handoff_data.get("priority", "medium")
+            priority_int = priority_map.get(priority_str, 2)
+
             # Create handoff schema
             handoff_schema = HandoffSchema(
-                handoff_id=handoff_id,
-                project_id=project_id,
+                handoff_id=handoff_uuid,
+                project_id=project_uuid,
                 from_agent=from_agent.agent_type,
                 to_agent=to_agent.agent_type,
                 phase=handoff_data.get("phase", "general_handoff"),
                 instructions=self._build_handoff_instructions(handoff_data),
-                context_ids=handoff_data.get("context_ids", []),
+                context_ids=context_uuids,
                 expected_outputs=handoff_data.get("expected_outputs", []),
-                priority=handoff_data.get("priority", "medium"),
+                priority=priority_int,
                 metadata={
                     "workflow_id": workflow_id,
                     "handoff_type": "adk_structured",
@@ -239,7 +270,7 @@ class ADKHandoffService:
             "expected_outputs": handoff_schema.expected_outputs
         }
 
-    def list_active_handoffs(self, project_id: Optional[str] = None) -> List[str]:
+    def list_active_handoffs(self, project_id: Optional[Union[str, UUID]] = None) -> List[str]:
         """List active handoff IDs, optionally filtered by project.
 
         Args:
@@ -249,9 +280,22 @@ class ADKHandoffService:
             List of active handoff IDs
         """
         if project_id:
+            # Convert project_id to UUID for comparison if it's a string
+            if isinstance(project_id, str):
+                try:
+                    filter_uuid = UUID(project_id)
+                except ValueError:
+                    # If project_id is not a valid UUID string, compare as string representation
+                    return [
+                        hid for hid, info in self.active_handoffs.items()
+                        if str(info["schema"].project_id) == project_id
+                    ]
+            else:
+                filter_uuid = project_id
+
             return [
                 hid for hid, info in self.active_handoffs.items()
-                if info["schema"].project_id == project_id
+                if info["schema"].project_id == filter_uuid
             ]
         return list(self.active_handoffs.keys())
 

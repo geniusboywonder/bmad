@@ -96,10 +96,10 @@ class TestBMADOpenAPITool:
         assert openapi_tool.tool_name == "test_api_tool"
         assert openapi_tool.openapi_spec == sample_openapi_spec
         assert openapi_tool.base_url == "https://api.test.com/v1"
-        assert len(openapi_tool.endpoints) == 2  # /users and /users/{id}
+        assert len(openapi_tool.endpoints) == 3  # GET /users, POST /users, GET /users/{id}
         assert "bearerAuth" in openapi_tool.security_schemes
 
-    def test_tool_initialization_invalid_spec(self):
+    async def test_tool_initialization_invalid_spec(self):
         """Test tool initialization with invalid OpenAPI spec."""
         invalid_spec = {
             "info": {"title": "Test"}
@@ -107,7 +107,7 @@ class TestBMADOpenAPITool:
         }
 
         tool = BMADOpenAPITool(invalid_spec, "invalid_tool")
-        result = tool.initialize()
+        result = await tool.initialize()
         assert result is False
 
     def test_validate_openapi_spec_valid(self, openapi_tool):
@@ -222,9 +222,9 @@ class TestBMADOpenAPITool:
         assert info["tool_name"] == "test_api_tool"
         assert info["is_initialized"] is False  # Not initialized yet
         assert info["base_url"] == "https://api.test.com/v1"
-        assert info["endpoint_count"] == 2
+        assert info["endpoint_count"] == 3
         assert "bearerAuth" in info["security_schemes"]
-        assert info["adk_tool_available"] is None  # Not initialized
+        assert info["adk_tool_available"] is False  # Not initialized
 
     def test_assess_api_risk_low(self, openapi_tool):
         """Test risk assessment for low-risk operations."""
@@ -238,9 +238,9 @@ class TestBMADOpenAPITool:
 
     def test_assess_api_risk_medium(self, openapi_tool):
         """Test risk assessment for medium-risk operations."""
-        # PATCH request
+        # PATCH request is now classified as high risk (write operation)
         risk = openapi_tool._assess_api_risk("/users/123", "PATCH", {})
-        assert risk == "medium"
+        assert risk == "high"
 
     def test_assess_api_risk_high_write_operations(self, openapi_tool):
         """Test risk assessment for high-risk write operations."""
@@ -316,31 +316,32 @@ class TestBMADOpenAPIToolExecution:
     """Test OpenAPI tool execution with enterprise controls."""
 
     @pytest.fixture
-    def initialized_tool(self, sample_openapi_spec):
+    async def initialized_tool(self, sample_openapi_spec):
         """Create an initialized OpenAPI tool."""
         tool = BMADOpenAPITool(sample_openapi_spec, "test_api_tool")
         # Mock successful initialization
         with patch.object(tool, '_validate_openapi_spec', return_value=True):
             with patch('google.adk.tools.FunctionTool') as mock_adk_tool:
                 mock_adk_tool.return_value = Mock()
-                result = tool.initialize()
+                result = await tool.initialize()
                 assert result is True
         return tool
 
     @patch('httpx.AsyncClient')
-    def test_execute_api_call_success(self, mock_client_class, initialized_tool):
+    async def test_execute_api_call_success(self, mock_client_class, initialized_tool):
         """Test successful API call execution."""
         # Mock HTTP client
         mock_client = AsyncMock()
         mock_response = Mock()
         mock_response.status_code = 200
+        mock_response.is_success = True
         mock_response.json.return_value = {"id": 1, "name": "test"}
         mock_response.headers = {"content-type": "application/json"}
         mock_response.url = "https://api.test.com/v1/users"
         mock_client.request.return_value = mock_response
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        result = initialized_tool._execute_api_call("/users", "GET")
+        result = await initialized_tool._execute_api_call("/users", "GET")
 
         assert result["success"] is True
         assert result["status_code"] == 200
@@ -348,18 +349,19 @@ class TestBMADOpenAPIToolExecution:
         assert result["url"] == "https://api.test.com/v1/users"
 
     @patch('httpx.AsyncClient')
-    def test_execute_api_call_with_body(self, mock_client_class, initialized_tool):
+    async def test_execute_api_call_with_body(self, mock_client_class, initialized_tool):
         """Test API call execution with request body."""
         mock_client = AsyncMock()
         mock_response = Mock()
         mock_response.status_code = 201
+        mock_response.is_success = True
         mock_response.json.return_value = {"id": 2, "created": True}
         mock_response.headers = {"content-type": "application/json"}
         mock_client.request.return_value = mock_response
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
         parameters = {"body": {"name": "new_user", "email": "user@test.com"}}
-        result = initialized_tool._execute_api_call("/users", "POST", parameters)
+        result = await initialized_tool._execute_api_call("/users", "POST", parameters)
 
         assert result["success"] is True
         assert result["status_code"] == 201
@@ -369,7 +371,7 @@ class TestBMADOpenAPIToolExecution:
         assert call_args[1]["json"] == {"name": "new_user", "email": "user@test.com"}
 
     @patch('httpx.AsyncClient')
-    def test_execute_api_call_timeout(self, mock_client_class, initialized_tool):
+    async def test_execute_api_call_timeout(self, mock_client_class, initialized_tool):
         """Test API call execution with timeout."""
         from httpx import TimeoutException
 
@@ -377,14 +379,14 @@ class TestBMADOpenAPIToolExecution:
         mock_client.request.side_effect = TimeoutException("Request timed out")
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        result = initialized_tool._execute_api_call("/users", "GET")
+        result = await initialized_tool._execute_api_call("/users", "GET")
 
         assert result["success"] is False
         assert result["error"] == "Request timeout"
         assert result["status_code"] == 408
 
     @patch('httpx.AsyncClient')
-    def test_execute_api_call_connection_error(self, mock_client_class, initialized_tool):
+    async def test_execute_api_call_connection_error(self, mock_client_class, initialized_tool):
         """Test API call execution with connection error."""
         from httpx import ConnectError
 
@@ -392,22 +394,22 @@ class TestBMADOpenAPIToolExecution:
         mock_client.request.side_effect = ConnectError("Connection failed")
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        result = initialized_tool._execute_api_call("/users", "GET")
+        result = await initialized_tool._execute_api_call("/users", "GET")
 
         assert result["success"] is False
         assert result["error"] == "Connection failed"
         assert result["status_code"] == 503
 
-    def test_execute_with_enterprise_controls_not_initialized(self, openapi_tool):
+    async def test_execute_with_enterprise_controls_not_initialized(self, openapi_tool):
         """Test execution with enterprise controls when tool is not initialized."""
-        result = openapi_tool.execute_with_enterprise_controls(
+        result = await openapi_tool.execute_with_enterprise_controls(
             "/users", "GET", {}, "test_project", "test_task", "analyst"
         )
 
         assert result["success"] is False
         assert result["error"] == "Tool not initialized"
 
-    def test_execute_with_enterprise_controls_low_risk(self, initialized_tool):
+    async def test_execute_with_enterprise_controls_low_risk(self, initialized_tool):
         """Test execution with enterprise controls for low-risk operation."""
         with patch.object(initialized_tool, '_execute_api_call') as mock_execute:
             mock_execute.return_value = {
@@ -417,7 +419,7 @@ class TestBMADOpenAPIToolExecution:
             }
 
             with patch.object(initialized_tool, '_track_api_usage'):
-                result = initialized_tool.execute_with_enterprise_controls(
+                result = await initialized_tool.execute_with_enterprise_controls(
                     "/users", "GET", {}, "test_project", "test_task", "analyst"
                 )
 
@@ -426,7 +428,7 @@ class TestBMADOpenAPIToolExecution:
                 assert "execution_id" in result
                 mock_execute.assert_called_once()
 
-    def test_execute_with_enterprise_controls_high_risk_approved(self, initialized_tool):
+    async def test_execute_with_enterprise_controls_high_risk_approved(self, initialized_tool):
         """Test execution with enterprise controls for high-risk operation with approval."""
         with patch.object(initialized_tool, '_execute_api_call') as mock_execute:
             mock_execute.return_value = {
@@ -444,7 +446,7 @@ class TestBMADOpenAPIToolExecution:
                         mock_approval_result.approved = True
                         mock_wait.return_value = mock_approval_result
 
-                        result = initialized_tool.execute_with_enterprise_controls(
+                        result = await initialized_tool.execute_with_enterprise_controls(
                             "/users", "POST", {"body": {"name": "test"}},
                             "test_project", "test_task", "analyst"
                         )
@@ -454,7 +456,7 @@ class TestBMADOpenAPIToolExecution:
                         mock_approval.assert_called_once()
                         mock_wait.assert_called_once()
 
-    def test_execute_with_enterprise_controls_high_risk_denied(self, initialized_tool):
+    async def test_execute_with_enterprise_controls_high_risk_denied(self, initialized_tool):
         """Test execution with enterprise controls for high-risk operation denied."""
         with patch.object(initialized_tool.hitl_service, 'create_approval_request') as mock_approval:
             mock_approval.return_value = "approval_123"
@@ -464,7 +466,7 @@ class TestBMADOpenAPIToolExecution:
                 mock_approval_result.approved = False
                 mock_wait.return_value = mock_approval_result
 
-                result = initialized_tool.execute_with_enterprise_controls(
+                result = await initialized_tool.execute_with_enterprise_controls(
                     "/users", "DELETE", {}, "test_project", "test_task", "analyst"
                 )
 
@@ -472,7 +474,7 @@ class TestBMADOpenAPIToolExecution:
                 assert "denied by human oversight" in result["error"]
                 assert result["risk_level"] == "high"
 
-    def test_execute_with_enterprise_controls_execution_error(self, initialized_tool):
+    async def test_execute_with_enterprise_controls_execution_error(self, initialized_tool):
         """Test execution with enterprise controls when API call fails."""
         with patch.object(initialized_tool, '_execute_api_call') as mock_execute:
             mock_execute.return_value = {
@@ -482,7 +484,7 @@ class TestBMADOpenAPIToolExecution:
             }
 
             with patch.object(initialized_tool, '_track_api_usage'):
-                result = initialized_tool.execute_with_enterprise_controls(
+                result = await initialized_tool.execute_with_enterprise_controls(
                     "/users", "GET", {}, "test_project", "test_task", "analyst"
                 )
 

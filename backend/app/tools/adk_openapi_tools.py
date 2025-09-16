@@ -43,11 +43,7 @@ class BMADOpenAPITool:
                 return False
 
             # Create ADK FunctionTool wrapper
-            self.adk_tool = FunctionTool(
-                func=self._execute_api_call,
-                description=self._generate_tool_description(),
-                name=self.tool_name
-            )
+            self.adk_tool = FunctionTool(self._execute_api_call)
 
             self.is_initialized = True
             logger.info("BMAD OpenAPI tool initialized successfully", tool_name=self.tool_name)
@@ -117,7 +113,7 @@ class BMADOpenAPITool:
             )
 
             # 5. Return Enhanced Response
-            return {
+            result = {
                 "success": api_result.get("success", False),
                 "data": api_result.get("data"),
                 "execution_id": execution_id,
@@ -127,6 +123,12 @@ class BMADOpenAPITool:
                 "endpoint": endpoint,
                 "method": method
             }
+
+            # Propagate error if API call failed
+            if not api_result.get("success", True) and "error" in api_result:
+                result["error"] = f"API execution failed: {api_result['error']}"
+
+            return result
 
         except Exception as e:
             error_msg = f"API execution failed: {str(e)}"

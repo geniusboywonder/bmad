@@ -3,6 +3,7 @@
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
+from uuid import UUID
 
 from app.services.adk_handoff_service import ADKHandoffService
 from app.agents.bmad_adk_wrapper import BMADADKWrapper
@@ -10,9 +11,9 @@ from app.models.handoff import HandoffSchema
 
 
 @pytest.fixture
-def handoff_service():
+def handoff_service(db_session):
     """Create a fresh ADK Handoff Service for testing."""
-    return ADKHandoffService()
+    return ADKHandoffService(db_session)
 
 
 @pytest.fixture
@@ -46,7 +47,7 @@ class TestADKHandoffService:
         assert handoff_service.handoff_count == 0
 
     @patch('app.services.adk_handoff_service.datetime')
-    def test_create_structured_handoff(self, mock_datetime, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_create_structured_handoff(self, mock_datetime, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test creating a structured handoff."""
         mock_datetime.now.return_value = datetime(2025, 9, 15, 15, 0, 0)
 
@@ -60,14 +61,15 @@ class TestADKHandoffService:
 
         # Mock persistence
         with patch.object(handoff_service, '_persist_handoff'):
-            handoff_id = handoff_service.create_structured_handoff(
+            handoff_id = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
                 project_id="test_project"
             )
 
-            assert "adk_handoff_test_project_1" in handoff_id
+            # Check handoff_id is a valid UUID string
+            UUID(handoff_id)  # This will raise ValueError if not a valid UUID
             assert handoff_id in handoff_service.active_handoffs
 
             # Verify handoff info
@@ -84,9 +86,9 @@ class TestADKHandoffService:
             assert schema.phase == "requirements_analysis"
             assert "Review the PRD" in schema.instructions
             assert schema.expected_outputs == ["technical_feedback", "feasibility_assessment"]
-            assert schema.priority == "high"
+            assert schema.priority == 1  # "high" priority maps to 1
 
-    def test_create_handoff_with_invalid_data_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_create_handoff_with_invalid_data_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test that creating handoff with invalid data fails."""
         invalid_handoff_data = {
             "phase": "test_phase"
@@ -94,14 +96,14 @@ class TestADKHandoffService:
         }
 
         with pytest.raises(ValueError, match="Missing required handoff field"):
-            handoff_service.create_structured_handoff(
+            await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=invalid_handoff_data,
                 project_id="test_project"
             )
 
-    def test_create_handoff_with_empty_instructions_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_create_handoff_with_empty_instructions_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test that creating handoff with empty instructions fails."""
         invalid_handoff_data = {
             "phase": "test_phase",
@@ -109,14 +111,14 @@ class TestADKHandoffService:
         }
 
         with pytest.raises(ValueError, match="Handoff instructions cannot be empty"):
-            handoff_service.create_structured_handoff(
+            await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=invalid_handoff_data,
                 project_id="test_project"
             )
 
-    def test_create_handoff_with_invalid_priority_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_create_handoff_with_invalid_priority_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test that creating handoff with invalid priority fails."""
         invalid_handoff_data = {
             "phase": "test_phase",
@@ -125,14 +127,14 @@ class TestADKHandoffService:
         }
 
         with pytest.raises(ValueError, match="Invalid priority"):
-            handoff_service.create_structured_handoff(
+            await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=invalid_handoff_data,
                 project_id="test_project"
             )
 
-    def test_get_handoff_status_for_active_handoff(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_get_handoff_status_for_active_handoff(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test getting status for an active handoff."""
         # Create a handoff first
         handoff_data = {
@@ -141,7 +143,7 @@ class TestADKHandoffService:
         }
 
         with patch.object(handoff_service, '_persist_handoff'):
-            handoff_id = handoff_service.create_structured_handoff(
+            handoff_id = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
@@ -149,7 +151,7 @@ class TestADKHandoffService:
             )
 
         # Get status
-        status = handoff_service.get_handoff_status(handoff_id)
+        status = await handoff_service.get_handoff_status(handoff_id)
 
         assert status is not None
         assert status["handoff_id"] == handoff_id
@@ -157,16 +159,16 @@ class TestADKHandoffService:
         assert status["from_agent"] == "analyst"
         assert status["to_agent"] == "architect"
         assert status["phase"] == "test_phase"
-        assert status["priority"] == "medium"
+        assert status["priority"] == 2  # "medium" priority maps to 2
         assert "created_at" in status
         assert status["expected_outputs"] == []
 
-    def test_get_handoff_status_for_unknown_handoff(self, handoff_service):
+    async def test_get_handoff_status_for_unknown_handoff(self, handoff_service):
         """Test getting status for unknown handoff returns None."""
-        status = handoff_service.get_handoff_status("unknown_handoff")
+        status = await handoff_service.get_handoff_status("unknown_handoff")
         assert status is None
 
-    def test_list_active_handoffs(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_list_active_handoffs(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test listing active handoffs."""
         # Initially empty
         assert handoff_service.list_active_handoffs() == []
@@ -178,7 +180,7 @@ class TestADKHandoffService:
         }
 
         with patch.object(handoff_service, '_persist_handoff'):
-            handoff_id = handoff_service.create_structured_handoff(
+            handoff_id = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
@@ -190,42 +192,47 @@ class TestADKHandoffService:
         assert len(active_handoffs) == 1
         assert handoff_id in active_handoffs
 
-    def test_list_active_handoffs_with_project_filter(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_list_active_handoffs_with_project_filter(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test listing active handoffs with project filter."""
-        # Create handoffs for different projects
+        from uuid import uuid4
+
+        # Create handoffs for different projects using real UUIDs
+        project_uuid_1 = uuid4()
+        project_uuid_2 = uuid4()
+
         handoff_data = {
             "phase": "test_phase",
             "instructions": "Test instructions"
         }
 
         with patch.object(handoff_service, '_persist_handoff'):
-            handoff_id_1 = handoff_service.create_structured_handoff(
+            handoff_id_1 = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
-                project_id="project_1"
+                project_id=project_uuid_1
             )
 
-            handoff_id_2 = handoff_service.create_structured_handoff(
+            handoff_id_2 = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
-                project_id="project_2"
+                project_id=project_uuid_2
             )
 
-        # Filter by project_1
-        project_1_handoffs = handoff_service.list_active_handoffs("project_1")
+        # Filter by project_uuid_1
+        project_1_handoffs = handoff_service.list_active_handoffs(project_uuid_1)
         assert len(project_1_handoffs) == 1
         assert handoff_id_1 in project_1_handoffs
         assert handoff_id_2 not in project_1_handoffs
 
-        # Filter by project_2
-        project_2_handoffs = handoff_service.list_active_handoffs("project_2")
+        # Filter by project_uuid_2
+        project_2_handoffs = handoff_service.list_active_handoffs(project_uuid_2)
         assert len(project_2_handoffs) == 1
         assert handoff_id_2 in project_2_handoffs
         assert handoff_id_1 not in project_2_handoffs
 
-    def test_cancel_handoff(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_cancel_handoff(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test cancelling an active handoff."""
         # Create a handoff
         handoff_data = {
@@ -234,7 +241,7 @@ class TestADKHandoffService:
         }
 
         with patch.object(handoff_service, '_persist_handoff'):
-            handoff_id = handoff_service.create_structured_handoff(
+            handoff_id = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
@@ -244,14 +251,14 @@ class TestADKHandoffService:
         # Mock update status
         with patch.object(handoff_service, '_update_handoff_status'):
             # Cancel the handoff
-            result = handoff_service.cancel_handoff(handoff_id)
+            result = await handoff_service.cancel_handoff(handoff_id)
 
             assert result is True
             assert handoff_id not in handoff_service.active_handoffs
 
-    def test_cancel_unknown_handoff(self, handoff_service):
+    async def test_cancel_unknown_handoff(self, handoff_service):
         """Test cancelling unknown handoff returns False."""
-        result = handoff_service.cancel_handoff("unknown_handoff")
+        result = await handoff_service.cancel_handoff("unknown_handoff")
         assert result is False
 
     def test_build_handoff_instructions(self, handoff_service):
@@ -284,16 +291,17 @@ class TestADKHandoffService:
 
     def test_create_handoff_prompt(self, handoff_service):
         """Test creating handoff execution prompt."""
+        from uuid import uuid4
         schema = HandoffSchema(
-            handoff_id="test_handoff",
-            project_id="test_project",
+            handoff_id=uuid4(),
+            project_id=uuid4(),
             from_agent="analyst",
             to_agent="architect",
             phase="requirements_review",
             instructions="Review these requirements",
-            context_ids=["artifact_123"],
+            context_ids=[uuid4()],
             expected_outputs=["review_feedback"],
-            priority="medium"
+            priority=2  # medium priority
         )
 
         context_data = {
@@ -314,16 +322,17 @@ class TestADKHandoffService:
 
     def test_create_handoff_prompt_minimal_context(self, handoff_service):
         """Test creating handoff prompt with minimal context."""
+        from uuid import uuid4
         schema = HandoffSchema(
-            handoff_id="test_handoff",
-            project_id="test_project",
+            handoff_id=uuid4(),
+            project_id=uuid4(),
             from_agent="analyst",
             to_agent="architect",
             phase="test_phase",
             instructions="Test instructions",
             context_ids=[],
             expected_outputs=[],
-            priority="low"
+            priority=4  # low priority
         )
 
         prompt = handoff_service._create_handoff_prompt(schema, {})
@@ -365,10 +374,10 @@ class TestADKHandoffService:
         with pytest.raises(ValueError, match="Invalid priority"):
             handoff_service._validate_handoff_data(invalid_data)
 
-    def test_cleanup_completed_handoffs(self, handoff_service):
+    async def test_cleanup_completed_handoffs(self, handoff_service):
         """Test cleanup of completed handoffs."""
         # This test would need timestamp mocking for proper testing
-        result = handoff_service.cleanup_completed_handoffs()
+        result = await handoff_service.cleanup_completed_handoffs()
         assert isinstance(result, int)
         assert result >= 0
 
@@ -423,7 +432,7 @@ class TestADKHandoffExecution:
 class TestADKHandoffIntegration:
     """Integration tests for ADK Handoff Service."""
 
-    def test_full_handoff_lifecycle(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
+    async def test_full_handoff_lifecycle(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test complete handoff lifecycle from creation to completion."""
         # Create handoff
         handoff_data = {
@@ -433,7 +442,7 @@ class TestADKHandoffIntegration:
         }
 
         with patch.object(handoff_service, '_persist_handoff'):
-            handoff_id = handoff_service.create_structured_handoff(
+            handoff_id = await handoff_service.create_structured_handoff(
                 from_agent=mock_adk_wrapper,
                 to_agent=mock_adk_wrapper_to,
                 handoff_data=handoff_data,
@@ -442,7 +451,7 @@ class TestADKHandoffIntegration:
 
         # Verify creation
         assert handoff_id in handoff_service.active_handoffs
-        status = handoff_service.get_handoff_status(handoff_id)
+        status = await handoff_service.get_handoff_status(handoff_id)
         assert status["status"] == "pending"
 
         # List should include the handoff
@@ -451,10 +460,10 @@ class TestADKHandoffIntegration:
 
         # Cancel handoff
         with patch.object(handoff_service, '_update_handoff_status'):
-            result = handoff_service.cancel_handoff(handoff_id)
+            result = await handoff_service.cancel_handoff(handoff_id)
             assert result is True
 
         # Verify removal
         assert handoff_id not in handoff_service.active_handoffs
-        status = handoff_service.get_handoff_status(handoff_id)
+        status = await handoff_service.get_handoff_status(handoff_id)
         assert status is None

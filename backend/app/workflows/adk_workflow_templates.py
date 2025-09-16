@@ -415,7 +415,8 @@ class ADKWorkflowTemplates:
 
         if workflow_type not in template_map:
             available_types = [wt.value for wt in template_map.keys()]
-            raise ValueError(f"Unsupported workflow type: {workflow_type.value}. "
+            workflow_type_str = workflow_type.value if hasattr(workflow_type, 'value') else workflow_type
+            raise ValueError(f"Unsupported workflow type: {workflow_type_str}. "
                            f"Available types: {available_types}")
 
         return template_map[workflow_type]

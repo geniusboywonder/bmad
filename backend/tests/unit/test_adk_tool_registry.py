@@ -75,15 +75,17 @@ class TestADKToolRegistry:
         assert "invalid_tool" not in tool_registry.registered_tools
 
     @patch('app.tools.adk_tool_registry.BMADOpenAPITool')
-    def test_register_openapi_tool_success(self, mock_openapi_tool_class, tool_registry, sample_openapi_spec):
+    async def test_register_openapi_tool_success(self, mock_openapi_tool_class, tool_registry, sample_openapi_spec):
         """Test successful OpenAPI tool registration."""
         # Mock BMADOpenAPITool
         mock_tool = Mock()
-        mock_tool.initialize.return_value = True
+        mock_tool.initialize = AsyncMock(return_value=True)
         mock_tool.adk_tool = Mock()
+        mock_tool.endpoints = {"GET /users": {"summary": "Get users"}}  # Mock endpoints collection
+        mock_tool.base_url = "https://api.test.com"  # Mock base URL
         mock_openapi_tool_class.return_value = mock_tool
 
-        result = tool_registry.register_openapi_tool("api_tool", sample_openapi_spec)
+        result = await tool_registry.register_openapi_tool("api_tool", sample_openapi_spec)
 
         assert result is True
         assert "api_tool" in tool_registry.registered_tools
@@ -92,13 +94,15 @@ class TestADKToolRegistry:
         mock_tool.initialize.assert_called_once()
 
     @patch('app.tools.adk_tool_registry.BMADOpenAPITool')
-    def test_register_openapi_tool_initialization_failure(self, mock_openapi_tool_class, tool_registry, sample_openapi_spec):
+    async def test_register_openapi_tool_initialization_failure(self, mock_openapi_tool_class, tool_registry, sample_openapi_spec):
         """Test OpenAPI tool registration with initialization failure."""
         mock_tool = Mock()
-        mock_tool.initialize.return_value = False
+        mock_tool.initialize = AsyncMock(return_value=False)
+        mock_tool.endpoints = {}  # Mock empty endpoints collection
+        mock_tool.base_url = "https://api.test.com"  # Mock base URL
         mock_openapi_tool_class.return_value = mock_tool
 
-        result = tool_registry.register_openapi_tool("failing_tool", sample_openapi_spec)
+        result = await tool_registry.register_openapi_tool("failing_tool", sample_openapi_spec)
 
         assert result is False
         assert "failing_tool" not in tool_registry.registered_tools
@@ -219,8 +223,20 @@ class TestADKToolRegistry:
 
         tool_registry.register_function_tool("func_tool", func_tool, "Function tool")
 
-        with patch.object(tool_registry, 'register_openapi_tool', return_value=True):
-            tool_registry.register_openapi_tool("api_tool", {})
+        # Manually add OpenAPI tool to registry
+        mock_tool = Mock()
+        mock_tool.endpoints = {}
+        mock_tool.base_url = "https://api.test.com"
+        tool_registry.openapi_tools["api_tool"] = mock_tool
+        tool_registry.registered_tools["api_tool"] = mock_tool
+        tool_registry.tool_metadata["api_tool"] = {
+            "type": "openapi",
+            "tool_name": "api_tool",
+            "base_url": "https://api.test.com",
+            "endpoint_count": 0,
+            "registered_at": "2023-01-01T00:00:00",
+            "status": "active"
+        }
 
         available = tool_registry.get_available_tools()
 
@@ -443,10 +459,21 @@ class TestADKToolRegistryIntegration:
         tool_registry.register_function_tool("func1", func1, "Function 1")
         tool_registry.register_function_tool("func2", func2, "Function 2")
 
-        # Mock OpenAPI tool registration
-        with patch.object(tool_registry, 'register_openapi_tool', return_value=True) as mock_register:
-            tool_registry.register_openapi_tool("api1", {})
-            tool_registry.register_openapi_tool("api2", {})
+        # Manually add OpenAPI tools to registry
+        for api_name in ["api1", "api2"]:
+            mock_tool = Mock()
+            mock_tool.endpoints = {}
+            mock_tool.base_url = "https://api.test.com"
+            tool_registry.openapi_tools[api_name] = mock_tool
+            tool_registry.registered_tools[api_name] = mock_tool
+            tool_registry.tool_metadata[api_name] = {
+                "type": "openapi",
+                "tool_name": api_name,
+                "base_url": "https://api.test.com",
+                "endpoint_count": 0,
+                "registered_at": "2023-01-01T00:00:00",
+                "status": "active"
+            }
 
         # Check available tools
         available = tool_registry.get_available_tools()

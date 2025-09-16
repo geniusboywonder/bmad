@@ -110,12 +110,12 @@ class ADKToolRegistry:
             True if registration successful, False otherwise
         """
         try:
+            # Validate function
+            if not callable(func):
+                raise ValueError(f"Provided func is not callable: {type(func)}")
+
             # Create ADK FunctionTool
-            tool = FunctionTool(
-                func=func,
-                description=description,
-                name=name
-            )
+            tool = FunctionTool(func)
 
             # Register in collections
             self.function_tools[name] = tool
