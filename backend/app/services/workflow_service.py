@@ -43,13 +43,13 @@ class WorkflowService:
         Initialize the workflow service.
 
         Args:
-            workflow_base_path: Base path for workflow files (defaults to .bmad-core/workflows)
+            workflow_base_path: Base path for workflow files (defaults to backend/app/workflows)
         """
         self.yaml_parser = YAMLParser()
 
         if workflow_base_path is None:
-            # Default to .bmad-core/workflows relative to project root
-            self.workflow_base_path = Path(".bmad-core/workflows")
+            # Default to backend/app/workflows relative to project root
+            self.workflow_base_path = Path("backend/app/workflows")
         else:
             self.workflow_base_path = Path(workflow_base_path)
 

@@ -105,21 +105,31 @@ class BaseAgent(ABC):
         pass
     
     def _initialize_autogen_agent(self) -> None:
-        """Initialize AutoGen ConversableAgent instance.
-        
-        This method should be called by subclasses after they define their system message.
+        """Initialize AutoGen ConversableAgent instance with dynamic provider selection.
+
+        This method uses the agent LLM mapping configuration to select the appropriate
+        LLM provider and model based on agent type.
         """
-        from autogen_ext.models.openai import OpenAIChatCompletionClient
+        from app.config.agent_llm_mapping import get_agent_llm_config
         import os
-        
-        # Create model client
-        api_key = os.getenv("OPENAI_API_KEY", "demo-key")
-        model_client = OpenAIChatCompletionClient(
-            model=self.llm_config.get("model", "gpt-4o-mini"),
-            api_key=api_key,
-            temperature=self.llm_config.get("temperature", 0.7)
-        )
-        
+
+        # Get agent-specific LLM configuration
+        try:
+            agent_config = get_agent_llm_config(self.agent_type.value)
+            logger.info("Using configured LLM provider for agent",
+                       agent_type=self.agent_type.value,
+                       provider=agent_config.provider,
+                       model=agent_config.model)
+        except ValueError as e:
+            logger.warning("Failed to get agent LLM config, using defaults",
+                          agent_type=self.agent_type.value,
+                          error=str(e))
+            # Fallback to original configuration
+            agent_config = self.llm_config
+
+        # Create model client based on provider
+        model_client = self._create_model_client(agent_config)
+
         # Create AutoGen agent
         self.autogen_agent = AssistantAgent(
             name=f"{self.agent_type.value}_agent",
@@ -127,9 +137,61 @@ class BaseAgent(ABC):
             system_message=self._create_system_message(),
             description=f"Agent specialized in {self.agent_type.value} tasks"
         )
-        
-        logger.info("AutoGen agent initialized", 
-                   agent_name=f"{self.agent_type.value}_agent")
+
+        logger.info("AutoGen agent initialized with dynamic provider",
+                   agent_name=f"{self.agent_type.value}_agent",
+                   provider=getattr(agent_config, 'provider', 'unknown'),
+                   model=getattr(agent_config, 'model', 'unknown'))
+
+    def _create_model_client(self, agent_config):
+        """Create appropriate model client based on provider configuration."""
+        from app.config.agent_llm_mapping import AgentLLMConfig, LLMProvider
+        import os
+
+        provider = getattr(agent_config, 'provider', LLMProvider.OPENAI)
+        model = getattr(agent_config, 'model', 'gpt-4o')
+        temperature = getattr(agent_config, 'temperature', 0.7)
+        api_key_env_var = getattr(agent_config, 'api_key_env_var', 'OPENAI_API_KEY')
+
+        # Get API key from environment
+        api_key = os.getenv(api_key_env_var)
+        if not api_key:
+            logger.warning(f"API key not found for {api_key_env_var}, using demo key",
+                          provider=provider, agent_type=self.agent_type.value)
+            api_key = "demo-key"
+
+        # Create appropriate model client based on provider
+        if provider == LLMProvider.OPENAI:
+            from autogen_ext.models.openai import OpenAIChatCompletionClient
+            return OpenAIChatCompletionClient(
+                model=model,
+                api_key=api_key,
+                temperature=temperature
+            )
+        elif provider == LLMProvider.ANTHROPIC:
+            from autogen_ext.models.anthropic import AnthropicChatCompletionClient
+            return AnthropicChatCompletionClient(
+                model=model,
+                api_key=api_key,
+                temperature=temperature
+            )
+        elif provider in [LLMProvider.GOOGLE, LLMProvider.GEMINI]:
+            from autogen_ext.models.google import GoogleGeminiChatCompletionClient
+            return GoogleGeminiChatCompletionClient(
+                model=model,
+                api_key=api_key,
+                temperature=temperature
+            )
+        else:
+            # Default to OpenAI
+            logger.warning(f"Unknown provider {provider}, defaulting to OpenAI",
+                          agent_type=self.agent_type.value)
+            from autogen_ext.models.openai import OpenAIChatCompletionClient
+            return OpenAIChatCompletionClient(
+                model=model,
+                api_key=api_key,
+                temperature=temperature
+            )
     
     async def _execute_with_reliability(self, message: str, task: Task) -> str:
         """Execute LLM conversation with comprehensive reliability features.

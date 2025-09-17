@@ -480,3 +480,7 @@ class HitlTriggerManager:
                    condition=condition,
                    enabled=enabled,
                    config=config)
+
+
+# Backward compatibility alias
+HITLTriggerManager = HitlTriggerManager

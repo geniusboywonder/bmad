@@ -8,8 +8,8 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 
 ### Core Framework
 
-- **FastAPI 0.104.1** - High-performance Python web framework for APIs
-- **Uvicorn 0.24.0** - ASGI server with WebSocket support
+- **FastAPI >=0.115.0** - High-performance Python web framework for APIs (updated for Google ADK compatibility)
+- **Uvicorn >=0.32.0** - ASGI server with WebSocket support (updated for Google ADK compatibility)
 - **Python 3.11+** - Runtime environment
 
 ### Data & Persistence (Task 0 Foundation - Implemented)
@@ -25,6 +25,7 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
   - **Database Models**: Full SQLAlchemy models with proper relationships
   - **Session Management**: Generator-based session handling with proper cleanup
   - **Connection Pooling**: Efficient database connections with StaticPool
+  - **Lazy Initialization**: Improved startup reliability with lazy connection patterns
 - **Alembic 1.13.1** - Database migration management
   - **Initial Migration**: 001_initial_tables.py (comprehensive base schema)
   - **Audit Migration**: 004_add_event_log_table.py (event logging)
@@ -42,6 +43,16 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
   - **Tool Integration**: `FunctionTool` support with graceful fallback and error handling
   - **BMAD-ADK Wrapper**: Enterprise wrapper preserving BMAD safety controls and audit requirements
   - **Development Tools**: Comprehensive testing framework with benchmarking and HITL simulation
+- **SOLID Refactored Orchestrator Services** - Modular orchestration architecture following SOLID principles
+  - **OrchestratorCore**: Main coordination logic with dependency injection (309 LOC)
+  - **ProjectLifecycleManager**: Project state and phase management (373 LOC)
+  - **AgentCoordinator**: Agent assignment and task distribution (375 LOC)
+  - **WorkflowIntegrator**: Workflow engine integration and coordination (391 LOC)
+  - **HandoffManager**: Agent handoff and task transition management (338 LOC)
+  - **StatusTracker**: Project status monitoring and performance metrics (441 LOC)
+  - **ContextManager**: Context artifact management with granularity features (614 LOC)
+  - **Service Interfaces**: Complete interface layer for dependency injection and testing
+  - **Backward Compatibility**: Legacy OrchestratorService alias maintained for existing code
 - **Legacy AutoGen Support** - Microsoft's multi-agent conversation framework (backward compatibility)
   - **ConversableAgent Integration**: Legacy agent wrapper for AutoGen instances
   - **GroupChat Support**: Multi-agent collaboration with round-robin speaker selection
@@ -56,6 +67,7 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
   - **Database Integration**: Full task status tracking with atomic updates
   - **WebSocket Events**: Real-time broadcasting of agent progress and results
   - **Artifact Management**: Dynamic context creation and retrieval during execution
+  - **Enhanced Startup**: Improved worker startup reliability with PID tracking and logging
 
 ### Workflow Orchestration Engine (Task 5 - Implemented)
 
@@ -148,7 +160,7 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 
 ### Communication & Networking (Task 0 Infrastructure - Validated)
 
-- **WebSockets 12.0** - Real-time bidirectional communication
+- **WebSockets >=15.0.1,<16.0.0** - Real-time bidirectional communication (updated for Google ADK compatibility)
   - **WebSocket Manager**: Global connection management with auto-cleanup
   - **Project-Scoped Broadcasting**: Event distribution by project ID
   - **Event System**: Type-safe WebSocket events with proper serialization
@@ -282,7 +294,7 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 - **Google Gemini (Primary)** - ADK-integrated agent execution with `gemini-2.0-flash`
 - **OpenAI GPT-4** - Legacy agent support for technical tasks
 - **Anthropic Claude** - Legacy agent support for requirements analysis
-- **Provider Abstraction** - Unified interface supporting both ADK and legacy agents
+- **Provider Abstraction** - Unified interface supporting multiple LLM providers (OpenAI, Anthropic, Google Gemini) via a dynamic factory.
 
 ### LLM Reliability & Monitoring (Task 1 Implementation)
 
@@ -300,6 +312,7 @@ BotArmy POC leverages a modern, scalable technology stack designed for multi-age
 - **Black** - Python code formatting
 - **isort** - Import sorting
 - **Pre-commit hooks** - Automated code quality checks
+- **SOLID Principles Enforcement** - Comprehensive testing for Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion principles
 
 ### Database Management
 

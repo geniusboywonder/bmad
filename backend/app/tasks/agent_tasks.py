@@ -74,7 +74,7 @@ def validate_task_data(task_data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-@celery_app.task(bind=True, name="app.tasks.agent_tasks.process_agent_task")
+@celery_app.task(bind=True, name="app.tasks.agent_tasks.process_agent_task", autoretry_for=(Exception,), retry_kwargs={'max_retries': 5}, retry_backoff=True)
 def process_agent_task(self, task_data: Dict[str, Any]):
     """
     Process an agent task asynchronously with real agent execution.
@@ -82,31 +82,22 @@ def process_agent_task(self, task_data: Dict[str, Any]):
     Args:
         task_data: Dictionary containing task information
     """
-    # Validate and normalize input data
-    try:
-        validated_data = validate_task_data(task_data)
-        task_uuid = validated_data["task_id"]
-        project_uuid = validated_data["project_id"]
-        agent_type = validated_data["agent_type"]
-        instructions = validated_data["instructions"]
-        context_uuids = validated_data["context_ids"]
-        from_agent = validated_data["from_agent"]
-        expected_outputs = validated_data["expected_outputs"]
-        priority = validated_data["priority"]
-    except ValueError as e:
-        logger.error("Task data validation failed", error=str(e))
-        raise
+    validated_data = validate_task_data(task_data)
+    task_uuid = validated_data["task_id"]
+    project_uuid = validated_data["project_id"]
+    agent_type = validated_data["agent_type"]
+    instructions = validated_data["instructions"]
+    context_uuids = validated_data["context_ids"]
+    from_agent = validated_data["from_agent"]
+    expected_outputs = validated_data["expected_outputs"]
+    priority = validated_data["priority"]
 
     logger.info("Starting agent task",
                 task_id=str(task_uuid),
                 agent_type=agent_type,
                 project_id=str(project_uuid))
 
-    # Get database session using context manager for proper cleanup
-    db = None
-    try:
-        db = next(get_session())
-
+    with get_session() as db:
         # Update task status to WORKING in database
         task_db = db.query(TaskDB).filter(TaskDB.id == task_uuid).first()
         if task_db:
@@ -233,39 +224,3 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             raise Exception(f"Task execution failed: {error_message}")
 
         return result
-
-    except Exception as exc:
-        logger.error("Task processing failed",
-                    task_id=str(task_uuid),
-                    error=str(exc),
-                    exc_info=True)
-
-        # Update database task status to FAILED
-        if db and task_db:
-            task_db.status = TaskStatus.FAILED
-            task_db.error_message = str(exc)
-            task_db.completed_at = datetime.now(timezone.utc)
-            db.commit()
-
-        # Emit task failed event
-        event = WebSocketEvent(
-            event_type=EventType.TASK_FAILED,
-            project_id=project_uuid,
-            task_id=task_uuid,
-            agent_type=agent_type,
-            data={
-                "status": "failed",
-                "error": str(exc),
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-        )
-
-        asyncio.run(websocket_manager.broadcast_event(event))
-
-        # Re-raise the exception to mark the task as failed in Celery
-        raise self.retry(exc=exc, countdown=60, max_retries=3)
-
-    finally:
-        # Clean up database session
-        if db:
-            db.close()

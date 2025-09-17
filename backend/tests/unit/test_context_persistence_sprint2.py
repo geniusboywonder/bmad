@@ -36,16 +36,16 @@ class TestContextArtifactModelValidation:
         artifact = ContextArtifact(
             project_id=artifact_data["project_id"],
             context_id=artifact_data["context_id"],
-            source_agent=artifact_data["source_agent"],
+            source_agent=AgentType.ANALYST,
             artifact_type=artifact_data["artifact_type"],
             content=artifact_data["content"],
             artifact_metadata=artifact_data["artifact_metadata"]
         )
-        
+
         # Verify all fields are correctly set
         assert artifact.project_id == artifact_data["project_id"]
         assert artifact.context_id == artifact_data["context_id"]
-        assert artifact.source_agent == artifact_data["source_agent"]
+        assert artifact.source_agent == AgentType(artifact_data["source_agent"])  # Compare as enum
         assert artifact.artifact_type == artifact_data["artifact_type"]
         assert artifact.content == artifact_data["content"]
         assert artifact.artifact_metadata == artifact_data["artifact_metadata"]
@@ -60,7 +60,7 @@ class TestContextArtifactModelValidation:
             # Missing project_id
             ContextArtifact(
                 context_id=uuid4(),
-                source_agent=AgentType.ANALYST.value,
+                source_agent=AgentType.ANALYST,
                 artifact_type=ArtifactType.PROJECT_PLAN,
                 content={"test": "content"}
             )
@@ -70,7 +70,7 @@ class TestContextArtifactModelValidation:
             ContextArtifact(
                 project_id=None,
                 context_id=uuid4(),
-                source_agent=AgentType.ANALYST.value,
+                source_agent=AgentType.ANALYST,
                 artifact_type=ArtifactType.PROJECT_PLAN,
                 content={"test": "content"}
             )
@@ -87,7 +87,7 @@ class TestContextArtifactModelValidation:
         artifact = ContextArtifact(
             project_id=project_id,
             context_id=context_id,
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"valid": "content"},
             artifact_metadata={"valid": "metadata"}
@@ -109,7 +109,7 @@ class TestContextArtifactModelValidation:
         minimal_artifact = ContextArtifact(
             project_id=uuid4(),
             context_id=uuid4(),
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"minimal": "content"}
             # artifact_metadata is optional
@@ -121,7 +121,7 @@ class TestContextArtifactModelValidation:
         complete_artifact = ContextArtifact(
             project_id=uuid4(),
             context_id=uuid4(),
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"complete": "content"},
             artifact_metadata={"version": "1.0", "created_by": "test"}

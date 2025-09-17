@@ -10,10 +10,9 @@ bmad/
 ├── .gemini/                   # Gemini AI configuration
 ├── backend/                   # Python FastAPI backend
 ├── docs/                      # Project documentation
-├── web-bundles/              # Frontend assets (planned)
+├── frontend/                  # Next.js frontend application
 ├── venv/                     # Python virtual environment
 ├── CLAUDE.md                 # Claude development instructions
-├── GEMINI.md                 # Gemini development instructions
 └── .gitignore               # Git ignore patterns
 ```
 
@@ -154,11 +153,20 @@ backend/
 │   │   ├── template.py    # Template data models (Task 3)
 │   │   ├── workflow.py    # Workflow data models with execution state (Task 5)
 │   │   └── workflow_state.py # Workflow state management models (Task 5)
+│   ├── interfaces/         # Service interfaces for dependency injection
+│   │   ├── __init__.py
+│   │   ├── orchestrator_interface.py    # Main orchestrator interface
+│   │   ├── project_lifecycle_interface.py # Project lifecycle management interface
+│   │   ├── agent_coordinator_interface.py # Agent coordination interface
+│   │   ├── workflow_integrator_interface.py # Workflow integration interface
+│   │   ├── handoff_manager_interface.py  # Handoff management interface
+│   │   ├── status_tracker_interface.py   # Status tracking interface
+│   │   └── context_manager_interface.py  # Context management interface
 │   ├── schemas/           # API request/response schemas
 │   │   ├── __init__.py
 │   │   ├── handoff.py     # Handoff schemas
 │   │   └── hitl.py        # HITL schemas
-│   ├── services/          # Business logic services
+│   ├── services/          # Business logic services (SOLID Refactored 2024-09-17)
 │   │   ├── __init__.py
 │   │   ├── adk_handoff_service.py  # ADK agent handoff management
 │   │   ├── adk_orchestration_service.py # ADK multi-agent orchestration
@@ -166,17 +174,50 @@ backend/
 │   │   ├── agent_status_service.py # Agent status management
 │   │   ├── artifact_service.py     # Artifact management
 │   │   ├── audit_service.py        # Audit trail and event logging (Task 0)
-│   │   ├── autogen_service.py      # AutoGen integration (legacy support)
+│   │   ├── autogen/                # SOLID refactored AutoGen services (681 LOC → 3 services)
+│   │   │   ├── __init__.py         # Package initialization with backward compatibility
+│   │   │   ├── autogen_core.py     # Main coordination logic with dependency injection (126 LOC)
+│   │   │   ├── agent_factory.py    # Agent instantiation and configuration management (208 LOC)
+│   │   │   └── conversation_manager.py # Conversation flow and message handling (554 LOC)
+│   │   ├── autogen_service.py      # Backward compatibility alias module
 │   │   ├── context_store.py        # Context storage service with database integration
+│   │   ├── hitl/                   # SOLID refactored HITL services (1,325 LOC → 5 services)
+│   │   │   ├── __init__.py         # Package initialization with backward compatibility
+│   │   │   ├── hitl_core.py        # Core HITL coordination logic with dependency injection (285 LOC)
+│   │   │   ├── trigger_processor.py # Trigger evaluation and condition management (351 LOC)
+│   │   │   ├── response_processor.py # Response handling and workflow resumption (425 LOC)
+│   │   │   ├── phase_gate_manager.py # Phase gate validation and approval workflows (628 LOC)
+│   │   │   └── validation_engine.py # Quality validation and threshold management (667 LOC)
 │   │   ├── hitl_safety_service.py  # HITL safety service for ADK integration
-│   │   ├── hitl_service.py         # Comprehensive HITL service (Task 6 - Completed)
-│   │   ├── hitl_trigger_manager.py # HITL trigger condition management (Task 6)
+│   │   ├── hitl_service.py         # Backward compatibility alias module
+│   │   ├── hitl_trigger_manager.py # HITL trigger condition management (with HITLTriggerManager alias)
 │   │   ├── llm_monitoring.py       # LLM usage tracking and cost monitoring (Task 1)
 │   │   ├── llm_retry.py           # Exponential backoff retry logic (Task 1)
 │   │   ├── llm_validation.py      # Response validation and sanitization (Task 1)
-│   │   ├── orchestrator.py         # Enhanced orchestration service with dynamic workflows
+│   │   ├── orchestrator/           # SOLID refactored orchestrator services (2,541 LOC → 7 services)
+│   │   │   ├── __init__.py         # Package initialization with backward compatibility
+│   │   │   ├── orchestrator_core.py   # Main coordination logic with dependency injection (309 LOC)
+│   │   │   ├── project_lifecycle_manager.py # Project state transitions and SDLC phase management (373 LOC)
+│   │   │   ├── agent_coordinator.py    # Agent assignment and task distribution logic (375 LOC)
+│   │   │   ├── workflow_integrator.py  # Workflow engine integration and coordination (391 LOC)
+│   │   │   ├── handoff_manager.py      # Agent handoff logic and task transitions (338 LOC)
+│   │   │   ├── status_tracker.py       # Project status monitoring and performance metrics (441 LOC)
+│   │   │   └── context_manager.py      # Context artifact management with granularity features (614 LOC)
+│   │   ├── orchestrator.py         # Backward compatibility alias module
 │   │   ├── project_completion_service.py # Project lifecycle management
-│   │   ├── workflow_engine.py      # Complete workflow execution engine (Task 5 - Completed)
+│   │   ├── template/               # SOLID refactored template services (526 LOC → 3 services)
+│   │   │   ├── __init__.py         # Package initialization with backward compatibility
+│   │   │   ├── template_core.py    # Main coordination logic with dependency injection (218 LOC)
+│   │   │   ├── template_loader.py  # Template loading and caching mechanisms (171 LOC)
+│   │   │   └── template_renderer.py # Template rendering and output formatting (328 LOC)
+│   │   ├── template_service.py     # Backward compatibility alias module
+│   │   ├── workflow/               # SOLID refactored workflow services (1,226 LOC → 4 services)
+│   │   │   ├── __init__.py         # Package initialization with backward compatibility
+│   │   │   ├── execution_engine.py # Core workflow execution logic with dependency injection (550 LOC)
+│   │   │   ├── state_manager.py    # State persistence and recovery mechanisms (428 LOC)
+│   │   │   ├── event_dispatcher.py # Event management and WebSocket broadcasting (521 LOC)
+│   │   │   └── sdlc_orchestrator.py # SDLC-specific workflow logic and phase management (581 LOC)
+│   │   ├── workflow_engine.py      # Backward compatibility alias module
 │   │   ├── workflow_execution_manager.py # Workflow execution coordination (Task 5)
 │   │   ├── workflow_service.py     # Workflow definition loading and management (Task 5)
 │   │   ├── workflow_step_processor.py # Workflow step execution (Task 5)
@@ -198,6 +239,18 @@ backend/
 │   ├── __init__.py
 │   ├── config.py          # Application configuration
 │   └── main.py            # FastAPI application entry point
+│   ├── teams/             # Agent team configurations
+│   ├── templates/         # Document templates
+│   └── workflows/         # Workflow definitions
+│   ├── llm_providers/     # LLM provider implementations
+│   │   ├── __init__.py
+│   │   ├── base_provider.py
+│   │   ├── openai_provider.py
+│   │   ├── anthropic_provider.py
+│   │   ├── gemini_provider.py
+│   │   ├── provider_factory.py
+│   │   └── autogen_model_client_adapter.py
+│   ├── group_chat_manager.py # Group chat manager service
 ├── tests/                 # Test suite
 │   ├── e2e/               # End-to-end tests
 │   │   ├── test_context_persistence_sprint2_e2e.py
@@ -227,10 +280,16 @@ backend/
 │   ├── __init__.py
 │   ├── conftest.py        # Test configuration and fixtures
 │   ├── test_health.py     # Health endpoint tests
+│   ├── test_orchestrator_refactoring.py # SOLID orchestrator refactoring tests
 │   └── README.md          # Test documentation
+├── scripts/               # Development and deployment scripts
+│   ├── kill_processes.sh # Process cleanup script
+│   └── start_dev.sh      # Enhanced development startup script with PID tracking
 ├── venv/                  # Python virtual environment
 ├── .env.test              # Test environment configuration (Task 0)
 ├── adk_feature_flags.json # ADK feature flag configuration
+├── celery.log            # Celery worker log file (generated)
+├── celery.pid            # Celery worker PID file (generated)
 ├── docker-compose.dev.yml # Development Docker composition
 ├── docker-compose.yml     # Production Docker composition
 ├── install_deps.py        # Dependency installation script

@@ -1,3 +1,9 @@
+import os # New
+from dotenv import load_dotenv # New
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env')) # New
+
 """
 Test configuration and fixtures for BotArmy backend testing.
 
@@ -190,7 +196,7 @@ def mock_handoff_validator():
     """Mock handoff validator for testing schema validation."""
     mock_validator = Mock()
     mock_validator.validate_handoff.return_value = True
-    mock_validator.get_next_agent.return_value = AgentType.ARCHITECT.value
+    mock_validator.get_next_agent.return_value = AgentType.ARCHITECT
     mock_validator.extract_context_requirements.return_value = ["project_plan"]
     return mock_validator
 
@@ -210,7 +216,7 @@ def sample_project_data():
 def sample_task_data():
     """Sample task data for testing."""
     return {
-        "agent_type": AgentType.ANALYST.value,
+        "agent_type": AgentType.ANALYST,
         "instructions": "Analyze the test requirements",
         "context_ids": []
     }
@@ -220,7 +226,7 @@ def sample_task_data():
 def sample_context_artifact_data():
     """Sample context artifact data for testing."""
     return {
-        "source_agent": AgentType.ANALYST.value,
+        "source_agent": AgentType.ANALYST,
         "artifact_type": ArtifactType.PROJECT_PLAN,
         "content": {
             "plan_version": "1.0",
@@ -248,8 +254,8 @@ def sample_hitl_request_data():
 def sample_handoff_schema_data():
     """Sample HandoffSchema data for testing according to new schema format."""
     return {
-        "from_agent": AgentType.ANALYST.value,
-        "to_agent": AgentType.ARCHITECT.value,
+        "from_agent": AgentType.ANALYST,
+        "to_agent": AgentType.ARCHITECT,
         "phase": "architecture",
         "instructions": "Create technical architecture based on analysis",
         "context_summary": "Analysis phase completed with requirements gathered and documented",
@@ -265,7 +271,7 @@ def sample_handoff_schema_data():
 def sample_autogen_task_data():
     """Sample AutoGen task data for testing."""
     return {
-        "agent_type": AgentType.CODER.value,
+        "agent_type": AgentType.CODER,
         "instructions": "Implement the user authentication module",
         "context": ["Requirements document", "Architecture specification"],
         "expected_output": "Python code with authentication logic"
@@ -296,19 +302,19 @@ class ProjectFactory:
 
 class TaskFactory:
     """Factory for creating test Task entities."""
-    
+
     @staticmethod
     def create(db: Session, project_id: UUID, **kwargs) -> TaskDB:
         """Create a task with default or overridden values."""
         defaults = {
             "project_id": project_id,
-            "agent_type": AgentType.ANALYST.value,
+            "agent_type": AgentType.ANALYST,
             "status": TaskStatus.PENDING,
             "instructions": "Test task instructions",
             "context_ids": []
         }
         defaults.update(kwargs)
-        
+
         task = TaskDB(**defaults)
         db.add(task)
         db.commit()
@@ -318,19 +324,19 @@ class TaskFactory:
 
 class ContextArtifactFactory:
     """Factory for creating test ContextArtifact entities."""
-    
+
     @staticmethod
     def create(db: Session, project_id: UUID, **kwargs) -> ContextArtifactDB:
         """Create a context artifact with default or overridden values."""
         defaults = {
             "project_id": project_id,
-            "source_agent": AgentType.ANALYST.value,
+            "source_agent": AgentType.ANALYST,
             "artifact_type": ArtifactType.PROJECT_PLAN,
             "content": {"test": "content"},
             "artifact_metadata": {"test": "metadata"}
         }
         defaults.update(kwargs)
-        
+
         artifact = ContextArtifactDB(**defaults)
         db.add(artifact)
         db.commit()
@@ -420,31 +426,31 @@ def mock_sdlc_process_flow():
         "phases": [
             {
                 "name": "analysis",
-                "agent_type": AgentType.ANALYST.value,
+                "agent_type": AgentType.ANALYST,
                 "inputs": ["user_requirements"],
                 "outputs": ["project_plan"]
             },
             {
-                "name": "architecture", 
-                "agent_type": AgentType.ARCHITECT.value,
+                "name": "architecture",
+                "agent_type": AgentType.ARCHITECT,
                 "inputs": ["project_plan"],
                 "outputs": ["system_architecture"]
             },
             {
                 "name": "implementation",
-                "agent_type": AgentType.CODER.value,
+                "agent_type": AgentType.CODER,
                 "inputs": ["system_architecture"],
                 "outputs": ["source_code"]
             },
             {
                 "name": "testing",
-                "agent_type": AgentType.TESTER.value,
+                "agent_type": AgentType.TESTER,
                 "inputs": ["source_code"],
                 "outputs": ["test_results"]
             },
             {
                 "name": "deployment",
-                "agent_type": AgentType.DEPLOYER.value,
+                "agent_type": AgentType.DEPLOYER,
                 "inputs": ["source_code", "test_results"],
                 "outputs": ["deployment_package"]
             }
@@ -496,33 +502,33 @@ def project_with_hitl(db_session: Session, project_factory, task_factory, hitl_r
 def project_with_workflow(db_session: Session, project_factory, task_factory, context_artifact_factory):
     """Create a project with multi-phase workflow setup."""
     project = project_factory.create(db_session)
-    
+
     # Analysis phase task
     analysis_task = task_factory.create(
-        db_session, 
+        db_session,
         project_id=project.id,
-        agent_type=AgentType.ANALYST.value,
+        agent_type=AgentType.ANALYST,
         status=TaskStatus.COMPLETED,
         output={"analysis": "Requirements analyzed"}
     )
-    
+
     # Analysis output artifact
     analysis_artifact = context_artifact_factory.create(
         db_session,
         project_id=project.id,
-        source_agent=AgentType.ANALYST.value,
+        source_agent=AgentType.ANALYST,
         artifact_type=ArtifactType.PROJECT_PLAN
     )
-    
+
     # Architecture phase task
     architecture_task = task_factory.create(
         db_session,
         project_id=project.id,
-        agent_type=AgentType.ARCHITECT.value,
+        agent_type=AgentType.ARCHITECT,
         status=TaskStatus.PENDING,
         context_ids=[analysis_artifact.id]
     )
-    
+
     return {
         "project": project,
         "analysis_task": analysis_task,
@@ -651,28 +657,28 @@ def load_test_data():
         return [
             {
                 "project_id": project_id,
-                "source_agent": AgentType.ANALYST.value,
+                "source_agent": AgentType.ANALYST,
                 "artifact_type": ArtifactType.PROJECT_PLAN,
                 "content": {"test_data": f"artifact_{i}", "size": "large"},
                 "artifact_metadata": {"test_id": i, "batch": "load_test"}
             }
             for i in range(count)
         ]
-    
+
     def generate_tasks(count: int, project_id: UUID):
         """Generate test tasks for load testing."""
         agent_types = list(AgentType)
         return [
             {
                 "project_id": project_id,
-                "agent_type": agent_types[i % len(agent_types)].value,
+                "agent_type": agent_types[i % len(agent_types)],
                 "instructions": f"Load test task {i}",
                 "status": TaskStatus.PENDING,
                 "context_ids": []
             }
             for i in range(count)
         ]
-    
+
     return {
         "artifacts": generate_artifacts,
         "tasks": generate_tasks

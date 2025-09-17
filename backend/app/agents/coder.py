@@ -1,15 +1,18 @@
-"""Coder agent for code generation and implementation."""
+"""Coder agent for comprehensive code generation and implementation."""
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from uuid import uuid4
 import json
 import structlog
+from datetime import datetime, timezone
 
 from app.agents.base_agent import BaseAgent
-from app.models.task import Task
+from app.models.task import Task, TaskStatus
 from app.models.context import ContextArtifact
 from app.models.handoff import HandoffSchema
 from app.models.agent import AgentType
+from app.services.context_store import ContextStoreService
+from app.services.template_service import TemplateService
 
 logger = structlog.get_logger(__name__)
 
@@ -25,20 +28,25 @@ class CoderAgent(BaseAgent):
     - Documentation creation with clear code comments and API docs
     """
     
-    def __init__(self, agent_type: AgentType, llm_config: Dict[str, Any]):
+    def __init__(self, agent_type: AgentType, llm_config: Dict[str, Any], db_session=None):
         """Initialize Coder agent with code generation optimization."""
         super().__init__(agent_type, llm_config)
-        
+
         # Configure for code generation (balanced temperature for creativity and precision)
         self.llm_config.update({
-            "model": llm_config.get("model", "gpt-4o-mini"),
+            "model": llm_config.get("model", "gpt-4o"),  # Updated to use GPT-4o
             "temperature": 0.3,  # Balanced for code generation
         })
-        
+
+        # Initialize services
+        self.db = db_session
+        self.context_store = ContextStoreService(db_session) if db_session else None
+        self.template_service = TemplateService() if db_session else None
+
         # Initialize AutoGen agent
         self._initialize_autogen_agent()
-        
-        logger.info("Coder agent initialized with code generation focus")
+
+        logger.info("Coder agent initialized with enhanced code generation capabilities")
     
     def _create_system_message(self) -> str:
         """Create Coder-specific system message for AutoGen."""
@@ -107,49 +115,80 @@ Always respond with structured JSON containing:
 - Code review checklist and quality metrics"""
     
     async def execute_task(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
-        """Execute coder task with implementation focus.
-        
+        """Execute coder task with enhanced implementation and code generation.
+
         Args:
             task: Task to execute with coding instructions
             context: Context artifacts from architecture and requirements
-            
+
         Returns:
-            Implementation result with source code, tests, and documentation
+            Implementation result with source code, tests, documentation, and HITL requests
         """
-        logger.info("Coder executing implementation task",
+        logger.info("Coder executing enhanced implementation task",
                    task_id=task.task_id,
                    context_count=len(context))
-        
+
         try:
-            # Prepare implementation context
-            implementation_context = self._prepare_implementation_context(task, context)
-            
-            # Execute with LLM reliability features
+            # Step 1: Validate implementation completeness and identify gaps
+            completeness_check = self._validate_implementation_completeness(context)
+            logger.info("Implementation completeness check completed",
+                       gaps_found=len(completeness_check.get("missing_elements", [])),
+                       confidence=completeness_check.get("confidence_score", 0))
+
+            # Step 2: Generate HITL requests for clarification if needed
+            hitl_requests = []
+            if completeness_check.get("requires_clarification", False):
+                hitl_requests = self._generate_implementation_clarification_requests(
+                    task, completeness_check.get("missing_elements", [])
+                )
+                logger.info("Generated HITL clarification requests",
+                           request_count=len(hitl_requests))
+
+            # Step 3: Prepare enhanced implementation context
+            implementation_context = self._prepare_enhanced_implementation_context(task, context, completeness_check)
+
+            # Step 4: Execute analysis with LLM reliability features
             raw_response = await self._execute_with_reliability(implementation_context, task)
-            
-            # Parse and structure implementation response
+
+            # Step 5: Parse and structure implementation response
             implementation_result = self._parse_implementation_response(raw_response, task)
-            
-            logger.info("Coder task completed successfully",
+
+            # Step 6: Generate professional implementation using BMAD templates
+            implementation_document = await self._generate_implementation_from_template(implementation_result, task, context)
+
+            # Step 7: Create context artifacts for results
+            result_artifacts = self._create_implementation_artifacts(implementation_result, implementation_document, task)
+
+            # Step 8: Final implementation validation
+            final_validation = self._validate_final_implementation(implementation_result, implementation_document)
+
+            logger.info("Coder task completed with enhanced features",
                        task_id=task.task_id,
                        files_created=len(implementation_result.get("source_files", [])),
-                       tests_created=len(implementation_result.get("test_files", [])))
-            
+                       tests_created=len(implementation_result.get("test_files", [])),
+                       implementation_generated=bool(implementation_document),
+                       hitl_requests=len(hitl_requests),
+                       artifacts_created=len(result_artifacts))
+
             return {
                 "success": True,
                 "agent_type": self.agent_type.value,
                 "task_id": str(task.task_id),
                 "output": implementation_result,
+                "implementation_document": implementation_document,
                 "implementation_summary": implementation_result.get("implementation_overview", {}),
                 "code_metrics": implementation_result.get("code_metrics", {}),
+                "hitl_requests": hitl_requests,
+                "completeness_validation": final_validation,
+                "artifacts_created": result_artifacts,
                 "context_used": [str(artifact.context_id) for artifact in context]
             }
-            
+
         except Exception as e:
             logger.error("Coder task execution failed",
                         task_id=task.task_id,
                         error=str(e))
-            
+
             return {
                 "success": False,
                 "agent_type": self.agent_type.value,
@@ -715,16 +754,381 @@ Please ensure the deployment is production-ready with proper monitoring and main
     
     def _assess_deployment_readiness(self, context: List[ContextArtifact]) -> str:
         """Assess deployment readiness based on implementation."""
-        
+
         for artifact in context:
             if isinstance(artifact.content, dict):
                 # Check if deployment notes exist
                 deploy_notes = artifact.content.get("deployment_notes", [])
                 config_files = artifact.content.get("configuration_files", [])
-                
+
                 if deploy_notes and config_files:
                     return "ready"
                 elif deploy_notes or config_files:
                     return "partial"
-        
+
         return "needs_preparation"
+
+    def _validate_implementation_completeness(self, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Validate completeness of code implementation and identify gaps.
+
+        Args:
+            context: Context artifacts to analyze
+
+        Returns:
+            Completeness validation results
+        """
+        missing_elements = []
+        confidence_score = 1.0
+        requires_clarification = False
+
+        # Check for architecture context
+        architecture_found = any(
+            artifact.artifact_type in ["technical_architecture", "architecture_design"] or
+            (isinstance(artifact.content, dict) and artifact.content.get("architecture_type") == "technical_system_design")
+            for artifact in context
+        )
+
+        if not architecture_found:
+            missing_elements.append("architecture_context")
+            confidence_score -= 0.4
+            requires_clarification = True
+
+        # Check for existing implementation artifacts
+        existing_implementation = [
+            artifact for artifact in context
+            if isinstance(artifact.content, dict) and
+            artifact.content.get("implementation_type") == "full_stack_implementation"
+        ]
+
+        if not existing_implementation:
+            missing_elements.append("implementation_design")
+            confidence_score -= 0.5
+            requires_clarification = True
+
+        # Check for specific implementation elements
+        if existing_implementation:
+            latest_implementation = existing_implementation[-1].content
+
+            # Check source files
+            source_files = latest_implementation.get("source_files", [])
+            if len(source_files) < 2:
+                missing_elements.append("source_files")
+                confidence_score -= 0.2
+
+            # Check test files
+            test_files = latest_implementation.get("test_files", [])
+            if len(test_files) < 1:
+                missing_elements.append("test_files")
+                confidence_score -= 0.15
+
+            # Check configuration files
+            config_files = latest_implementation.get("configuration_files", [])
+            if len(config_files) < 1:
+                missing_elements.append("configuration_files")
+                confidence_score -= 0.1
+
+            # Check API documentation
+            api_docs = latest_implementation.get("api_documentation", {})
+            if not api_docs:
+                missing_elements.append("api_documentation")
+                confidence_score -= 0.1
+
+        # Determine if clarification is needed
+        if confidence_score < 0.6 or len(missing_elements) > 3:
+            requires_clarification = True
+
+        return {
+            "is_complete": len(missing_elements) == 0,
+            "confidence_score": max(0.0, confidence_score),
+            "missing_elements": missing_elements,
+            "requires_clarification": requires_clarification,
+            "existing_implementation_count": len(existing_implementation),
+            "recommendations": self._generate_implementation_recommendations(missing_elements)
+        }
+
+    def _generate_implementation_recommendations(self, missing_elements: List[str]) -> List[str]:
+        """Generate recommendations for addressing implementation gaps."""
+        recommendations = []
+
+        for element in missing_elements:
+            if element == "architecture_context":
+                recommendations.append("Gather detailed technical architecture before proceeding with implementation")
+            elif element == "implementation_design":
+                recommendations.append("Conduct comprehensive implementation design session")
+            elif element == "source_files":
+                recommendations.append("Implement core source files with proper structure")
+            elif element == "test_files":
+                recommendations.append("Create comprehensive test suite with high coverage")
+            elif element == "configuration_files":
+                recommendations.append("Set up proper configuration and environment management")
+            elif element == "api_documentation":
+                recommendations.append("Generate complete API documentation and specifications")
+
+        return recommendations
+
+    def _generate_implementation_clarification_requests(self, task: Task, missing_elements: List[str]) -> List[Dict[str, Any]]:
+        """Generate HITL requests for implementation clarification.
+
+        Args:
+            task: Current task
+            missing_elements: List of missing implementation elements
+
+        Returns:
+            List of HITL request configurations
+        """
+        hitl_requests = []
+
+        for element in missing_elements:
+            if element == "architecture_context":
+                hitl_requests.append({
+                    "question": "Please provide the technical architecture or detailed specifications for implementation",
+                    "options": ["Share architecture document", "Schedule implementation workshop", "Provide technical specifications"],
+                    "priority": "high",
+                    "reason": "Missing architecture context for implementation"
+                })
+
+            elif element == "source_files":
+                hitl_requests.append({
+                    "question": "What are the core source files and their structure?",
+                    "options": ["Define file structure", "Specify implementation approach", "Provide code examples"],
+                    "priority": "high",
+                    "reason": "Source file implementation required"
+                })
+
+            elif element == "test_files":
+                hitl_requests.append({
+                    "question": "What testing approach and coverage requirements should be implemented?",
+                    "options": ["Specify test coverage target", "Define testing framework", "List critical test scenarios"],
+                    "priority": "medium",
+                    "reason": "Test implementation details needed"
+                })
+
+            elif element == "configuration_files":
+                hitl_requests.append({
+                    "question": "What configuration and environment setup is required?",
+                    "options": ["Define environment variables", "Specify configuration files", "List deployment requirements"],
+                    "priority": "medium",
+                    "reason": "Configuration setup clarification needed"
+                })
+
+        return hitl_requests
+
+    def _prepare_enhanced_implementation_context(self, task: Task, context: List[ContextArtifact],
+                                               completeness_check: Dict[str, Any]) -> str:
+        """Prepare enhanced implementation context with completeness information."""
+
+        base_context = self._prepare_implementation_context(task, context)
+
+        # Add completeness information
+        completeness_info = [
+            "",
+            "IMPLEMENTATION COMPLETENESS STATUS:",
+            f"Confidence Score: {completeness_check.get('confidence_score', 0):.2f}",
+            f"Missing Elements: {', '.join(completeness_check.get('missing_elements', [])) or 'None'}",
+            f"Requires Clarification: {completeness_check.get('requires_clarification', False)}",
+        ]
+
+        if completeness_check.get("recommendations"):
+            completeness_info.extend([
+                "",
+                "IMPLEMENTATION RECOMMENDATIONS:",
+                *[f"- {rec}" for rec in completeness_check["recommendations"][:3]]
+            ])
+
+        completeness_info.extend([
+            "",
+            "ENHANCED IMPLEMENTATION REQUIREMENTS:",
+            "Focus on addressing the identified gaps while maintaining code quality.",
+            "Generate specific clarification questions for technical stakeholders if needed.",
+            "Ensure all code follows SOLID principles and best practices.",
+            "Include comprehensive testing and documentation."
+        ])
+
+        return base_context + "\n".join(completeness_info)
+
+    async def _generate_implementation_from_template(self, implementation_result: Dict[str, Any], task: Task,
+                                                   context: List[ContextArtifact]) -> Optional[Dict[str, Any]]:
+        """Generate professional implementation using BMAD templates.
+
+        Args:
+            implementation_result: Structured implementation results
+            task: Current task
+            context: Context artifacts
+
+        Returns:
+            Generated implementation document or None if template service unavailable
+        """
+        if not self.template_service:
+            logger.warning("Template service not available, skipping implementation document generation")
+            return None
+
+        try:
+            # Prepare template variables
+            template_vars = {
+                "project_id": str(task.project_id),
+                "task_id": str(task.task_id),
+                "implementation_date": datetime.now(timezone.utc).isoformat(),
+                "implementation_overview": implementation_result.get("implementation_overview", {}),
+                "source_files": implementation_result.get("source_files", []),
+                "test_files": implementation_result.get("test_files", []),
+                "configuration_files": implementation_result.get("configuration_files", []),
+                "database_migrations": implementation_result.get("database_migrations", []),
+                "api_documentation": implementation_result.get("api_documentation", {}),
+                "setup_instructions": implementation_result.get("setup_instructions", []),
+                "dependencies": implementation_result.get("dependencies", []),
+                "environment_variables": implementation_result.get("environment_variables", []),
+                "code_metrics": implementation_result.get("code_metrics", {}),
+                "security_features": implementation_result.get("security_features", []),
+                "performance_optimizations": implementation_result.get("performance_optimizations", []),
+                "testing_strategy": implementation_result.get("testing_strategy", {}),
+                "deployment_notes": implementation_result.get("deployment_notes", []),
+                "known_limitations": implementation_result.get("known_limitations", []),
+                "next_steps": implementation_result.get("next_steps", []),
+                "code_quality_score": implementation_result.get("code_quality_score", 0.8),
+                "test_coverage_estimate": implementation_result.get("test_coverage_estimate", 0.85)
+            }
+
+            # Generate implementation document using template
+            implementation_content = await self.template_service.render_template_async(
+                template_name="implementation-tmpl.yaml",
+                variables=template_vars
+            )
+
+            logger.info("Implementation document generated from template",
+                       template="implementation-tmpl.yaml",
+                       content_length=len(str(implementation_content)))
+
+            return {
+                "document_type": "code_implementation_document",
+                "template_used": "implementation-tmpl.yaml",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "content": implementation_content,
+                "metadata": {
+                    "code_quality_score": template_vars["code_quality_score"],
+                    "test_coverage_estimate": template_vars["test_coverage_estimate"],
+                    "source_files_count": len(template_vars["source_files"]),
+                    "test_files_count": len(template_vars["test_files"])
+                }
+            }
+
+        except Exception as e:
+            logger.error("Failed to generate implementation document from template",
+                        error=str(e),
+                        template="implementation-tmpl.yaml")
+            return None
+
+    def _create_implementation_artifacts(self, implementation_result: Dict[str, Any],
+                                       implementation_document: Optional[Dict[str, Any]], task: Task) -> List[str]:
+        """Create context artifacts for implementation results.
+
+        Args:
+            implementation_result: Structured implementation results
+            implementation_document: Generated implementation document
+            task: Current task
+
+        Returns:
+            List of created artifact IDs
+        """
+        if not self.context_store:
+            logger.warning("Context store not available, skipping artifact creation")
+            return []
+
+        created_artifacts = []
+
+        try:
+            # Create implementation artifact
+            implementation_artifact = self.context_store.create_artifact(
+                project_id=task.project_id,
+                source_agent=self.agent_type.value,
+                artifact_type="code_implementation",
+                content=implementation_result
+            )
+            created_artifacts.append(str(implementation_artifact.context_id))
+
+            # Create implementation document artifact if available
+            if implementation_document:
+                document_artifact = self.context_store.create_artifact(
+                    project_id=task.project_id,
+                    source_agent=self.agent_type.value,
+                    artifact_type="implementation_document",
+                    content=implementation_document
+                )
+                created_artifacts.append(str(document_artifact.context_id))
+
+            logger.info("Implementation artifacts created",
+                       implementation_artifact=str(implementation_artifact.context_id),
+                       document_artifact=created_artifacts[1] if len(created_artifacts) > 1 else None)
+
+        except Exception as e:
+            logger.error("Failed to create implementation artifacts",
+                        error=str(e),
+                        task_id=str(task.task_id))
+
+        return created_artifacts
+
+    def _validate_final_implementation(self, implementation_result: Dict[str, Any],
+                                     implementation_document: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Perform final validation of implementation completeness and quality.
+
+        Args:
+            implementation_result: Structured implementation results
+            implementation_document: Generated implementation document
+
+        Returns:
+            Final validation results
+        """
+        validation_results = {
+            "overall_quality": "good",
+            "issues_found": [],
+            "recommendations": [],
+            "ready_for_next_phase": True
+        }
+
+        # Check implementation completeness
+        confidence = implementation_result.get("code_quality_score", 0.8)
+        source_files = len(implementation_result.get("source_files", []))
+        test_files = len(implementation_result.get("test_files", []))
+        test_coverage = implementation_result.get("test_coverage_estimate", 0.85)
+
+        if confidence < 0.6:
+            validation_results["issues_found"].append("Low code quality score")
+            validation_results["recommendations"].append("Consider code review and refactoring")
+            validation_results["overall_quality"] = "needs_review"
+
+        if source_files < 2:
+            validation_results["issues_found"].append("Insufficient source files")
+            validation_results["recommendations"].append("Implement core functionality")
+            validation_results["overall_quality"] = "needs_improvement"
+
+        if test_files < 1:
+            validation_results["issues_found"].append("Missing test files")
+            validation_results["recommendations"].append("Implement comprehensive test suite")
+            validation_results["ready_for_next_phase"] = False
+
+        if test_coverage < 0.7:
+            validation_results["issues_found"].append("Low test coverage")
+            validation_results["recommendations"].append("Increase test coverage to target levels")
+            validation_results["overall_quality"] = "needs_improvement"
+
+        # Check for critical missing elements
+        critical_elements = ["source_files", "test_files", "configuration_files"]
+        for element in critical_elements:
+            if not implementation_result.get(element):
+                validation_results["issues_found"].append(f"Missing {element}")
+                validation_results["ready_for_next_phase"] = False
+
+        # Check implementation document generation
+        if not implementation_document:
+            validation_results["issues_found"].append("Implementation document generation failed")
+            validation_results["recommendations"].append("Manual implementation documentation recommended")
+
+        # Determine overall readiness
+        if validation_results["issues_found"] and validation_results["ready_for_next_phase"]:
+            validation_results["ready_for_next_phase"] = False
+
+        logger.info("Final implementation validation completed",
+                   quality=validation_results["overall_quality"],
+                   issues=len(validation_results["issues_found"]),
+                   ready=validation_results["ready_for_next_phase"])
+
+        return validation_results

@@ -57,18 +57,35 @@ except Exception as e:
     print('   This is expected if PostgreSQL is not running')
 "
 
-# Check Redis connection (optional)
-echo "🔴 Checking Redis connection (optional)..."
+# Start Redis if needed (optional for simple mode)
+echo "🔴 Checking/Starting Redis..."
+if command -v brew &> /dev/null; then
+    if brew services list | grep redis | grep started > /dev/null; then
+        echo "   ✅ Redis already running"
+    else
+        echo "   🚀 Starting Redis..."
+        brew services start redis && echo "   ✅ Redis started" || echo "   ⚠️  Redis start failed (continuing anyway)"
+    fi
+elif command -v systemctl &> /dev/null; then
+    if systemctl is-active --quiet redis-server; then
+        echo "   ✅ Redis already running"
+    else
+        echo "   🚀 Starting Redis..."
+        sudo systemctl start redis-server && echo "   ✅ Redis started" || echo "   ⚠️  Redis start failed (continuing anyway)"
+    fi
+fi
+
+# Verify Redis connection
 python -c "
 try:
     import redis
     from app.config import settings
     r = redis.from_url(settings.redis_url)
     r.ping()
-    print('✅ Redis connection successful')
+    print('   ✅ Redis connection successful')
 except Exception as e:
-    print(f'⚠️  Redis connection failed: {e}')
-    print('   This is expected if Redis is not running')
+    print(f'   ⚠️  Redis connection failed: {e}')
+    print('   Continuing without Redis - some features may not work')
 "
 
 # Start FastAPI server

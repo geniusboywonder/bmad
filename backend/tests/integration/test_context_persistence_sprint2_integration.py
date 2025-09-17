@@ -172,7 +172,7 @@ class TestContextArtifactCRUDOperations:
         for i in range(3):
             artifact = context_store_service.create_artifact(
                 project_id=project.id,
-                source_agent=AgentType.ANALYST.value,
+                source_agent=AgentType.ANALYST,  # Use enum directly
                 artifact_type=ArtifactType.PROJECT_PLAN,
                 content={"sequence": i, "batch": "transaction_test"}
             )
@@ -349,12 +349,12 @@ class TestAgentContextRetrievalByIDs:
         for i in range(artifact_count):
             artifact_data = {
                 "project_id": project.id,
-                "source_agent": AgentType.ANALYST.value,
+                "source_agent": AgentType.ANALYST,  # Use enum directly
                 "artifact_type": ArtifactType.PROJECT_PLAN,
                 "content": {"index": i, "data": f"large_dataset_{i}"},
                 "artifact_metadata": {"batch": "performance_test", "index": i}
             }
-            
+
             artifact = context_store_service.create_artifact(**artifact_data)
             artifacts.append(artifact)
         
@@ -400,14 +400,14 @@ class TestProjectScopedArtifactQueries:
             ArtifactType.SYSTEM_ARCHITECTURE,
             ArtifactType.SOURCE_CODE
         ]
-        
+
         created_artifacts = []
         for i, artifact_type in enumerate(artifact_types):
             artifact = context_artifact_factory.create(
                 db_session,
                 project_id=project.id,
                 artifact_type=artifact_type,
-                source_agent=AgentType.ANALYST.value if i % 2 == 0 else AgentType.ARCHITECT.value,
+                source_agent=AgentType.ANALYST if i % 2 == 0 else AgentType.ARCHITECT,  # Use enum directly
                 content={"type": artifact_type.value, "index": i}
             )
             created_artifacts.append(artifact)
@@ -494,42 +494,42 @@ class TestProjectScopedArtifactQueries:
         
         # Create artifacts from different agents
         agents_and_counts = [
-            (AgentType.ANALYST.value, 3),
-            (AgentType.ARCHITECT.value, 2),
-            (AgentType.CODER.value, 1)
+            (AgentType.ANALYST, 3),
+            (AgentType.ARCHITECT, 2),
+            (AgentType.CODER, 1)
         ]
-        
+
         for agent, count in agents_and_counts:
             for i in range(count):
                 context_artifact_factory.create(
                     db_session,
                     project_id=project.id,
-                    source_agent=agent,
-                    content={"agent": agent, "index": i}
+                    source_agent=agent,  # Use enum directly
+                    content={"agent": agent.value, "index": i}
                 )
-        
+
         # Filter by source agent
         analyst_artifacts = context_store_service.get_artifacts_by_project_and_agent(
             project.id,
-            AgentType.ANALYST.value
+            AgentType.ANALYST  # Use enum directly
         )
         assert len(analyst_artifacts) == 3
-        
+
         architect_artifacts = context_store_service.get_artifacts_by_project_and_agent(
             project.id,
-            AgentType.ARCHITECT.value
+            AgentType.ARCHITECT  # Use enum directly
         )
         assert len(architect_artifacts) == 2
-        
+
         coder_artifacts = context_store_service.get_artifacts_by_project_and_agent(
             project.id,
-            AgentType.CODER.value
+            AgentType.CODER  # Use enum directly
         )
         assert len(coder_artifacts) == 1
-        
+
         # Verify agent isolation
         for artifact in analyst_artifacts:
-            assert artifact.source_agent == AgentType.ANALYST.value
+            assert artifact.source_agent == AgentType.ANALYST  # Use enum directly
     
     @pytest.mark.integration
     @pytest.mark.p2
@@ -543,30 +543,30 @@ class TestProjectScopedArtifactQueries:
         
         # Create artifacts with various combinations
         test_scenarios = [
-            (AgentType.ANALYST.value, ArtifactType.PROJECT_PLAN, {"priority": "high"}),
-            (AgentType.ANALYST.value, ArtifactType.PROJECT_PLAN, {"priority": "medium"}),
-            (AgentType.ARCHITECT.value, ArtifactType.SYSTEM_ARCHITECTURE, {"priority": "high"}),
-            (AgentType.ARCHITECT.value, ArtifactType.PROJECT_PLAN, {"priority": "low"}),
-            (AgentType.CODER.value, ArtifactType.SOURCE_CODE, {"priority": "high"}),
+            (AgentType.ANALYST, ArtifactType.PROJECT_PLAN, {"priority": "high"}),
+            (AgentType.ANALYST, ArtifactType.PROJECT_PLAN, {"priority": "medium"}),
+            (AgentType.ARCHITECT, ArtifactType.SYSTEM_ARCHITECTURE, {"priority": "high"}),
+            (AgentType.ARCHITECT, ArtifactType.PROJECT_PLAN, {"priority": "low"}),
+            (AgentType.CODER, ArtifactType.SOURCE_CODE, {"priority": "high"}),
         ]
-        
+
         created_artifacts = []
         for agent, artifact_type, metadata in test_scenarios:
             artifact = context_artifact_factory.create(
                 db_session,
                 project_id=project.id,
-                source_agent=agent,
+                source_agent=agent,  # Use enum directly
                 artifact_type=artifact_type,
                 artifact_metadata=metadata,
-                content={"scenario": f"{agent}_{artifact_type.value}"}
+                content={"scenario": f"{agent.value}_{artifact_type.value}"}
             )
             created_artifacts.append(artifact)
-        
+
         # Test compound filtering (agent + type)
         analyst_plans = []
         all_artifacts = context_store_service.get_artifacts_by_project(project.id)
         for artifact in all_artifacts:
-            if (artifact.source_agent == AgentType.ANALYST.value and 
+            if (artifact.source_agent == AgentType.ANALYST and  # Use enum directly
                 artifact.artifact_type == ArtifactType.PROJECT_PLAN):
                 analyst_plans.append(artifact)
         
@@ -608,17 +608,17 @@ class TestArtifactRelationshipMaintenance:
             db_session,
             project_id=project.id,
             artifact_type=ArtifactType.PROJECT_PLAN,
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,  # Use enum directly
             content={"based_on": str(user_input.id), "analysis": "completed"},
             artifact_metadata={"dependencies": [str(user_input.id)]}
         )
-        
+
         # Create architecture artifact dependent on analysis
         architecture_artifact = context_artifact_factory.create(
             db_session,
             project_id=project.id,
             artifact_type=ArtifactType.SYSTEM_ARCHITECTURE,
-            source_agent=AgentType.ARCHITECT.value,
+            source_agent=AgentType.ARCHITECT,  # Use enum directly
             content={"based_on": str(analysis_artifact.id), "architecture": "microservices"},
             artifact_metadata={"dependencies": [str(analysis_artifact.id), str(user_input.id)]}
         )
@@ -816,7 +816,7 @@ class TestContextStorePerformanceWithVolume:
                 db_session,
                 project_id=project.id,
                 artifact_type=ArtifactType.PROJECT_PLAN if i % 2 == 0 else ArtifactType.SOURCE_CODE,
-                source_agent=AgentType.ANALYST.value if i % 3 == 0 else AgentType.ARCHITECT.value,
+                source_agent=AgentType.ANALYST if i % 3 == 0 else AgentType.ARCHITECT,  # Use enum directly
                 content={"index": i, "batch": "query_performance_test"},
                 artifact_metadata={"priority": "high" if i % 5 == 0 else "normal"}
             )
@@ -874,7 +874,7 @@ class TestContextStorePerformanceWithVolume:
                 for i in range(count):
                     artifact = context_store_service.create_artifact(
                         project_id=project.id,
-                        source_agent=AgentType.ANALYST.value,
+                        source_agent=AgentType.ANALYST,  # Use enum directly
                         artifact_type=ArtifactType.PROJECT_PLAN,
                         content={"batch": batch_id, "index": i}
                     )

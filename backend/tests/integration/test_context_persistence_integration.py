@@ -36,15 +36,15 @@ class TestContextArtifactCRUDOperations:
         
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=sample_context_artifact_data["source_agent"],
+            source_agent=AgentType(sample_context_artifact_data["source_agent"]),  # Convert to enum
             artifact_type=sample_context_artifact_data["artifact_type"],
             content=sample_context_artifact_data["content"],
             artifact_metadata=sample_context_artifact_data["artifact_metadata"]
         )
-        
+
         assert isinstance(artifact.context_id, UUID)
         assert artifact.project_id == project.id
-        assert artifact.source_agent == sample_context_artifact_data["source_agent"]
+        assert artifact.source_agent == AgentType(sample_context_artifact_data["source_agent"])  # Compare as enum
         assert artifact.artifact_type == sample_context_artifact_data["artifact_type"]
         assert artifact.content == sample_context_artifact_data["content"]
         assert artifact.artifact_metadata == sample_context_artifact_data["artifact_metadata"]
@@ -66,20 +66,20 @@ class TestContextArtifactCRUDOperations:
         project = project_factory.create(db_session)
         
         # Create artifact
-        created_artifact = context_store_service.create_artifact(
+        artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ARCHITECT.value,
-            artifact_type=ArtifactType.IMPLEMENTATION_PLAN,
-            content={"implementation": "details"}
+            source_agent=AgentType.TESTER,  # Use enum directly
+            artifact_type=ArtifactType.TEST_RESULTS,
+            content={"test_id": i}
         )
-        
+
         # Retrieve artifact
-        retrieved_artifact = context_store_service.get_artifact(created_artifact.context_id)
-        
+        retrieved_artifact = context_store_service.get_artifact(artifact.context_id)
+
         assert retrieved_artifact is not None
-        assert retrieved_artifact.context_id == created_artifact.context_id
-        assert retrieved_artifact.content == created_artifact.content
-        assert retrieved_artifact.source_agent == created_artifact.source_agent
+        assert retrieved_artifact.context_id == artifact.context_id
+        assert retrieved_artifact.content == artifact.content
+        assert retrieved_artifact.source_agent == artifact.source_agent
     
     @pytest.mark.integration
     @pytest.mark.p0
@@ -93,7 +93,7 @@ class TestContextArtifactCRUDOperations:
         # Create artifact
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.CODER.value,
+            source_agent=AgentType.CODER,  # Use enum directly
             artifact_type=ArtifactType.SOURCE_CODE,
             content={"version": "1.0", "files": ["main.py"]}
         )
@@ -132,7 +132,7 @@ class TestContextArtifactCRUDOperations:
         # Create artifact
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.TESTER.value,
+            source_agent=AgentType.TESTER,  # Use enum directly
             artifact_type=ArtifactType.TEST_RESULTS,
             content={"tests_passed": 10, "tests_failed": 2}
         )
@@ -165,14 +165,14 @@ class TestContextArtifactCRUDOperations:
         # Create multiple artifacts
         artifact1 = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"plan": "v1"}
         )
         
         artifact2 = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ARCHITECT.value,
+            source_agent=AgentType.ARCHITECT,
             artifact_type=ArtifactType.IMPLEMENTATION_PLAN,
             content={"implementation": "v1"}
         )
@@ -200,7 +200,7 @@ class TestTaskStatePersistence:
         # Create task
         task = orchestrator_service.create_task(
             project_id=project.id,
-            agent_type=AgentType.ANALYST.value,
+            agent_type=AgentType.ANALYST,
             instructions="Test task for status updates"
         )
         
@@ -230,7 +230,7 @@ class TestTaskStatePersistence:
         
         task = orchestrator_service.create_task(
             project_id=project.id,
-            agent_type=AgentType.CODER.value,
+            agent_type=AgentType.CODER,
             instructions="Timestamp test task"
         )
         
@@ -263,7 +263,7 @@ class TestTaskStatePersistence:
         
         task = orchestrator_service.create_task(
             project_id=project.id,
-            agent_type=AgentType.TESTER.value,
+            agent_type=AgentType.TESTER,
             instructions="Error test task"
         )
         
@@ -292,7 +292,7 @@ class TestTaskStatePersistence:
         
         task = orchestrator_service.create_task(
             project_id=project.id,
-            agent_type=AgentType.DEPLOYER.value,
+            agent_type=AgentType.DEPLOYER,
             instructions="Output data test"
         )
         
@@ -341,7 +341,7 @@ class TestServiceLayerDatabaseAbstraction:
         # Service methods should return domain models, not database models
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,  # Use enum directly
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"test": "abstraction"}
         )
@@ -369,7 +369,7 @@ class TestServiceLayerDatabaseAbstraction:
         # Service operation should complete transaction
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ARCHITECT.value,
+            source_agent=AgentType.ARCHITECT,  # Use enum directly
             artifact_type=ArtifactType.IMPLEMENTATION_PLAN,
             content={"transaction": "test"}
         )
@@ -424,7 +424,7 @@ class TestEventLoggingForStateChanges:
         
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"event": "test"}
         )
@@ -449,7 +449,7 @@ class TestEventLoggingForStateChanges:
         
         task = orchestrator_service.create_task(
             project_id=project.id,
-            agent_type=AgentType.CODER.value,
+            agent_type=AgentType.CODER,  # Use enum directly
             instructions="Event logging test"
         )
         
@@ -480,7 +480,7 @@ class TestEventLoggingForStateChanges:
         # Create artifact
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.ANALYST.value,
+            source_agent=AgentType.ANALYST,
             artifact_type=ArtifactType.PROJECT_PLAN,
             content={"operation": "create"}
         )
@@ -523,7 +523,7 @@ class TestContextArtifactQueryPerformance:
         for i in range(artifact_count):
             artifact = context_store_service.create_artifact(
                 project_id=project.id,
-                source_agent=AgentType.ANALYST.value,
+                source_agent=AgentType.ANALYST,
                 artifact_type=ArtifactType.AGENT_OUTPUT,
                 content={"index": i, "data": f"test_data_{i}"}
             )
@@ -553,7 +553,7 @@ class TestContextArtifactQueryPerformance:
         # Create artifact
         artifact = context_store_service.create_artifact(
             project_id=project.id,
-            source_agent=AgentType.CODER.value,
+            source_agent=AgentType.CODER,  # Use enum directly
             artifact_type=ArtifactType.SOURCE_CODE,
             content={"performance": "test"}
         )
@@ -584,7 +584,7 @@ class TestContextArtifactQueryPerformance:
         for i in range(50):
             artifact = context_store_service.create_artifact(
                 project_id=project.id,
-                source_agent=AgentType.TESTER.value,
+                source_agent=AgentType.TESTER,
                 artifact_type=ArtifactType.TEST_RESULTS,
                 content={"test_id": i}
             )

@@ -54,7 +54,7 @@ class TestAgentTaskProcessing:
         assert str(result["task_id"]) == task_data["task_id"]
         assert str(result["project_id"]) == task_data["project_id"]
 
-        # Verify defaults are applied
+        # Verify defaults are applied correctly
         assert result["from_agent"] == "orchestrator"
         assert result["expected_outputs"] == ["task_result"]
         assert result["priority"] == 1
@@ -114,9 +114,9 @@ class TestAgentTaskProcessing:
         mock_context_store_instance.get_artifacts_by_ids.return_value = []
         mock_context_store.return_value = mock_context_store_instance
 
-        # Execute the task - it should raise an exception due to failure
+        # Execute the task directly (not via Celery apply)
         with pytest.raises(Exception) as exc_info:
-            process_agent_task.apply(args=[task_data])
+            asyncio.run(process_agent_task(task_data))
 
         # Verify the exception message
         assert "Task execution failed" in str(exc_info.value)
@@ -161,9 +161,8 @@ class TestAgentTaskProcessing:
         mock_context_store_instance.create_artifact.return_value = Mock(context_id=uuid4())
         mock_context_store.return_value = mock_context_store_instance
 
-        # Execute the task
-        celery_result = process_agent_task.apply(args=[task_data])
-        result = celery_result.get()  # Get the actual return value
+        # Execute the task directly
+        result = asyncio.run(process_agent_task(task_data))
 
         # Verify context was retrieved - should be called with UUID objects due to validation
         from uuid import UUID
@@ -208,9 +207,8 @@ class TestAgentTaskProcessing:
         mock_context_store_instance.get_artifacts_by_ids.return_value = []
         mock_context_store.return_value = mock_context_store_instance
 
-        # Execute the task - should handle database error gracefully
-        celery_result = process_agent_task.apply(args=[task_data])
-        result = celery_result.get()
+        # Execute the task directly - should handle database error gracefully
+        result = asyncio.run(process_agent_task(task_data))
 
         # Verify the task completed despite database error
         assert result.get("success") == True
@@ -333,9 +331,8 @@ class TestAgentTaskProcessing:
         mock_context_store_instance.create_artifact.return_value = mock_artifact
         mock_context_store.return_value = mock_context_store_instance
 
-        # Execute the task
-        celery_result = process_agent_task.apply(args=[task_data])
-        result = celery_result.get()  # Get the actual return value
+        # Execute the task directly
+        result = asyncio.run(process_agent_task(task_data))
 
         # Verify artifact was created
         mock_context_store_instance.create_artifact.assert_called_once()

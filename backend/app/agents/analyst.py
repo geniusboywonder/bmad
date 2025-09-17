@@ -1,15 +1,18 @@
-"""Analyst agent for requirements analysis and PRD generation."""
+"""Analyst agent for comprehensive requirements analysis and PRD generation."""
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from uuid import uuid4
 import json
 import structlog
+from datetime import datetime, timezone
 
 from app.agents.base_agent import BaseAgent
-from app.models.task import Task
+from app.models.task import Task, TaskStatus
 from app.models.context import ContextArtifact
 from app.models.handoff import HandoffSchema
 from app.models.agent import AgentType
+from app.services.context_store import ContextStoreService
+from app.services.template_service import TemplateService
 
 logger = structlog.get_logger(__name__)
 
@@ -25,21 +28,26 @@ class AnalystAgent(BaseAgent):
     - Success criteria definition with measurable acceptance conditions
     """
     
-    def __init__(self, agent_type: AgentType, llm_config: Dict[str, Any]):
+    def __init__(self, agent_type: AgentType, llm_config: Dict[str, Any], db_session=None):
         """Initialize Analyst agent with requirements analysis optimization."""
         super().__init__(agent_type, llm_config)
-        
+
         # Configure for Anthropic Claude (optimized for requirements analysis)
         # Note: In production, this should be configurable based on provider availability
         self.llm_config.update({
-            "model": llm_config.get("model", "gpt-4o-mini"),  # Using available model
+            "model": llm_config.get("model", "claude-3-5-sonnet-20241022"),  # Updated to latest Claude model
             "temperature": 0.4,  # Balanced for analysis accuracy
         })
-        
+
+        # Initialize services
+        self.db = db_session
+        self.context_store = ContextStoreService(db_session) if db_session else None
+        self.template_service = TemplateService() if db_session else None
+
         # Initialize AutoGen agent
         self._initialize_autogen_agent()
-        
-        logger.info("Analyst agent initialized with requirements analysis focus")
+
+        logger.info("Analyst agent initialized with enhanced requirements analysis capabilities")
     
     def _create_system_message(self) -> str:
         """Create Analyst-specific system message for AutoGen."""
@@ -87,49 +95,80 @@ Always respond with structured JSON containing:
 - Questions for stakeholder clarification (if any)"""
     
     async def execute_task(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
-        """Execute analyst task with requirements analysis focus.
-        
+        """Execute analyst task with enhanced requirements analysis and PRD generation.
+
         Args:
             task: Task to execute with analysis instructions
             context: Context artifacts from previous stages or user input
-            
+
         Returns:
-            Analysis result with requirements, personas, and PRD content
+            Analysis result with requirements, personas, PRD content, and HITL requests
         """
-        logger.info("Analyst executing requirements analysis task",
+        logger.info("Analyst executing enhanced requirements analysis task",
                    task_id=task.task_id,
                    context_count=len(context))
-        
+
         try:
-            # Prepare requirements analysis context
-            analysis_context = self._prepare_analysis_context(task, context)
-            
-            # Execute with LLM reliability features
+            # Step 1: Validate analysis completeness and identify gaps
+            completeness_check = self._validate_analysis_completeness(context)
+            logger.info("Analysis completeness check completed",
+                       gaps_found=len(completeness_check.get("missing_elements", [])),
+                       confidence=completeness_check.get("confidence_score", 0))
+
+            # Step 2: Generate HITL requests for clarification if needed
+            hitl_requests = []
+            if completeness_check.get("requires_clarification", False):
+                hitl_requests = self._generate_clarification_requests(
+                    task, completeness_check.get("missing_elements", [])
+                )
+                logger.info("Generated HITL clarification requests",
+                           request_count=len(hitl_requests))
+
+            # Step 3: Prepare enhanced analysis context
+            analysis_context = self._prepare_enhanced_analysis_context(task, context, completeness_check)
+
+            # Step 4: Execute analysis with LLM reliability features
             raw_response = await self._execute_with_reliability(analysis_context, task)
-            
-            # Parse and structure analysis response
+
+            # Step 5: Parse and structure analysis response
             analysis_result = self._parse_analysis_response(raw_response, task)
-            
-            logger.info("Analyst task completed successfully",
+
+            # Step 6: Generate professional PRD using BMAD templates
+            prd_document = await self._generate_prd_from_template(analysis_result, task, context)
+
+            # Step 7: Create context artifacts for results
+            result_artifacts = self._create_analysis_artifacts(analysis_result, prd_document, task)
+
+            # Step 8: Final completeness validation
+            final_validation = self._validate_final_analysis(analysis_result, prd_document)
+
+            logger.info("Analyst task completed with enhanced features",
                        task_id=task.task_id,
                        personas_created=len(analysis_result.get("user_personas", [])),
-                       requirements_count=len(analysis_result.get("functional_requirements", [])))
-            
+                       requirements_count=len(analysis_result.get("functional_requirements", [])),
+                       prd_generated=bool(prd_document),
+                       hitl_requests=len(hitl_requests),
+                       artifacts_created=len(result_artifacts))
+
             return {
                 "success": True,
                 "agent_type": self.agent_type.value,
                 "task_id": str(task.task_id),
                 "output": analysis_result,
+                "prd_document": prd_document,
                 "requirements_summary": analysis_result.get("executive_summary", {}),
                 "stakeholder_questions": analysis_result.get("stakeholder_questions", []),
+                "hitl_requests": hitl_requests,
+                "completeness_validation": final_validation,
+                "artifacts_created": result_artifacts,
                 "context_used": [str(artifact.context_id) for artifact in context]
             }
-            
+
         except Exception as e:
             logger.error("Analyst task execution failed",
                         task_id=task.task_id,
                         error=str(e))
-            
+
             return {
                 "success": False,
                 "agent_type": self.agent_type.value,
@@ -448,15 +487,359 @@ Please ensure your architecture aligns with the identified requirements and cons
     
     def _check_stakeholder_input_needed(self, context: List[ContextArtifact]) -> bool:
         """Check if stakeholder input is needed based on analysis."""
-        
+
         for artifact in context:
             if isinstance(artifact.content, dict):
                 questions = artifact.content.get("stakeholder_questions", [])
                 if questions:
                     return True
-                
+
                 confidence = artifact.content.get("analysis_confidence", 1.0)
                 if confidence < 0.7:
                     return True
-        
+
         return False
+
+    def _validate_analysis_completeness(self, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Validate completeness of requirements analysis and identify gaps.
+
+        Args:
+            context: Context artifacts to analyze
+
+        Returns:
+            Completeness validation results
+        """
+        missing_elements = []
+        confidence_score = 1.0
+        requires_clarification = False
+
+        # Check for user input
+        user_input_found = any(
+            artifact.artifact_type == "user_input" or
+            (isinstance(artifact.content, dict) and artifact.content.get("user_idea"))
+            for artifact in context
+        )
+
+        if not user_input_found:
+            missing_elements.append("user_input")
+            confidence_score -= 0.3
+
+        # Check for existing analysis artifacts
+        existing_analysis = [
+            artifact for artifact in context
+            if isinstance(artifact.content, dict) and
+            artifact.content.get("analysis_type") == "requirements_analysis"
+        ]
+
+        if not existing_analysis:
+            missing_elements.append("requirements_analysis")
+            confidence_score -= 0.4
+            requires_clarification = True
+
+        # Check for specific requirement elements
+        if existing_analysis:
+            latest_analysis = existing_analysis[-1].content
+
+            # Check functional requirements
+            func_reqs = latest_analysis.get("functional_requirements", [])
+            if len(func_reqs) < 3:
+                missing_elements.append("functional_requirements")
+                confidence_score -= 0.2
+
+            # Check user personas
+            personas = latest_analysis.get("user_personas", [])
+            if len(personas) < 1:
+                missing_elements.append("user_personas")
+                confidence_score -= 0.15
+
+            # Check non-functional requirements
+            non_func_reqs = latest_analysis.get("non_functional_requirements", [])
+            if len(non_func_reqs) < 2:
+                missing_elements.append("non_functional_requirements")
+                confidence_score -= 0.1
+
+            # Check success criteria
+            success_criteria = latest_analysis.get("success_criteria", [])
+            if len(success_criteria) < 2:
+                missing_elements.append("success_criteria")
+                confidence_score -= 0.1
+
+        # Determine if clarification is needed
+        if confidence_score < 0.7 or len(missing_elements) > 2:
+            requires_clarification = True
+
+        return {
+            "is_complete": len(missing_elements) == 0,
+            "confidence_score": max(0.0, confidence_score),
+            "missing_elements": missing_elements,
+            "requires_clarification": requires_clarification,
+            "existing_analysis_count": len(existing_analysis),
+            "recommendations": self._generate_completeness_recommendations(missing_elements)
+        }
+
+    def _generate_completeness_recommendations(self, missing_elements: List[str]) -> List[str]:
+        """Generate recommendations for addressing completeness gaps."""
+        recommendations = []
+
+        for element in missing_elements:
+            if element == "user_input":
+                recommendations.append("Gather detailed user requirements and business objectives")
+            elif element == "requirements_analysis":
+                recommendations.append("Conduct comprehensive requirements analysis session")
+            elif element == "functional_requirements":
+                recommendations.append("Define specific functional requirements with acceptance criteria")
+            elif element == "user_personas":
+                recommendations.append("Develop detailed user personas and use cases")
+            elif element == "non_functional_requirements":
+                recommendations.append("Specify performance, security, and usability requirements")
+            elif element == "success_criteria":
+                recommendations.append("Define measurable success criteria and KPIs")
+
+        return recommendations
+
+    def _generate_clarification_requests(self, task: Task, missing_elements: List[str]) -> List[Dict[str, Any]]:
+        """Generate HITL requests for clarification on missing elements.
+
+        Args:
+            task: Current task
+            missing_elements: List of missing requirement elements
+
+        Returns:
+            List of HITL request configurations
+        """
+        hitl_requests = []
+
+        for element in missing_elements:
+            if element == "user_input":
+                hitl_requests.append({
+                    "question": "Please provide more details about the project requirements and objectives",
+                    "options": ["Provide detailed requirements", "Schedule requirements workshop", "Share existing documentation"],
+                    "priority": "high",
+                    "reason": "Missing user input for requirements analysis"
+                })
+
+            elif element == "functional_requirements":
+                hitl_requests.append({
+                    "question": "What are the key functional requirements for this system?",
+                    "options": ["List core features", "Provide use cases", "Share functional specifications"],
+                    "priority": "high",
+                    "reason": "Insufficient functional requirements defined"
+                })
+
+            elif element == "user_personas":
+                hitl_requests.append({
+                    "question": "Who are the primary users of this system and what are their needs?",
+                    "options": ["Describe user roles", "Provide user scenarios", "Share user research"],
+                    "priority": "medium",
+                    "reason": "Missing user persona definitions"
+                })
+
+            elif element == "non_functional_requirements":
+                hitl_requests.append({
+                    "question": "What are the non-functional requirements (performance, security, etc.)?",
+                    "options": ["Specify performance needs", "Define security requirements", "List scalability needs"],
+                    "priority": "medium",
+                    "reason": "Missing non-functional requirements"
+                })
+
+        return hitl_requests
+
+    def _prepare_enhanced_analysis_context(self, task: Task, context: List[ContextArtifact],
+                                         completeness_check: Dict[str, Any]) -> str:
+        """Prepare enhanced analysis context with completeness information."""
+
+        base_context = self._prepare_analysis_context(task, context)
+
+        # Add completeness information
+        completeness_info = [
+            "",
+            "ANALYSIS COMPLETENESS STATUS:",
+            f"Confidence Score: {completeness_check.get('confidence_score', 0):.2f}",
+            f"Missing Elements: {', '.join(completeness_check.get('missing_elements', [])) or 'None'}",
+            f"Requires Clarification: {completeness_check.get('requires_clarification', False)}",
+        ]
+
+        if completeness_check.get("recommendations"):
+            completeness_info.extend([
+                "",
+                "RECOMMENDATIONS:",
+                *[f"- {rec}" for rec in completeness_check["recommendations"][:3]]
+            ])
+
+        completeness_info.extend([
+            "",
+            "ENHANCED ANALYSIS REQUIREMENTS:",
+            "Focus on addressing the identified gaps while maintaining analysis quality.",
+            "Generate specific clarification questions for stakeholders if needed.",
+            "Ensure all requirements are SMART (Specific, Measurable, Achievable, Relevant, Time-bound)."
+        ])
+
+        return base_context + "\n".join(completeness_info)
+
+    async def _generate_prd_from_template(self, analysis_result: Dict[str, Any], task: Task,
+                                        context: List[ContextArtifact]) -> Optional[Dict[str, Any]]:
+        """Generate professional PRD using BMAD templates.
+
+        Args:
+            analysis_result: Structured analysis results
+            task: Current task
+            context: Context artifacts
+
+        Returns:
+            Generated PRD document or None if template service unavailable
+        """
+        if not self.template_service:
+            logger.warning("Template service not available, skipping PRD generation")
+            return None
+
+        try:
+            # Prepare template variables
+            template_vars = {
+                "project_id": str(task.project_id),
+                "task_id": str(task.task_id),
+                "analysis_date": datetime.now(timezone.utc).isoformat(),
+                "executive_summary": analysis_result.get("executive_summary", {}),
+                "user_personas": analysis_result.get("user_personas", []),
+                "functional_requirements": analysis_result.get("functional_requirements", []),
+                "non_functional_requirements": analysis_result.get("non_functional_requirements", []),
+                "business_constraints": analysis_result.get("business_constraints", []),
+                "success_criteria": analysis_result.get("success_criteria", []),
+                "risk_assessment": analysis_result.get("risk_assessment", []),
+                "stakeholder_questions": analysis_result.get("stakeholder_questions", []),
+                "recommendations": analysis_result.get("recommendations", ""),
+                "analysis_confidence": analysis_result.get("analysis_confidence", 0.8),
+                "completeness_score": analysis_result.get("completeness_score", 0.75)
+            }
+
+            # Generate PRD using template
+            prd_content = await self.template_service.render_template_async(
+                template_name="prd-tmpl.yaml",
+                variables=template_vars
+            )
+
+            logger.info("PRD generated from template",
+                       template="prd-tmpl.yaml",
+                       content_length=len(str(prd_content)))
+
+            return {
+                "document_type": "product_requirements_document",
+                "template_used": "prd-tmpl.yaml",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "content": prd_content,
+                "metadata": {
+                    "analysis_confidence": template_vars["analysis_confidence"],
+                    "completeness_score": template_vars["completeness_score"],
+                    "requirements_count": len(template_vars["functional_requirements"]),
+                    "personas_count": len(template_vars["user_personas"])
+                }
+            }
+
+        except Exception as e:
+            logger.error("Failed to generate PRD from template",
+                        error=str(e),
+                        template="prd-tmpl.yaml")
+            return None
+
+    def _create_analysis_artifacts(self, analysis_result: Dict[str, Any],
+                                 prd_document: Optional[Dict[str, Any]], task: Task) -> List[str]:
+        """Create context artifacts for analysis results.
+
+        Args:
+            analysis_result: Structured analysis results
+            prd_document: Generated PRD document
+            task: Current task
+
+        Returns:
+            List of created artifact IDs
+        """
+        if not self.context_store:
+            logger.warning("Context store not available, skipping artifact creation")
+            return []
+
+        created_artifacts = []
+
+        try:
+            # Create requirements analysis artifact
+            analysis_artifact = self.context_store.create_artifact(
+                project_id=task.project_id,
+                source_agent=self.agent_type.value,
+                artifact_type="requirements_analysis",
+                content=analysis_result
+            )
+            created_artifacts.append(str(analysis_artifact.context_id))
+
+            # Create PRD artifact if available
+            if prd_document:
+                prd_artifact = self.context_store.create_artifact(
+                    project_id=task.project_id,
+                    source_agent=self.agent_type.value,
+                    artifact_type="product_requirements_document",
+                    content=prd_document
+                )
+                created_artifacts.append(str(prd_artifact.context_id))
+
+            logger.info("Analysis artifacts created",
+                       analysis_artifact=str(analysis_artifact.context_id),
+                       prd_artifact=created_artifacts[1] if len(created_artifacts) > 1 else None)
+
+        except Exception as e:
+            logger.error("Failed to create analysis artifacts",
+                        error=str(e),
+                        task_id=str(task.task_id))
+
+        return created_artifacts
+
+    def _validate_final_analysis(self, analysis_result: Dict[str, Any],
+                               prd_document: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Perform final validation of analysis completeness and quality.
+
+        Args:
+            analysis_result: Structured analysis results
+            prd_document: Generated PRD document
+
+        Returns:
+            Final validation results
+        """
+        validation_results = {
+            "overall_quality": "good",
+            "issues_found": [],
+            "recommendations": [],
+            "ready_for_next_phase": True
+        }
+
+        # Check analysis completeness
+        confidence = analysis_result.get("analysis_confidence", 0.8)
+        completeness = analysis_result.get("completeness_score", 0.75)
+
+        if confidence < 0.6:
+            validation_results["issues_found"].append("Low analysis confidence")
+            validation_results["recommendations"].append("Consider stakeholder review")
+            validation_results["overall_quality"] = "needs_review"
+
+        if completeness < 0.7:
+            validation_results["issues_found"].append("Incomplete requirements")
+            validation_results["recommendations"].append("Gather additional requirements")
+            validation_results["overall_quality"] = "needs_improvement"
+
+        # Check for critical missing elements
+        critical_elements = ["functional_requirements", "user_personas", "success_criteria"]
+        for element in critical_elements:
+            if not analysis_result.get(element):
+                validation_results["issues_found"].append(f"Missing {element}")
+                validation_results["ready_for_next_phase"] = False
+
+        # Check PRD generation
+        if not prd_document:
+            validation_results["issues_found"].append("PRD generation failed")
+            validation_results["recommendations"].append("Manual PRD creation recommended")
+
+        # Determine overall readiness
+        if validation_results["issues_found"] and validation_results["ready_for_next_phase"]:
+            validation_results["ready_for_next_phase"] = False
+
+        logger.info("Final analysis validation completed",
+                   quality=validation_results["overall_quality"],
+                   issues=len(validation_results["issues_found"]),
+                   ready=validation_results["ready_for_next_phase"])
+
+        return validation_results

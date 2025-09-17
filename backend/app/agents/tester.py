@@ -1,15 +1,18 @@
-"""Tester agent for quality assurance and validation."""
+"""Tester agent for comprehensive quality assurance and validation."""
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from uuid import uuid4
 import json
 import structlog
+from datetime import datetime, timezone
 
 from app.agents.base_agent import BaseAgent
-from app.models.task import Task
+from app.models.task import Task, TaskStatus
 from app.models.context import ContextArtifact
 from app.models.handoff import HandoffSchema
 from app.models.agent import AgentType
+from app.services.context_store import ContextStoreService
+from app.services.template_service import TemplateService
 
 logger = structlog.get_logger(__name__)
 
@@ -25,20 +28,25 @@ class TesterAgent(BaseAgent):
     - Accessibility compliance validation and user experience assessment
     """
     
-    def __init__(self, agent_type: AgentType, llm_config: Dict[str, Any]):
+    def __init__(self, agent_type: AgentType, llm_config: Dict[str, Any], db_session=None):
         """Initialize Tester agent with quality assurance optimization."""
         super().__init__(agent_type, llm_config)
-        
+
         # Configure for systematic testing (balanced temperature for thorough analysis)
         self.llm_config.update({
-            "model": llm_config.get("model", "gpt-4o-mini"),
+            "model": llm_config.get("model", "gpt-4o"),  # Updated to use GPT-4o
             "temperature": 0.3,  # Lower temperature for systematic testing
         })
-        
+
+        # Initialize services
+        self.db = db_session
+        self.context_store = ContextStoreService(db_session) if db_session else None
+        self.template_service = TemplateService() if db_session else None
+
         # Initialize AutoGen agent
         self._initialize_autogen_agent()
-        
-        logger.info("Tester agent initialized with quality assurance focus")
+
+        logger.info("Tester agent initialized with enhanced quality assurance capabilities")
     
     def _create_system_message(self) -> str:
         """Create Tester-specific system message for AutoGen."""
@@ -118,49 +126,80 @@ Always respond with structured JSON containing:
 - User experience evaluation and suggestions"""
     
     async def execute_task(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
-        """Execute tester task with quality assurance focus.
-        
+        """Execute tester task with enhanced quality assurance and comprehensive testing.
+
         Args:
             task: Task to execute with testing instructions
             context: Context artifacts from implementation and architecture
-            
+
         Returns:
-            Testing result with test plans, results, and quality assessment
+            Testing result with test plans, results, quality assessment, and HITL requests
         """
-        logger.info("Tester executing quality assurance task",
+        logger.info("Tester executing enhanced quality assurance task",
                    task_id=task.task_id,
                    context_count=len(context))
-        
+
         try:
-            # Prepare testing context
-            testing_context = self._prepare_testing_context(task, context)
-            
-            # Execute with LLM reliability features
+            # Step 1: Validate testing completeness and identify gaps
+            completeness_check = self._validate_testing_completeness(context)
+            logger.info("Testing completeness check completed",
+                       gaps_found=len(completeness_check.get("missing_elements", [])),
+                       confidence=completeness_check.get("confidence_score", 0))
+
+            # Step 2: Generate HITL requests for clarification if needed
+            hitl_requests = []
+            if completeness_check.get("requires_clarification", False):
+                hitl_requests = self._generate_testing_clarification_requests(
+                    task, completeness_check.get("missing_elements", [])
+                )
+                logger.info("Generated HITL clarification requests",
+                           request_count=len(hitl_requests))
+
+            # Step 3: Prepare enhanced testing context
+            testing_context = self._prepare_enhanced_testing_context(task, context, completeness_check)
+
+            # Step 4: Execute analysis with LLM reliability features
             raw_response = await self._execute_with_reliability(testing_context, task)
-            
-            # Parse and structure testing response
+
+            # Step 5: Parse and structure testing response
             testing_result = self._parse_testing_response(raw_response, task)
-            
-            logger.info("Tester task completed successfully",
+
+            # Step 6: Generate professional testing plan using BMAD templates
+            testing_document = await self._generate_testing_from_template(testing_result, task, context)
+
+            # Step 7: Create context artifacts for results
+            result_artifacts = self._create_testing_artifacts(testing_result, testing_document, task)
+
+            # Step 8: Final testing validation
+            final_validation = self._validate_final_testing(testing_result, testing_document)
+
+            logger.info("Tester task completed with enhanced features",
                        task_id=task.task_id,
                        test_cases_created=len(testing_result.get("test_cases", [])),
-                       bugs_found=len(testing_result.get("bug_reports", [])))
-            
+                       bugs_found=len(testing_result.get("bug_reports", [])),
+                       testing_generated=bool(testing_document),
+                       hitl_requests=len(hitl_requests),
+                       artifacts_created=len(result_artifacts))
+
             return {
                 "success": True,
                 "agent_type": self.agent_type.value,
                 "task_id": str(task.task_id),
                 "output": testing_result,
+                "testing_document": testing_document,
                 "quality_summary": testing_result.get("quality_assessment", {}),
                 "testing_metrics": testing_result.get("testing_metrics", {}),
+                "hitl_requests": hitl_requests,
+                "completeness_validation": final_validation,
+                "artifacts_created": result_artifacts,
                 "context_used": [str(artifact.context_id) for artifact in context]
             }
-            
+
         except Exception as e:
             logger.error("Tester task execution failed",
                         task_id=task.task_id,
                         error=str(e))
-            
+
             return {
                 "success": False,
                 "agent_type": self.agent_type.value,
@@ -773,28 +812,385 @@ Please prioritize fixes based on severity and impact to system security and func
     
     def _assess_deployment_readiness_from_testing(self, context: List[ContextArtifact]) -> str:
         """Assess deployment readiness based on testing results."""
-        
+
         for artifact in context:
             if isinstance(artifact.content, dict):
                 deployment = artifact.content.get("deployment_readiness", {})
                 readiness = deployment.get("overall_readiness", "unknown")
-                
+
                 if readiness.upper() == "READY":
                     return "ready"
                 elif readiness.upper() == "CONDITIONAL":
                     return "conditional"
                 elif "NOT_READY" in readiness.upper():
                     return "not_ready"
-        
+
         # Assess based on quality score and bugs
         for artifact in context:
             if isinstance(artifact.content, dict):
                 quality_score = artifact.content.get("overall_quality_score", 0)
                 critical_issues = self._extract_critical_issues([artifact])
-                
+
                 if quality_score > 0.8 and critical_issues == 0:
                     return "ready"
                 elif quality_score > 0.6 and critical_issues < 3:
                     return "conditional"
-        
+
         return "not_ready"
+
+    def _validate_testing_completeness(self, context: List[ContextArtifact]) -> Dict[str, Any]:
+        """Validate completeness of testing and quality assurance and identify gaps.
+
+        Args:
+            context: Context artifacts to analyze
+
+        Returns:
+            Completeness validation results
+        """
+        missing_elements = []
+        confidence_score = 1.0
+        requires_clarification = False
+
+        # Check for implementation context
+        implementation_found = any(
+            artifact.artifact_type in ["code_implementation", "implementation_design"] or
+            (isinstance(artifact.content, dict) and artifact.content.get("implementation_type") == "full_stack_implementation")
+            for artifact in context
+        )
+
+        if not implementation_found:
+            missing_elements.append("implementation_context")
+            confidence_score -= 0.4
+            requires_clarification = True
+
+        # Check for existing testing artifacts
+        existing_testing = [
+            artifact for artifact in context
+            if isinstance(artifact.content, dict) and
+            artifact.content.get("testing_type") == "comprehensive_quality_assurance"
+        ]
+
+        if not existing_testing:
+            missing_elements.append("testing_design")
+            confidence_score -= 0.5
+            requires_clarification = True
+
+        # Check for specific testing elements
+        if existing_testing:
+            latest_testing = existing_testing[-1].content
+
+            # Check test cases
+            test_cases = latest_testing.get("test_cases", [])
+            if len(test_cases) < 3:
+                missing_elements.append("test_cases")
+                confidence_score -= 0.2
+
+            # Check bug reports
+            bug_reports = latest_testing.get("bug_reports", [])
+            if len(bug_reports) < 1:
+                missing_elements.append("bug_reports")
+                confidence_score -= 0.1
+
+            # Check quality assessment
+            quality_assessment = latest_testing.get("quality_assessment", {})
+            if not quality_assessment:
+                missing_elements.append("quality_assessment")
+                confidence_score -= 0.1
+
+            # Check performance testing
+            performance_testing = latest_testing.get("performance_testing", {})
+            if not performance_testing:
+                missing_elements.append("performance_testing")
+                confidence_score -= 0.1
+
+        # Determine if clarification is needed
+        if confidence_score < 0.6 or len(missing_elements) > 3:
+            requires_clarification = True
+
+        return {
+            "is_complete": len(missing_elements) == 0,
+            "confidence_score": max(0.0, confidence_score),
+            "missing_elements": missing_elements,
+            "requires_clarification": requires_clarification,
+            "existing_testing_count": len(existing_testing),
+            "recommendations": self._generate_testing_recommendations(missing_elements)
+        }
+
+    def _generate_testing_recommendations(self, missing_elements: List[str]) -> List[str]:
+        """Generate recommendations for addressing testing gaps."""
+        recommendations = []
+
+        for element in missing_elements:
+            if element == "implementation_context":
+                recommendations.append("Gather detailed implementation artifacts before proceeding with testing")
+            elif element == "testing_design":
+                recommendations.append("Conduct comprehensive testing design session")
+            elif element == "test_cases":
+                recommendations.append("Create detailed test cases covering all scenarios")
+            elif element == "bug_reports":
+                recommendations.append("Document identified bugs with reproduction steps")
+            elif element == "quality_assessment":
+                recommendations.append("Perform comprehensive quality assessment")
+            elif element == "performance_testing":
+                recommendations.append("Conduct performance testing and analysis")
+
+        return recommendations
+
+    def _generate_testing_clarification_requests(self, task: Task, missing_elements: List[str]) -> List[Dict[str, Any]]:
+        """Generate HITL requests for testing clarification.
+
+        Args:
+            task: Current task
+            missing_elements: List of missing testing elements
+
+        Returns:
+            List of HITL request configurations
+        """
+        hitl_requests = []
+
+        for element in missing_elements:
+            if element == "implementation_context":
+                hitl_requests.append({
+                    "question": "Please provide the implementation artifacts or detailed code specifications for testing",
+                    "options": ["Share implementation document", "Schedule testing workshop", "Provide code access"],
+                    "priority": "high",
+                    "reason": "Missing implementation context for testing"
+                })
+
+            elif element == "test_cases":
+                hitl_requests.append({
+                    "question": "What specific test scenarios and cases should be prioritized?",
+                    "options": ["Define critical test scenarios", "Specify test coverage requirements", "List high-risk areas"],
+                    "priority": "high",
+                    "reason": "Test case definition required"
+                })
+
+            elif element == "performance_testing":
+                hitl_requests.append({
+                    "question": "What are the performance requirements and testing criteria?",
+                    "options": ["Specify performance benchmarks", "Define load testing scenarios", "List performance KPIs"],
+                    "priority": "medium",
+                    "reason": "Performance testing requirements needed"
+                })
+
+        return hitl_requests
+
+    def _prepare_enhanced_testing_context(self, task: Task, context: List[ContextArtifact],
+                                        completeness_check: Dict[str, Any]) -> str:
+        """Prepare enhanced testing context with completeness information."""
+
+        base_context = self._prepare_testing_context(task, context)
+
+        # Add completeness information
+        completeness_info = [
+            "",
+            "TESTING COMPLETENESS STATUS:",
+            f"Confidence Score: {completeness_check.get('confidence_score', 0):.2f}",
+            f"Missing Elements: {', '.join(completeness_check.get('missing_elements', [])) or 'None'}",
+            f"Requires Clarification: {completeness_check.get('requires_clarification', False)}",
+        ]
+
+        if completeness_check.get("recommendations"):
+            completeness_info.extend([
+                "",
+                "TESTING RECOMMENDATIONS:",
+                *[f"- {rec}" for rec in completeness_check["recommendations"][:3]]
+            ])
+
+        completeness_info.extend([
+            "",
+            "ENHANCED TESTING REQUIREMENTS:",
+            "Focus on addressing the identified gaps while maintaining testing quality.",
+            "Generate specific clarification questions for technical stakeholders if needed.",
+            "Ensure comprehensive coverage of functional and non-functional requirements.",
+            "Provide actionable recommendations for quality improvements."
+        ])
+
+        return base_context + "\n".join(completeness_info)
+
+    async def _generate_testing_from_template(self, testing_result: Dict[str, Any], task: Task,
+                                            context: List[ContextArtifact]) -> Optional[Dict[str, Any]]:
+        """Generate professional testing plan using BMAD templates.
+
+        Args:
+            testing_result: Structured testing results
+            task: Current task
+            context: Context artifacts
+
+        Returns:
+            Generated testing document or None if template service unavailable
+        """
+        if not self.template_service:
+            logger.warning("Template service not available, skipping testing document generation")
+            return None
+
+        try:
+            # Prepare template variables
+            template_vars = {
+                "project_id": str(task.project_id),
+                "task_id": str(task.task_id),
+                "testing_date": datetime.now(timezone.utc).isoformat(),
+                "test_plan": testing_result.get("test_plan", {}),
+                "test_cases": testing_result.get("test_cases", []),
+                "test_execution_results": testing_result.get("test_execution_results", {}),
+                "functional_testing": testing_result.get("functional_testing", {}),
+                "performance_testing": testing_result.get("performance_testing", {}),
+                "security_testing": testing_result.get("security_testing", {}),
+                "integration_testing": testing_result.get("integration_testing", {}),
+                "usability_testing": testing_result.get("usability_testing", {}),
+                "accessibility_testing": testing_result.get("accessibility_testing", {}),
+                "code_quality_assessment": testing_result.get("code_quality_assessment", {}),
+                "bug_reports": testing_result.get("bug_reports", []),
+                "quality_assessment": testing_result.get("quality_assessment", {}),
+                "testing_metrics": testing_result.get("testing_metrics", {}),
+                "recommendations": testing_result.get("recommendations", []),
+                "risk_assessment": testing_result.get("risk_assessment", []),
+                "deployment_readiness": testing_result.get("deployment_readiness", {}),
+                "test_coverage_analysis": testing_result.get("test_coverage_analysis", {}),
+                "performance_benchmarks": testing_result.get("performance_benchmarks", {}),
+                "regression_test_suite": testing_result.get("regression_test_suite", []),
+                "next_steps": testing_result.get("next_steps", []),
+                "overall_quality_score": testing_result.get("overall_quality_score", 0.75),
+                "testing_confidence": testing_result.get("testing_confidence", 0.8)
+            }
+
+            # Generate testing document using template
+            testing_content = await self.template_service.render_template_async(
+                template_name="testing-tmpl.yaml",
+                variables=template_vars
+            )
+
+            logger.info("Testing document generated from template",
+                       template="testing-tmpl.yaml",
+                       content_length=len(str(testing_content)))
+
+            return {
+                "document_type": "comprehensive_testing_document",
+                "template_used": "testing-tmpl.yaml",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "content": testing_content,
+                "metadata": {
+                    "overall_quality_score": template_vars["overall_quality_score"],
+                    "testing_confidence": template_vars["testing_confidence"],
+                    "test_cases_count": len(template_vars["test_cases"]),
+                    "bug_reports_count": len(template_vars["bug_reports"])
+                }
+            }
+
+        except Exception as e:
+            logger.error("Failed to generate testing document from template",
+                        error=str(e),
+                        template="testing-tmpl.yaml")
+            return None
+
+    def _create_testing_artifacts(self, testing_result: Dict[str, Any],
+                                testing_document: Optional[Dict[str, Any]], task: Task) -> List[str]:
+        """Create context artifacts for testing results.
+
+        Args:
+            testing_result: Structured testing results
+            testing_document: Generated testing document
+            task: Current task
+
+        Returns:
+            List of created artifact IDs
+        """
+        if not self.context_store:
+            logger.warning("Context store not available, skipping artifact creation")
+            return []
+
+        created_artifacts = []
+
+        try:
+            # Create testing artifact
+            testing_artifact = self.context_store.create_artifact(
+                project_id=task.project_id,
+                source_agent=self.agent_type.value,
+                artifact_type="quality_testing",
+                content=testing_result
+            )
+            created_artifacts.append(str(testing_artifact.context_id))
+
+            # Create testing document artifact if available
+            if testing_document:
+                document_artifact = self.context_store.create_artifact(
+                    project_id=task.project_id,
+                    source_agent=self.agent_type.value,
+                    artifact_type="testing_document",
+                    content=testing_document
+                )
+                created_artifacts.append(str(document_artifact.context_id))
+
+            logger.info("Testing artifacts created",
+                       testing_artifact=str(testing_artifact.context_id),
+                       document_artifact=created_artifacts[1] if len(created_artifacts) > 1 else None)
+
+        except Exception as e:
+            logger.error("Failed to create testing artifacts",
+                        error=str(e),
+                        task_id=str(task.task_id))
+
+        return created_artifacts
+
+    def _validate_final_testing(self, testing_result: Dict[str, Any],
+                              testing_document: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Perform final validation of testing completeness and quality.
+
+        Args:
+            testing_result: Structured testing results
+            testing_document: Generated testing document
+
+        Returns:
+            Final validation results
+        """
+        validation_results = {
+            "overall_quality": "good",
+            "issues_found": [],
+            "recommendations": [],
+            "ready_for_next_phase": True
+        }
+
+        # Check testing completeness
+        confidence = testing_result.get("testing_confidence", 0.8)
+        quality_score = testing_result.get("overall_quality_score", 0.75)
+        test_cases = len(testing_result.get("test_cases", []))
+        bug_reports = len(testing_result.get("bug_reports", []))
+
+        if confidence < 0.6:
+            validation_results["issues_found"].append("Low testing confidence")
+            validation_results["recommendations"].append("Consider additional testing rounds")
+            validation_results["overall_quality"] = "needs_review"
+
+        if quality_score < 0.7:
+            validation_results["issues_found"].append("Low overall quality score")
+            validation_results["recommendations"].append("Address quality issues before deployment")
+            validation_results["overall_quality"] = "needs_improvement"
+
+        if test_cases < 3:
+            validation_results["issues_found"].append("Insufficient test cases")
+            validation_results["recommendations"].append("Expand test coverage")
+            validation_results["overall_quality"] = "needs_improvement"
+
+        # Check for critical bugs
+        critical_bugs = [bug for bug in testing_result.get("bug_reports", [])
+                        if bug.get("severity", "").upper() in ["CRITICAL", "HIGH"]]
+        if len(critical_bugs) > 0:
+            validation_results["issues_found"].append(f"Critical bugs found: {len(critical_bugs)}")
+            validation_results["recommendations"].append("Fix critical bugs before deployment")
+            validation_results["ready_for_next_phase"] = False
+
+        # Check testing document generation
+        if not testing_document:
+            validation_results["issues_found"].append("Testing document generation failed")
+            validation_results["recommendations"].append("Manual testing documentation recommended")
+
+        # Determine overall readiness
+        if validation_results["issues_found"] and validation_results["ready_for_next_phase"]:
+            validation_results["ready_for_next_phase"] = False
+
+        logger.info("Final testing validation completed",
+                   quality=validation_results["overall_quality"],
+                   issues=len(validation_results["issues_found"]),
+                   ready=validation_results["ready_for_next_phase"])
+
+        return validation_results

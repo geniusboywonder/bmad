@@ -56,19 +56,49 @@ except Exception as e:
     print('Please ensure PostgreSQL is running and the database exists')
 "
 
-# Check if Redis is running
-echo "🔴 Checking Redis connection..."
+# Start Redis if not running
+echo "🔴 Starting Redis server..."
+if command -v brew &> /dev/null; then
+    # macOS with Homebrew
+    if brew services list | grep redis | grep started > /dev/null; then
+        echo "   ✅ Redis already running (Homebrew)"
+    else
+        brew services start redis && echo "   ✅ Redis started (Homebrew)" || echo "   ❌ Failed to start Redis with Homebrew"
+    fi
+elif command -v systemctl &> /dev/null; then
+    # Linux with systemd
+    if systemctl is-active --quiet redis-server; then
+        echo "   ✅ Redis already running (systemctl)"
+    else
+        sudo systemctl start redis-server && echo "   ✅ Redis started (systemctl)" || echo "   ❌ Failed to start Redis with systemctl"
+    fi
+else
+    echo "   ⚠️  Cannot auto-start Redis. Please start it manually:"
+    echo "      macOS: brew services start redis"
+    echo "      Linux: sudo systemctl start redis-server"
+fi
+
+# Verify Redis connection
+echo "🔍 Verifying Redis connection..."
 python -c "
+import time
 try:
     import redis
     from app.config import settings
     r = redis.from_url(settings.redis_url)
     r.ping()
-    print('✅ Redis connection successful')
+    print('   ✅ Redis connection successful')
 except Exception as e:
-    print(f'❌ Redis connection failed: {e}')
-    print('Please ensure Redis is running')
+    print(f'   ❌ Redis connection failed: {e}')
+    print('   Please ensure Redis is running on localhost:6379')
+    exit(1)
 "
+
+# Exit if Redis check failed
+if [ $? -ne 0 ]; then
+    echo "❌ Cannot proceed without Redis. Please start Redis and try again."
+    exit 1
+fi
 
 # Run database migrations
 echo "🔄 Running database migrations..."
@@ -81,7 +111,40 @@ fi
 # Start Celery worker in background
 echo "👷 Starting Celery worker..."
 export PYTHONPATH="${BACKEND_DIR}:$PYTHONPATH"
-celery -A app.tasks.celery_app worker --loglevel=info --detach 2>/dev/null || echo "⚠️  Celery worker failed to start, continuing without it"
+
+# Kill any existing Celery workers first
+pkill -f "celery.*worker" 2>/dev/null || true
+pkill -f "app.tasks.celery_app" 2>/dev/null || true
+
+# Wait a moment for processes to die
+sleep 1
+
+# Start Celery worker with proper error handling
+echo "   Starting Celery worker process..."
+# Create log file for Celery
+CELERY_LOG_FILE="${BACKEND_DIR}/celery.log"
+CELERY_PID_FILE="${BACKEND_DIR}/celery.pid"
+
+# Start Celery worker in background and capture output
+nohup celery -A app.tasks.celery_app worker --loglevel=info --pidfile="$CELERY_PID_FILE" > "$CELERY_LOG_FILE" 2>&1 &
+CELERY_PID=$!
+
+# Give Celery time to start
+sleep 3
+
+# Check if Celery process is still running
+if kill -0 "$CELERY_PID" 2>/dev/null; then
+    echo "   ✅ Celery worker started successfully (PID: $CELERY_PID)"
+    echo "   📋 Celery logs: $CELERY_LOG_FILE"
+else
+    echo "   ❌ Celery worker failed to start. Check the logs:"
+    echo "   📋 Log file: $CELERY_LOG_FILE"
+    if [ -f "$CELERY_LOG_FILE" ]; then
+        echo "   Last few lines of error log:"
+        tail -n 5 "$CELERY_LOG_FILE" | sed 's/^/      /'
+    fi
+    echo "   Try running manually: celery -A app.tasks.celery_app worker --loglevel=info"
+fi
 
 # Start FastAPI server
 echo "🌐 Starting FastAPI server..."

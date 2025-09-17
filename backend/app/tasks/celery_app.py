@@ -24,6 +24,10 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     task_acks_late=True,
     worker_disable_rate_limits=True,
+    task_default_priority=5,
+    broker_transport_options={
+        'priority_steps': list(range(10)),
+    },
 )
 
 # Task routing

@@ -157,8 +157,7 @@ if __name__ == "__main__":
                 status = "✅ PASSED" if test_result.get('success') else "❌ FAILED"
                 print(f"   {test_name}: {status}")
 
-            print("
-Recommendations:")
+            print("\nRecommendations:")
             for rec in results.get('recommendations', []):
                 print(f"   • {rec}")
 

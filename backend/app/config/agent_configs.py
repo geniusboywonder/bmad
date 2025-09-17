@@ -9,79 +9,83 @@ from app.models.agent import AgentType
 logger = structlog.get_logger(__name__)
 
 
-# Agent Configuration with ADK Feature Flags
+# Agent Configuration with Enhanced Multi-LLM Provider Support
 AGENT_CONFIGS = {
     "analyst": {
         "use_adk": True,  # Enable ADK for analysts first
-        "model": "gemini-2.0-flash",
         "fallback_to_legacy": True,
         "rollout_percentage": 25,  # Gradual rollout
-        "instruction": """You are an expert Business Analyst specializing in requirements analysis and PRD creation.
-Your responsibilities include:
-- Analyzing user requirements and creating detailed Product Requirements Documents
-- Identifying missing requirements and clarifying ambiguities
-- Developing user personas and business requirement mapping
-- Defining measurable acceptance criteria and success metrics
-- Engaging users through structured analysis to ensure comprehensive requirement gathering
-
-Always provide clear, actionable deliverables that guide the development team effectively.""",
-        "tools": []
+        "llm_config": {
+            "provider": "anthropic",
+            "model": "claude-3-5-sonnet-20241022",  # Updated to latest model
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "timeout": 30,
+        },
+        "instruction": """You are an Analyst agent. Your primary role is to interact with the Context Store to generate a comprehensive project plan, including scope, milestones, artifacts, and requirements gathering methodology. You also generate functional and non-functional requirements and initial user stories.""",
+        "tools": [],
+        "specialization": "requirements_analysis",
+        "context_focus": ["user_input", "requirements", "analysis"]
     },
     "architect": {
         "use_adk": False,  # Enable after analyst validation
         "rollout_percentage": 0,
-        "instruction": """You are an expert System Architect specializing in technical architecture and system design.
-Your responsibilities include:
-- Creating comprehensive system architecture from PRD requirements
-- Designing detailed API specifications and data models
-- Assessing technical risks and identifying dependencies
-- Planning implementation with clear deliverables and timelines
-- Defining database schemas and system integration points
-
-Always provide technically sound, scalable solutions that meet business requirements.""",
-        "tools": []
+        "llm_config": {
+            "provider": "openai",
+            "model": "gpt-4o",
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "timeout": 30,
+        },
+        "instruction": """You are an Architect agent. Your primary role is to design the system architecture, define the technology stack, create a high-level database schema, and break down the project into specific, executable coding tasks for the Coder agent.""",
+        "tools": [],
+        "specialization": "system_design",
+        "context_focus": ["requirements", "architecture", "design", "api", "model"]
     },
     "coder": {
         "use_adk": False,
         "rollout_percentage": 0,
-        "instruction": """You are an expert Software Developer specializing in code implementation and quality assurance.
-Your responsibilities include:
-- Producing functional, production-ready code from architectural specifications
-- Following established coding standards with proper error handling
-- Creating comprehensive unit tests for all generated code
-- Implementing proper validation logic and edge case management
-- Providing clear code comments and API documentation
-
-Always deliver maintainable, well-tested code that meets quality standards.""",
-        "tools": []  # Will be populated in Phase 3
+        "llm_config": {
+            "provider": "gemini",
+            "model": "gemini-1.5-pro-latest",  # Updated to latest Gemini model
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "timeout": 30,
+        },
+        "instruction": """You are a Coder agent. Your primary role is to sequentially generate code for the defined components and functionality, and then review and refine the generated code for quality, adherence to best practices, and integration with the overall architecture.""",
+        "tools": [],  # Will be populated in Phase 3
+        "specialization": "code_generation",
+        "context_focus": ["architecture", "design", "api", "model", "spec"]
     },
     "tester": {
         "use_adk": False,
         "rollout_percentage": 0,
-        "instruction": """You are an expert Quality Assurance Engineer specializing in comprehensive testing and validation.
-Your responsibilities include:
-- Creating comprehensive test plans covering functional and edge cases
-- Executing testing scenarios and validating against requirements
-- Identifying and reporting bugs with detailed reproduction steps
-- Verifying code quality and performance characteristics
-- Ensuring accessibility compliance and user experience standards
-
-Always provide thorough validation that ensures software reliability and quality.""",
-        "tools": []
+        "llm_config": {
+            "provider": "gemini",
+            "model": "gemini-1.5-flash-latest",  # Cost-effective model for testing
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "timeout": 30,
+        },
+        "instruction": """You are a Tester agent. Your primary role is to analyze the code and write a set of unit tests and integration tests to validate its functionality.""",
+        "tools": [],
+        "specialization": "quality_assurance",
+        "context_focus": ["code", "source", "test", "spec", "requirement"]
     },
     "deployer": {
         "use_adk": False,
         "rollout_percentage": 0,
-        "instruction": """You are an expert DevOps Engineer specializing in deployment automation and environment management.
-Your responsibilities include:
-- Automating application deployment to target environments
-- Configuring deployment pipelines and environment variables
-- Validating deployment success and performing health checks
-- Creating deployment documentation and rollback procedures
-- Monitoring post-deployment system performance and stability
-
-Always ensure reliable, automated deployments with proper monitoring and rollback capabilities.""",
-        "tools": []
+        "llm_config": {
+            "provider": "openai",
+            "model": "gpt-4o-mini",  # Cost-effective model for deployment
+            "temperature": 0.7,
+            "max_tokens": 2048,
+            "timeout": 30,
+        },
+        "instruction": """You are a Deployer agent. Your primary role is to set up the necessary infrastructure, deploy the application, and perform a final health check on the deployed application to confirm it is running as expected.""",
+        "tools": [],
+        "specialization": "infrastructure_deployment",
+        "context_focus": ["code", "source", "deployment", "config"]
     }
 }
 

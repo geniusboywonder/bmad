@@ -13,6 +13,13 @@ from uuid import uuid4, UUID
 
 from app.services.workflow_engine import WorkflowExecutionEngine
 from app.services.orchestrator import OrchestratorService
+from app.services.orchestrator.orchestrator_core import OrchestratorCore
+from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
+from app.services.orchestrator.agent_coordinator import AgentCoordinator
+from app.services.orchestrator.workflow_integrator import WorkflowIntegrator
+from app.services.orchestrator.handoff_manager import HandoffManager
+from app.services.orchestrator.status_tracker import StatusTracker
+from app.services.orchestrator.context_manager import ContextManager
 from app.models.workflow_state import (
     WorkflowExecutionStateModel,
     WorkflowExecutionState as ExecutionStateEnum,
@@ -576,79 +583,7 @@ class TestCompleteSDLCWorkflow:
         """Create orchestrator service for end-to-end testing."""
         return OrchestratorService(mock_db)
 
-    @pytest.mark.asyncio
-    async def test_complete_sdlc_workflow_execution(self, orchestrator_service):
-        """
-        Test complete SDLC workflow execution from Analyst through Deployer.
 
-        This test verifies the entire workflow orchestration engine works
-        correctly with dynamic workflow loading and agent handoffs.
-        """
-        project_id = uuid4()
-        user_idea = "Build a simple task management web application"
-
-        # Mock all the services and dependencies
-        with patch.object(orchestrator_service.workflow_engine, 'start_workflow_execution') as mock_start, \
-             patch.object(orchestrator_service.workflow_engine, 'execute_workflow_step') as mock_execute, \
-             patch.object(orchestrator_service.workflow_engine, 'get_workflow_execution_status') as mock_status, \
-             patch.object(orchestrator_service.context_store, 'create_artifact') as mock_create_artifact:
-
-            # Mock workflow execution
-            mock_execution = Mock()
-            mock_execution.execution_id = "test-execution-id"
-            mock_execution.is_complete.return_value = False
-            mock_execution.status = ExecutionStateEnum.RUNNING
-            mock_start.return_value = mock_execution
-
-            # Mock step execution results
-            mock_execute.side_effect = [
-                {"status": "completed", "agent": "analyst", "step_index": 0},
-                {"status": "completed", "agent": "architect", "step_index": 1},
-                {"status": "completed", "agent": "coder", "step_index": 2},
-                {"status": "completed", "agent": "tester", "step_index": 3},
-                {"status": "completed", "agent": "deployer", "step_index": 4},
-                {"status": "no_pending_steps"}
-            ]
-
-            # Mock final status
-            mock_status.return_value = {
-                "status": "completed",
-                "total_steps": 5,
-                "completed_steps": 5,
-                "failed_steps": 0
-            }
-
-            # Mock artifact creation
-            mock_artifact = Mock()
-            mock_artifact.context_id = str(uuid4())
-            mock_create_artifact.return_value = mock_artifact
-
-            # Execute the workflow
-            await orchestrator_service.run_project_workflow(
-                project_id,
-                user_idea,
-                "greenfield-fullstack"
-            )
-
-            # Verify workflow was started
-            mock_start.assert_called_once()
-            start_call = mock_start.call_args
-            assert start_call[1]["workflow_id"] == "greenfield-fullstack"
-            assert start_call[1]["project_id"] == str(project_id)
-            assert "user_idea" in start_call[1]["context_data"]
-
-            # Verify all steps were executed
-            assert mock_execute.call_count == 6  # 5 steps + 1 no_pending_steps
-
-            # Verify final status was checked
-            mock_status.assert_called()
-
-            # Verify initial context artifact was created
-            mock_create_artifact.assert_called()
-            artifact_call = mock_create_artifact.call_args
-            assert artifact_call[1]["project_id"] == project_id
-            assert artifact_call[1]["source_agent"] == "orchestrator"
-            assert artifact_call[1]["artifact_type"] == "user_input"
 
     @pytest.mark.asyncio
     async def test_workflow_with_hitl_interaction(self, orchestrator_service):

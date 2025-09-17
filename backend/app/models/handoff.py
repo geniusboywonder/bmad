@@ -18,6 +18,8 @@ class HandoffSchema(BaseModel):
     instructions: str = Field(description="Specific instructions for the receiving agent")
     expected_outputs: List[str] = Field(description="Expected output types")
     priority: int = Field(default=1, description="Handoff priority (1=highest)")
+    is_group_chat: bool = Field(default=False, description="Whether this is a group chat handoff")
+    group_chat_agents: Optional[List[str]] = Field(default=None, description="Agents in the group chat")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional handoff metadata")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Handoff creation timestamp")
     

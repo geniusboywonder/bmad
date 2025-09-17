@@ -7,7 +7,7 @@ import structlog
 
 from app.config import settings
 from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk
-from app.database.connection import engine, Base
+from app.database.connection import get_engine, Base
 
 # Configure structured logging
 structlog.configure(

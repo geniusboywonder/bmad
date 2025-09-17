@@ -19,6 +19,7 @@ The system follows a modern microservice-oriented architecture with multi-LLM su
   * **Anthropic Claude**: Specialized for requirements analysis and documentation
   * **Google Gemini**: Alternative provider with configurable fallback
   * **Provider Abstraction**: Unified interface allowing agent-specific LLM assignments
+  * **Provider Factory**: Dynamic selection of LLM providers based on configuration.
 
 * **LLM Reliability & Monitoring Layer** (Task 1 - Implemented): Production-grade reliability features:
   * **Response Validation**: Comprehensive validation and sanitization of all LLM responses
@@ -27,25 +28,28 @@ The system follows a modern microservice-oriented architecture with multi-LLM su
   * **Anomaly Detection**: Automated detection of cost spikes and unusual usage patterns
   * **Health Monitoring**: LLM provider connectivity and performance tracking
   * **Structured Logging**: Machine-readable monitoring data for operational observability
+  * **Task Queue (Celery)**: Asynchronous task processing with Redis broker, including priority queues and exponential backoff for retries.
 
 * **Google ADK Integration** (Production-Ready): Advanced agent capabilities using Google's Agent Development Kit:
+  * **Stable Dependencies**: Google ADK 1.14.1 fully integrated with resolved dependency conflicts
   * **Correct API Usage**: Uses `instruction` parameter, `Runner`-based execution, proper session management
   * **Enterprise Integration**: Full BMAD safety controls (HITL, audit, monitoring) with ADK agents
   * **Tool Integration**: `FunctionTool` support with graceful fallback and error handling
   * **Session Management**: Proper `InMemorySessionService` and `types.Content` message handling
   * **Wrapper Architecture**: `BMADADKWrapper` preserves enterprise features while leveraging ADK capabilities
+  * **Startup Reliability**: Lazy initialization patterns and backward compatibility for stable operation
 
 * **AutoGen Framework Integration**: Microsoft AutoGen framework managing agent conversations (Legacy Support):
   * **Agent Conversation Management**: Structured multi-agent dialogues
   * **Group Chat Capabilities**: Multi-agent collaboration scenarios
   * **Context Passing**: Proper handoff schemas between agents
-  * **Configuration Loading**: Dynamic agent configs from `.bmad-core/agents/`
+  * **Configuration Loading**: Dynamic agent configs from `backend/app/teams/` directory, loaded via `AgentTeamService`.
 
 * **BMAD Core Template System** (Task 3 - Implemented): Complete dynamic workflow and document generation:
   * **YAML Parser Utilities**: Robust parsing with schema validation and variable substitution
-  * **Workflow Definitions**: Loaded from `.bmad-core/workflows/` with execution orchestration
-  * **Document Templates**: YAML-based templates in `.bmad-core/templates/` with conditional rendering
-  * **Agent Team Configs**: Team compositions in `.bmad-core/agent-teams/` with compatibility matching
+  * **Workflow Definitions**: Loaded from `backend/app/workflows/` with execution orchestration
+  * **Document Templates**: YAML-based templates in `backend/app/templates/` with conditional rendering
+  * **Agent Team Configs**: Team compositions in `backend/app/teams/` with compatibility matching
   * **Variable Substitution**: Dynamic template rendering with `{{variable}}` pattern support
   * **REST API Integration**: Complete CRUD operations for templates, workflows, and teams
   * **Testing & Validation**: Comprehensive test suites with 100% coverage
@@ -132,18 +136,46 @@ The system follows a modern microservice-oriented architecture with multi-LLM su
 
 The system architecture strictly adheres to SOLID principles with advanced patterns for maintainability and extensibility:
 
-#### **2.1 Single Responsibility Principle (SRP)**
+#### **2.1 Single Responsibility Principle (SRP) - Complete Refactoring Implementation**
 
-Each component has a single, well-defined responsibility:
+**SOLID Refactoring Completed (2024-09-17)**: All major monolithic services have been successfully refactored into focused, single-responsibility services following SOLID principles:
 
-* **OrchestratorService**: Coordinates workflow execution and agent task delegation
-* **ContextStoreService**: Manages artifact persistence and retrieval
-* **HitlService**: Handles human-in-the-loop request lifecycle
-* **TaskExecutionService**: Manages Celery task processing and monitoring
-* **LLMProviderService**: Abstracts multi-provider LLM communication
-* **WebSocketManager**: Handles real-time event broadcasting
-* **AuditService**: Manages immutable event logging and compliance tracking (Sprint 4)
-* **Agent Classes**: Each agent (Analyst, Architect, Coder, Tester, Deployer) focuses solely on their domain expertise
+**Phase 1 - Orchestrator Service Decomposition (2,541 LOC → 7 services):**
+* **OrchestratorCore** (309 LOC): Main coordination and delegation logic with dependency injection
+* **ProjectLifecycleManager** (373 LOC): Project state transitions and SDLC phase management
+* **AgentCoordinator** (375 LOC): Agent assignment and task distribution logic
+* **WorkflowIntegrator** (391 LOC): Workflow engine integration and coordination
+* **HandoffManager** (338 LOC): Agent handoff logic and task transitions
+* **StatusTracker** (441 LOC): Project status monitoring and performance metrics
+* **ContextManager** (614 LOC): Context artifact management with granularity features
+
+**Phase 1 - HITL Service Decomposition (1,325 LOC → 5 services):**
+* **HitlCore** (285 LOC): Core HITL coordination logic with dependency injection
+* **TriggerProcessor** (351 LOC): Trigger evaluation and condition management
+* **ResponseProcessor** (425 LOC): Response handling and workflow resumption
+* **PhaseGateManager** (628 LOC): Phase gate validation and approval workflows
+* **ValidationEngine** (667 LOC): Quality validation and threshold management
+
+**Phase 1 - Workflow Engine Decomposition (1,226 LOC → 4 services):**
+* **ExecutionEngine** (550 LOC): Core workflow execution logic with dependency injection
+* **StateManager** (428 LOC): State persistence and recovery mechanisms
+* **EventDispatcher** (521 LOC): Event management and WebSocket broadcasting
+* **SdlcOrchestrator** (581 LOC): SDLC-specific workflow logic and phase management
+
+**Phase 2 - AutoGen Service Decomposition (681 LOC → 3 services):**
+* **AutoGenCore** (126 LOC): Main coordination logic with dependency injection
+* **AgentFactory** (208 LOC): Agent instantiation and configuration management
+* **ConversationManager** (554 LOC): Conversation flow and message handling
+
+**Phase 2 - Template Service Decomposition (526 LOC → 3 services):**
+* **TemplateCore** (218 LOC): Main coordination logic with dependency injection
+* **TemplateLoader** (171 LOC): Template loading and caching mechanisms
+* **TemplateRenderer** (328 LOC): Template rendering and output formatting
+
+**Phase 3 - Complete Interface Layer:**
+* **Service Interfaces**: 11 comprehensive interface files providing dependency injection abstractions
+* **Backward Compatibility**: All original service names preserved as aliases for seamless migration
+* **Type Safety**: Full TypeScript-style interface definitions for all service dependencies
 
 #### **2.2 Open/Closed Principle (OCP)**
 

@@ -1,6 +1,6 @@
 """Application configuration using Pydantic Settings."""
 
-from typing import List, Optional
+from typing import List, Optional, Literal # Added Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -17,10 +17,17 @@ class Settings(BaseSettings):
     # Database Configuration
     database_url: str = Field(env="DATABASE_URL")
     database_test_url: Optional[str] = Field(default=None, env="DATABASE_TEST_URL")
+    database_pool_size: int = Field(default=10, env="DATABASE_POOL_SIZE") # New
+    database_max_overflow: int = Field(default=20, env="DATABASE_MAX_OVERFLOW") # New
+    database_pool_timeout: int = Field(default=30, env="DATABASE_POOL_TIMEOUT") # New
     
     # Redis Configuration
     redis_url: str = Field(env="REDIS_URL")
     redis_celery_url: str = Field(env="REDIS_CELERY_URL")
+
+    # Celery Configuration
+    celery_broker_url: str = Field(env="CELERY_BROKER_URL")
+    celery_result_backend: str = Field(env="CELERY_RESULT_BACKEND")
     
     # API Configuration
     api_v1_prefix: str = Field(default="/api/v1", env="API_V1_PREFIX")
@@ -39,6 +46,19 @@ class Settings(BaseSettings):
     google_api_key: Optional[str] = Field(default=None, env="GOOGLE_API_KEY")
     gemini_key_key: Optional[str] = Field(default=None, env="GEMINI_KEY_KEY")
     google_genai_api_key: Optional[str] = Field(default=None, env="GOOGLE_GENAI_API_KEY")
+    google_application_credentials: Optional[str] = Field(default=None, env="GOOGLE_APPLICATION_CREDENTIALS") # New, as per plan
+    
+    # Agent-to-LLM Mapping (New section)
+    analyst_agent_provider: Literal["openai", "anthropic", "gemini"] = Field(env="ANALYST_AGENT_PROVIDER") # New
+    analyst_agent_model: str = Field(env="ANALYST_AGENT_MODEL") # New
+    architect_agent_provider: Literal["openai", "anthropic", "gemini"] = Field(env="ARCHITECT_AGENT_PROVIDER") # New
+    architect_agent_model: str = Field(env="ARCHITECT_AGENT_MODEL") # New
+    coder_agent_provider: Literal["openai", "anthropic", "gemini"] = Field(env="CODER_AGENT_PROVIDER") # New
+    coder_agent_model: str = Field(env="CODER_AGENT_MODEL") # New
+    tester_agent_provider: Literal["openai", "anthropic", "gemini"] = Field(env="TESTER_AGENT_PROVIDER") # New
+    tester_agent_model: str = Field(env="TESTER_AGENT_MODEL") # New
+    deployer_agent_provider: Literal["openai", "anthropic", "gemini"] = Field(env="DEPLOYER_AGENT_PROVIDER") # New
+    deployer_agent_model: str = Field(env="DEPLOYER_AGENT_MODEL") # New
     
     # LLM Reliability Configuration
     llm_retry_max_attempts: int = Field(default=3, env="LLM_RETRY_MAX_ATTEMPTS")
@@ -63,6 +83,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore" # New: Allow extra environment variables not explicitly defined
 
 
 # Global settings instance

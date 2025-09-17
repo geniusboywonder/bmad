@@ -10,7 +10,6 @@ import sys
 # Add the app directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database.connection import Base
 from app.config import settings
 
 # this is the Alembic Config object, which provides
@@ -22,9 +21,21 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Import models after logger setup to avoid circular imports
+try:
+    from app.database.connection import Base
+    # Import models to register them with Base.metadata
+    import app.database.models  # This registers all models
+    target_metadata = Base.metadata
+except ImportError as e:
+    # Fallback if models can't be imported
+    from sqlalchemy.ext.declarative import declarative_base
+    Base = declarative_base()
+    target_metadata = Base.metadata
+    print(f"Warning: Could not import models: {e}")
+
 # add your model's MetaData object here
 # for 'autogenerate' support
-target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

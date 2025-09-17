@@ -131,13 +131,13 @@ class AgentTeamService:
         Initialize the agent team service.
 
         Args:
-            team_base_path: Base path for team files (defaults to .bmad-core/agent-teams)
+            team_base_path: Base path for team files (defaults to backend/app/teams)
         """
         self.yaml_parser = YAMLParser()
 
         if team_base_path is None:
-            # Default to .bmad-core/agent-teams relative to project root
-            self.team_base_path = Path(".bmad-core/agent-teams")
+            # Default to backend/app/teams relative to project root
+            self.team_base_path = Path("backend/app/teams")
         else:
             self.team_base_path = Path(team_base_path)
 

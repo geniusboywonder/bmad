@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass
 from enum import Enum
 
-import yaml
+
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic_core import PydanticCustomError
 
