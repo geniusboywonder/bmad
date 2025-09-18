@@ -43,6 +43,7 @@ class ContextStore:
         self.compression_enabled = config.get("compression_enabled", True)
         self.max_artifact_size = config.get("max_artifact_size", 1048576)  # 1MB
         self.retention_policy = config.get("retention_policy", "30_days")
+        self.db_session = config.get("db_session")
 
         # Initialize cache
         self._cache = {}
@@ -632,15 +633,24 @@ class ContextStoreService:
     with other BMAD services.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, db_session):
         """
         Initialize the context store service.
 
         Args:
-            config: Configuration dictionary
+            db_session: Database session for operations
         """
+        # Create default config and pass db_session to ContextStore
+        config = {
+            "storage_backend": "postgresql",
+            "cache_enabled": True,
+            "compression_enabled": True,
+            "max_artifact_size": 1048576,  # 1MB
+            "db_session": db_session
+        }
         self.context_store = ContextStore(config)
         self.config = config
+        self.db_session = db_session
 
     def store_artifacts_batch(self, artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
         """

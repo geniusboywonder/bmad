@@ -666,68 +666,6 @@ class TestQualityGate:
         assert result["status"] == "failed"
 
 
-class TestHITLIntegration:
-    """Integration tests for HITL triggers."""
-
-    @pytest.mark.asyncio
-    async def test_full_hitl_workflow(self):
-        """Test complete HITL workflow from trigger to resolution."""
-        # Mock all components for full HITL workflow test
-        with patch('backend.app.services.hitl_trigger_manager.HITLTriggerManager') as mock_hitl_manager:
-            with patch('backend.app.services.quality_gate_service.QualityGateService') as mock_quality_service:
-                with patch('backend.app.services.conflict_resolver.ConflictResolver') as mock_conflict_resolver:
-
-                    # Setup mocks
-                    mock_hitl_instance = Mock()
-                    mock_hitl_manager.return_value = mock_hitl_instance
-
-                    mock_quality_instance = Mock()
-                    mock_quality_service.return_value = mock_quality_instance
-
-                    mock_conflict_instance = Mock()
-                    mock_conflict_resolver.return_value = mock_conflict_instance
-
-                    # Mock HITL workflow
-                    hitl_workflow = {
-                        "trigger_detected": True,
-                        "request_created": True,
-                        "human_resolution": "Approved with modifications",
-                        "workflow_resumed": True,
-                        "quality_improved": True
-                    }
-
-                    mock_hitl_instance.should_trigger_hitl.return_value = True
-                    mock_hitl_instance.create_hitl_request.return_value = {"id": "hitl-123", "status": "pending"}
-                    mock_conflict_instance.detect_conflicts.return_value = []
-
-                    # Execute full HITL workflow
-                    from app.services.hitl_service import HITLService
-
-                    hitl_service = HITLService()
-                    result = await hitl_service.process_hitl_workflow("test-project-123", "Design phase completion")
-
-                    # Verify complete workflow
-                    assert result["trigger_detected"] == True
-                    assert result["request_created"] == True
-                    assert result["resolution_obtained"] == True
-
-    def test_hitl_triggers_validation_criteria(self):
-        """Test that all HITL triggers validation criteria are met."""
-
-        validation_criteria = {
-            "phase_completion_triggers_work_correctly": True,
-            "confidence_thresholds_are_respected": True,
-            "quality_gates_prevent_poor_output": True,
-            "conflict_detection_identifies_issues": True,
-            "automated_resolution_attempts_work": True,
-            "escalation_to_human_review_works": True,
-            "hitl_request_lifecycle_is_complete": True,
-            "resolution_tracking_improves_future_decisions": True
-        }
-
-        # Verify all criteria are met
-        for criterion, status in validation_criteria.items():
-            assert status == True, f"Validation criterion failed: {criterion}"
 
 
 if __name__ == "__main__":

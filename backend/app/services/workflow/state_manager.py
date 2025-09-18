@@ -104,7 +104,7 @@ class StateManager:
             workflow_definition=workflow_definition,
             context_data=initial_context or {},
             step_results=[],
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(timezone.utc).isoformat(),
             metadata={}
         )
 

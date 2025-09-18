@@ -112,7 +112,9 @@ backend/
 ├── alembic/                # Database migration management
 │   ├── versions/           # Database migration scripts
 │   │   ├── 001_initial_tables.py        # Initial database schema (Task 0)
-│   │   └── 004_add_event_log_table.py   # Event log table for audit trail
+│   │   ├── 004_add_event_log_table.py   # Event log table for audit trail
+│   │   ├── 005_add_performance_indexes.py # Performance optimization indexes
+│   │   └── 57e8207a27ec_fix_emergency_stops_active_column_type_.py # Fix emergency_stops boolean field
 │   ├── env.py             # Alembic environment configuration
 │   └── alembic.ini        # Alembic configuration file
 ├── app/                   # Main application package
@@ -129,16 +131,20 @@ backend/
 │   │   ├── factory.py                 # Agent factory with ADK support
 │   │   ├── orchestrator.py            # Legacy orchestrator agent (AutoGen)
 │   │   └── tester.py                  # Legacy tester agent (AutoGen)
-│   ├── api/               # REST API endpoints
+│   ├── api/               # REST API endpoints (80 total endpoints across 9 service groups)
 │   │   ├── __init__.py
-│   │   ├── agents.py      # Agent management endpoints
-│   │   ├── artifacts.py   # Artifact management endpoints
+│   │   ├── adk.py         # ADK (Agent Development Kit) endpoints (20 endpoints)
+│   │   ├── agents.py      # Agent management endpoints (4 endpoints)
+│   │   ├── artifacts.py   # Artifact management endpoints (5 endpoints)
+│   │   ├── audit.py       # Audit trail endpoints (4 endpoints)
 │   │   ├── dependencies.py # FastAPI dependency injection
-│   │   ├── health.py      # Health check endpoints
-│   │   ├── hitl.py        # Human-in-the-loop endpoints (Task 6)
-│   │   ├── hitl_request_endpoints.py # HITL request management (Task 6)
-│   │   ├── projects.py    # Project management endpoints
-│   │   └── websocket.py   # WebSocket endpoint handlers
+│   │   ├── health.py      # Health check endpoints (4 endpoints)
+│   │   ├── hitl.py        # Human-in-the-loop endpoints (11 endpoints)
+│   │   ├── hitl_request_endpoints.py # HITL request management endpoints (5 endpoints)
+│   │   ├── hitl_safety.py # HITL safety control endpoints (9 endpoints)
+│   │   ├── projects.py    # Project management endpoints (6 endpoints)
+│   │   ├── websocket.py   # WebSocket endpoint handlers
+│   │   └── workflows.py   # Workflow management endpoints (17 endpoints)
 │   ├── database/          # Database layer
 │   │   ├── __init__.py
 │   │   ├── connection.py  # Database connection management with session handling
@@ -148,7 +154,7 @@ backend/
 │   │   ├── agent.py       # Agent data models with status enumeration
 │   │   ├── context.py     # Context data models with artifact types
 │   │   ├── handoff.py     # Enhanced handoff data models with priority and status
-│   │   ├── hitl.py        # HITL data models with safety controls and history (Task 6)
+│   │   ├── hitl.py        # HITL data models with safety controls, history, and HitlRequestResponse (Task 6)
 │   │   ├── task.py        # Task data models with enhanced validation (Task 4)
 │   │   ├── template.py    # Template data models (Task 3)
 │   │   ├── workflow.py    # Workflow data models with execution state (Task 5)
@@ -174,12 +180,14 @@ backend/
 │   │   ├── agent_status_service.py # Agent status management
 │   │   ├── artifact_service.py     # Artifact management
 │   │   ├── audit_service.py        # Audit trail and event logging (Task 0)
-│   │   ├── autogen/                # SOLID refactored AutoGen services (681 LOC → 3 services)
+│   │   ├── autogen/                # SOLID refactored AutoGen services (681 LOC → 4 services)
 │   │   │   ├── __init__.py         # Package initialization with backward compatibility
 │   │   │   ├── autogen_core.py     # Main coordination logic with dependency injection (126 LOC)
-│   │   │   ├── agent_factory.py    # Agent instantiation and configuration management (208 LOC)
-│   │   │   └── conversation_manager.py # Conversation flow and message handling (554 LOC)
+│   │   │   ├── agent_factory.py    # Agent instantiation and configuration management (Enhanced TR-09)
+│   │   │   ├── conversation_manager.py # Conversation flow and message handling (Enhanced TR-07)
+│   │   │   └── group_chat_manager.py # Multi-agent collaboration and conflict resolution (TR-08)
 │   │   ├── autogen_service.py      # Backward compatibility alias module
+│   │   ├── bmad_core_service.py    # Unified BMAD Core integration service (Missing10.md)
 │   │   ├── context_store.py        # Context storage service with database integration
 │   │   ├── hitl/                   # SOLID refactored HITL services (1,325 LOC → 5 services)
 │   │   │   ├── __init__.py         # Package initialization with backward compatibility
@@ -208,8 +216,8 @@ backend/
 │   │   ├── template/               # SOLID refactored template services (526 LOC → 3 services)
 │   │   │   ├── __init__.py         # Package initialization with backward compatibility
 │   │   │   ├── template_core.py    # Main coordination logic with dependency injection (218 LOC)
-│   │   │   ├── template_loader.py  # Template loading and caching mechanisms (171 LOC)
-│   │   │   └── template_renderer.py # Template rendering and output formatting (328 LOC)
+│   │   │   ├── template_loader.py  # Template loading and caching mechanisms (Enhanced TR-10, TR-12)
+│   │   │   └── template_renderer.py # Template rendering and output formatting (Enhanced TR-11, TR-13)
 │   │   ├── template_service.py     # Backward compatibility alias module
 │   │   ├── workflow/               # SOLID refactored workflow services (1,226 LOC → 4 services)
 │   │   │   ├── __init__.py         # Package initialization with backward compatibility
@@ -391,8 +399,9 @@ docs/
 ### Configuration Management
 
 - **Environment-based** - Development, staging, production
-- **BMAD Core integration** - Dynamic template loading
-- **Agent configuration** - Runtime agent personality loading
+- **BMAD Core integration** - Dynamic template and workflow loading (TR-10 to TR-13)
+- **Agent configuration** - Runtime agent personality loading from .bmad-core/agents/ (TR-09)
+- **AutoGen integration** - Group chat and conversation management (TR-06 to TR-08)
 
 ### Testing Strategy
 

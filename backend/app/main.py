@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from app.config import settings
-from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk
+from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk, hitl_safety, hitl_request_endpoints
 from app.database.connection import get_engine, Base
 
 # Configure structured logging
@@ -119,6 +119,8 @@ app.include_router(artifacts.router)
 app.include_router(audit.router, prefix=settings.api_v1_prefix)
 app.include_router(workflows.router)
 app.include_router(adk.router)
+app.include_router(hitl_safety.router)
+app.include_router(hitl_request_endpoints.router)
 
 
 @app.on_event("startup")
@@ -158,8 +160,8 @@ if __name__ == "__main__":
     
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8000,
+        host=getattr(settings, 'api_host', '0.0.0.0'),
+        port=getattr(settings, 'api_port', 8000),
         reload=settings.debug,
         log_level=settings.log_level.lower()
     )

@@ -7,13 +7,13 @@ services:
     environment:
       POSTGRES_DB: botarmy_db
       POSTGRES_USER: botarmy
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: bmad_password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U botarmy -d botarmy_db"]
+      test: ["CMD-SHELL", "pg_isready -U bmad_user -d botarmy_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,7 +39,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+psycopg://botarmy:password@postgres:5432/botarmy_db
+      - DATABASE_URL=postgresql+psycopg://bmad_user:bmad_password@postgres:5432/botarmy_db
       - REDIS_URL=redis://redis:6379/0
       - REDIS_CELERY_URL=redis://redis:6379/1
       - DEBUG=true
@@ -54,7 +54,7 @@ services:
     command: >
       sh -c "
         pip install -r requirements-minimal.txt &&
-        alembic upgrade head &&
+        ./scripts/run_migrations.sh &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
 

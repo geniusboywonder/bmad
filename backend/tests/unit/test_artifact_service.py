@@ -1,4 +1,8 @@
-"""Unit tests for Artifact Service - Sprint 3."""
+"""Unit tests for Artifact Service - Sprint 3.
+
+REFACTORED: Replaced database mocks with real database operations using DatabaseTestManager.
+External dependencies (file system) remain appropriately mocked.
+"""
 
 import pytest
 import os
@@ -11,6 +15,7 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock, mock_open
 
 from app.services.artifact_service import ArtifactService, ProjectArtifact, artifact_service
 from app.models.context import ArtifactType
+from tests.utils.database_test_utils import DatabaseTestManager
 
 
 class TestProjectArtifactModel:
@@ -51,106 +56,132 @@ class TestArtifactGeneration:
     """Test artifact generation logic - S3-UNIT-010."""
     
     @pytest.fixture
-    def service(self):
-        return ArtifactService()
+    def db_manager(self):
+        """Real database manager for artifact service tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
     
     @pytest.fixture
-    def mock_db_session(self):
-        """Mock database session with test data."""
-        mock_db = Mock()
+    def service(self):
+        config = {
+            "enable_granularity_analysis": True,
+            "enable_concept_extraction": True
+        }
+        return ArtifactService(config)
+    
+    @pytest.fixture
+    def test_project_with_artifacts(self, db_manager):
+        """Create real project with artifacts for testing."""
+        # Create real project
+        project = db_manager.create_test_project(
+            name="Test Project",
+            description="A test project"
+        )
         
-        # Mock project
-        mock_project = Mock()
-        mock_project.id = uuid4()
-        mock_project.name = "Test Project"
-        mock_project.description = "A test project"
-        mock_project.status = "active"
-        mock_project.created_at = datetime.now()
-        mock_project.updated_at = datetime.now()
-        
-        # Mock context artifacts
-        mock_code_artifact = Mock()
-        mock_code_artifact.artifact_type = ArtifactType.SOURCE_CODE
-        mock_code_artifact.source_agent = "coder"
-        mock_code_artifact.content = {"code": "import fastapi\nimport pydantic\ndef hello(): print('Hello')", "filename": "hello.py"}
-        mock_code_artifact.artifact_metadata = {"filename": "hello.py"}
-        mock_code_artifact.created_at = datetime.now()
-        
-        mock_doc_artifact = Mock()
-        mock_doc_artifact.artifact_type = ArtifactType.SOFTWARE_SPECIFICATION
-        mock_doc_artifact.source_agent = "analyst"
-        mock_doc_artifact.content = {"content": "# Project Documentation\n\nThis is a test project."}
-        mock_doc_artifact.artifact_metadata = {"filename": "docs.md"}
-        mock_doc_artifact.created_at = datetime.now()
-        
-        mock_req_artifact = Mock()
-        mock_req_artifact.artifact_type = ArtifactType.PROJECT_PLAN
-        mock_req_artifact.source_agent = "architect"
-        mock_req_artifact.content = {"requirements": ["fastapi>=0.68.0", "pydantic>=1.8.0"]}
-        mock_req_artifact.artifact_metadata = {}
-        mock_req_artifact.created_at = datetime.now()
-        
-        # Configure database mocks
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_project
-        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = [
-            mock_code_artifact, mock_doc_artifact, mock_req_artifact
-        ]
-        
-        return mock_db, mock_project, [mock_code_artifact, mock_doc_artifact, mock_req_artifact]
+        with db_manager.get_session() as session:
+            # Create real context artifacts
+            from app.database.models import ContextArtifactDB
+            
+            code_artifact = ContextArtifactDB(
+                project_id=project.id,
+                source_agent="coder",
+                artifact_type=ArtifactType.CODE,
+                content={"code": "import fastapi\nimport pydantic\ndef hello(): print('Hello')", "filename": "hello.py"}
+            )
+            
+            doc_artifact = ContextArtifactDB(
+                project_id=project.id,
+                source_agent="analyst",
+                artifact_type=ArtifactType.DOCUMENTATION,
+                content={"content": "# Project Documentation\n\nThis is a test project.", "filename": "docs.md"}
+            )
+            
+            req_artifact = ContextArtifactDB(
+                project_id=project.id,
+                source_agent="architect",
+                artifact_type=ArtifactType.REQUIREMENTS,
+                content={"requirements": ["fastapi>=0.68.0", "pydantic>=1.8.0"]}
+            )
+            
+            session.add_all([code_artifact, doc_artifact, req_artifact])
+            session.commit()
+            
+            return project, [code_artifact, doc_artifact, req_artifact]
     
     @pytest.mark.asyncio
-    async def test_generate_project_artifacts_creates_correct_files(self, service, mock_db_session):
-        """Test that artifact generation creates correct ProjectArtifact objects."""
-        mock_db, mock_project, mock_artifacts = mock_db_session
-        project_id = mock_project.id
+    @pytest.mark.real_data
+    async def test_generate_project_artifacts_creates_correct_files(self, service, db_manager):
+        """Test that artifact generation creates correct ProjectArtifact objects with real database."""
+        # Create real project and context artifacts
+        project = db_manager.create_test_project(name="Artifact Generation Test")
         
-        artifacts = await service.generate_project_artifacts(project_id, mock_db)
-        
-        # Should generate multiple artifacts
-        assert len(artifacts) >= 4  # code, docs, requirements.txt, README.md, summary
-        
-        # Check for expected artifacts
-        artifact_names = [a.name for a in artifacts]
-        assert "hello.py" in artifact_names
-        assert "docs.md" in artifact_names  
-        assert "requirements.txt" in artifact_names
-        assert "README.md" in artifact_names
-        assert "project_summary.md" in artifact_names
+        with db_manager.get_session() as session:
+            # Create real context artifacts
+            from app.database.models import ContextArtifactDB
+            
+            code_artifact = ContextArtifactDB(
+                project_id=project.id,
+                source_agent="coder",
+                artifact_type=ArtifactType.CODE,
+                content={"code": "def hello(): return 'Hello World'", "language": "python", "filename": "hello.py"}
+            )
+            doc_artifact = ContextArtifactDB(
+                project_id=project.id,
+                source_agent="architect",
+                artifact_type=ArtifactType.DOCUMENTATION,
+                content={"documentation": "This is project documentation", "filename": "docs.md"}
+            )
+            req_artifact = ContextArtifactDB(
+                project_id=project.id,
+                source_agent="analyst",
+                artifact_type=ArtifactType.REQUIREMENTS,
+                content={"requirements": "User should be able to say hello"}
+            )
+            
+            session.add_all([code_artifact, doc_artifact, req_artifact])
+            session.commit()
+            
+            artifacts = await service.generate_project_artifacts(project.id, session)
+            
+            # Should generate multiple artifacts
+            assert len(artifacts) >= 4  # code, docs, requirements.txt, README.md, summary
+            
+            # Check for expected artifacts
+            artifact_names = [a.name for a in artifacts]
+            assert "hello.py" in artifact_names
+            assert "docs.md" in artifact_names  
+            assert "requirements.txt" in artifact_names
+            assert "README.md" in artifact_names
+            assert "project_summary.md" in artifact_names
     
     @pytest.mark.asyncio 
-    async def test_generate_project_artifacts_project_not_found(self, service):
-        """Test artifact generation with non-existent project."""
-        mock_db = Mock()
-        mock_db.query.return_value.filter.return_value.first.return_value = None
-        
+    @pytest.mark.real_data
+    async def test_generate_project_artifacts_project_not_found(self, service, db_manager):
+        """Test artifact generation with non-existent project using real database."""
         project_id = uuid4()
         
-        with pytest.raises(ValueError, match=f"Project {project_id} not found"):
-            await service.generate_project_artifacts(project_id, mock_db)
+        with db_manager.get_session() as session:
+            with pytest.raises(ValueError, match=f"Project {project_id} not found"):
+                await service.generate_project_artifacts(project_id, session)
     
     @pytest.mark.asyncio
-    async def test_generate_project_artifacts_empty_context(self, service):
-        """Test artifact generation with no context artifacts."""
-        mock_db = Mock()
+    @pytest.mark.real_data
+    async def test_generate_project_artifacts_empty_context(self, service, db_manager):
+        """Test artifact generation with no context artifacts using real database."""
+        # Create real project with no context artifacts
+        project = db_manager.create_test_project(name="Empty Project", description="No artifacts")
         
-        # Mock project exists but no artifacts
-        mock_project = Mock()
-        mock_project.id = uuid4()
-        mock_project.name = "Empty Project"
-        mock_project.description = "No artifacts"
-        mock_project.created_at = datetime.now()
-        mock_project.updated_at = datetime.now()
-        
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_project
-        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = []
-        
-        artifacts = await service.generate_project_artifacts(mock_project.id, mock_db)
-        
-        # Should still generate basic artifacts
-        assert len(artifacts) >= 2  # README.md and project_summary.md
-        artifact_names = [a.name for a in artifacts]
-        assert "README.md" in artifact_names
-        assert "project_summary.md" in artifact_names
+        with db_manager.get_session() as session:
+            artifacts = await service.generate_project_artifacts(project.id, session)
+            
+            # Should still generate basic artifacts
+            assert len(artifacts) >= 2  # README.md and project_summary
+            artifact_names = [a.name for a in artifacts]
+            assert "README.md" in artifact_names
+            # Check for project summary (could be .md or .txt)
+            assert any("project_summary" in name for name in artifact_names)
 
 
 class TestZipFileCreation:

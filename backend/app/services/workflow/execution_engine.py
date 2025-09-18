@@ -35,7 +35,7 @@ class ExecutionEngine:
 
     def __init__(self, db: Session):
         self.db = db
-        self.workflow_service = WorkflowService(db)
+        self.workflow_service = WorkflowService()  # Use default path
         self.step_processor = WorkflowStepProcessor(db)
         self.hitl_integrator = WorkflowHitlIntegrator(db)
 

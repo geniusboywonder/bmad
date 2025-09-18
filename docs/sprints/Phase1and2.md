@@ -795,7 +795,7 @@ pyyaml>=6.0
 ### Environment Configuration
 ```bash
 # Database Configuration
-DATABASE_URL=postgresql://user:password@localhost:5432/bmad
+DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database>
 REDIS_URL=redis://localhost:6379/0
 
 # LLM Provider Configuration

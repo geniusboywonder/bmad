@@ -145,7 +145,7 @@ docker-compose down
 ```bash
 # Create PostgreSQL database
 sudo -u postgres createuser -s botarmy_user
-sudo -u postgres createdb -O botarmy_user botarmy_prod
+sudo -u postgres createdb -O bmad_user botarmy_prod
 
 # Set password
 sudo -u postgres psql -c "ALTER USER botarmy_user WITH PASSWORD 'your_password';"
@@ -485,4 +485,4 @@ For deployment issues:
 4. Review deployment script output
 5. Validate environment configuration
 
-**Production Deployment Status**: ✅ Ready for production deployment with comprehensive monitoring and automated deployment scripts.
+**Production Deployment Status**: ✅ Ready for production deployment with comprehensive monitoring and automated deployment scripts.ipts.

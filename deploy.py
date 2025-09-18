@@ -70,7 +70,7 @@ class DeploymentManager:
         """Load environment-specific configuration."""
         configs = {
             "dev": {
-                "database_url": os.getenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/botarmy_dev"),
+                "database_url": os.getenv("DATABASE_URL"),
                 "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
                 "api_base_url": os.getenv("API_BASE_URL", "http://localhost:8000"),
                 "docker_compose_file": "docker-compose.dev.yml",

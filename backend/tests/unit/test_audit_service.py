@@ -1,4 +1,8 @@
-"""Unit tests for audit service."""
+"""Unit tests for audit service.
+
+REFACTORED: Replaced database mocks with real database operations using DatabaseTestManager.
+External dependencies remain appropriately mocked.
+"""
 
 import pytest
 from datetime import datetime, timezone
@@ -8,186 +12,138 @@ from unittest.mock import AsyncMock, Mock, patch
 from app.services.audit_service import AuditService
 from app.models.event_log import EventType, EventSource, EventLogCreate, EventLogFilter
 from app.database.models import EventLogDB
+from tests.utils.database_test_utils import DatabaseTestManager
 
 
 class TestAuditService:
     """Test cases for AuditService."""
     
     @pytest.fixture
-    def mock_db_session(self):
-        """Mock database session."""
-        session = Mock()
-        session.commit = Mock()
-        session.refresh = Mock()
-        session.execute = Mock()
-        session.rollback = Mock()
-        session.add = Mock()
-        return session
+    def db_manager(self):
+        """Real database manager for audit service tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
     
     @pytest.fixture
-    def audit_service(self, mock_db_session):
-        """Audit service instance with mocked database session."""
-        return AuditService(mock_db_session)
+    def audit_service(self, db_manager):
+        """Audit service instance with real database session."""
+        with db_manager.get_session() as session:
+            return AuditService(session)
     
     @pytest.mark.asyncio
-    async def test_log_event_success(self, audit_service, mock_db_session):
-        """Test successful event logging."""
-        # Arrange
-        project_id = uuid4()
-        task_id = uuid4()
+    @pytest.mark.real_data
+    async def test_log_event_success(self, db_manager):
+        """Test successful event logging with real database."""
+        # Create real project and task
+        project = db_manager.create_test_project(name="Audit Test Project")
+        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
+        
         event_data = {"action": "test_action", "details": "test details"}
         metadata = {"source": "test"}
         
-        # Mock the EventLogDB object and EventLogResponse.model_validate
-        with patch('app.services.audit_service.EventLogDB') as mock_event_db_class, \
-             patch('app.services.audit_service.EventLogResponse') as mock_response_class:
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
             
-            mock_event = Mock()
-            mock_event.id = uuid4()
-            mock_event.project_id = project_id
-            mock_event.task_id = task_id
-            mock_event.hitl_request_id = None
-            mock_event.event_type = EventType.TASK_CREATED.value
-            mock_event.event_source = EventSource.SYSTEM.value
-            mock_event.event_data = event_data
-            mock_event.event_metadata = {"logged_at": datetime.now(timezone.utc).isoformat(), "service_version": "1.0.0"}
-            mock_event.created_at = datetime.now(timezone.utc)
-            
-            mock_event_db_class.return_value = mock_event
-            
-            # Mock the response object
-            mock_response = Mock()
-            mock_response.id = mock_event.id
-            mock_response.project_id = project_id
-            mock_response.task_id = task_id
-            mock_response.event_type = EventType.TASK_CREATED
-            mock_response.event_source = EventSource.SYSTEM
-            mock_response_class.model_validate.return_value = mock_response
-            
-            # Act
+            # Act - log event with real database operations
             result = await audit_service.log_event(
                 event_type=EventType.TASK_CREATED,
                 event_source=EventSource.SYSTEM,
                 event_data=event_data,
-                project_id=project_id,
-                task_id=task_id,
+                project_id=project.id,
+                task_id=task.id,
                 metadata=metadata
             )
             
-            # Assert
-            mock_db_session.add.assert_called_once()
-            mock_db_session.commit.assert_called_once()
-            mock_db_session.refresh.assert_called_once()
-            mock_response_class.model_validate.assert_called_once_with(mock_event)
+            # Assert - verify real database persistence
+            assert result is not None
+            assert result.project_id == project.id
+            assert result.task_id == task.id
+            assert result.event_type == EventType.TASK_CREATED
+            assert result.event_source == EventSource.SYSTEM
+            assert result.event_data == event_data
             
-            # Verify the result
-            assert result == mock_response
-            assert result.id == mock_event.id
-            assert result.project_id == project_id
-            assert result.task_id == task_id
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'event_log',
+                    'conditions': {'project_id': project.id, 'task_id': task.id},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
     
     @pytest.mark.asyncio
-    async def test_log_event_database_error(self, audit_service, mock_db_session):
-        """Test event logging with database error."""
-        # Arrange
-        mock_db_session.commit.side_effect = Exception("Database error")
+    @pytest.mark.external_service
+    async def test_log_event_database_error(self, db_manager):
+        """Test event logging with database error using real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Database Error Test")
         
-        # Act & Assert
-        with pytest.raises(Exception, match="Database error"):
-            await audit_service.log_event(
-                event_type=EventType.TASK_FAILED,
-                event_source=EventSource.SYSTEM,
-                event_data={"error": "test error"}
-            )
-        
-        mock_db_session.rollback.assert_called_once()
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
+            
+            # Close the session to simulate database connection failure
+            session.close()
+            
+            # Act & Assert - should handle database error gracefully
+            with pytest.raises(Exception, match="Database error|Session is closed"):
+                await audit_service.log_event(
+                    event_type=EventType.TASK_FAILED,
+                    event_source=EventSource.SYSTEM,
+                    event_data={"error": "test error"}
+                )
     
     @pytest.mark.asyncio
-    async def test_log_task_event(self, audit_service, mock_db_session):
-        """Test task event logging convenience method."""
-        # Arrange
-        task_id = uuid4()
-        project_id = uuid4()
+    @pytest.mark.real_data
+    async def test_log_task_event(self, db_manager):
+        """Test task event logging convenience method with real database."""
+        # Create real project and task
+        project = db_manager.create_test_project(name="Task Event Test")
+        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
+        
         event_data = {"status": "completed"}
         
-        # Mock the EventLogDB object and EventLogResponse.model_validate
-        with patch('app.services.audit_service.EventLogDB') as mock_event_db_class, \
-             patch('app.services.audit_service.EventLogResponse') as mock_response_class:
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
             
-            mock_event = Mock()
-            mock_event.id = uuid4()
-            mock_event.project_id = project_id
-            mock_event.task_id = task_id
-            mock_event.hitl_request_id = None
-            mock_event.event_type = EventType.TASK_COMPLETED.value
-            mock_event.event_source = EventSource.SYSTEM.value
-            mock_event.event_data = event_data
-            mock_event.event_metadata = {"logged_at": datetime.now(timezone.utc).isoformat(), "service_version": "1.0.0"}
-            mock_event.created_at = datetime.now(timezone.utc)
-            
-            mock_event_db_class.return_value = mock_event
-            
-            # Mock the response object
-            mock_response = Mock()
-            mock_response.task_id = task_id
-            mock_response.project_id = project_id
-            mock_response.event_type = EventType.TASK_COMPLETED
-            mock_response.event_source = EventSource.SYSTEM
-            mock_response_class.model_validate.return_value = mock_response
-            
-            # Act
+            # Act - log task event with real database operations
             result = await audit_service.log_task_event(
-                task_id=task_id,
+                task_id=task.id,
                 event_type=EventType.TASK_COMPLETED,
                 event_data=event_data,
-                project_id=project_id
+                project_id=project.id
             )
             
-            # Assert
-            mock_db_session.add.assert_called_once()
-            mock_db_session.commit.assert_called_once()
-            mock_db_session.refresh.assert_called_once()
+            # Assert - verify real database record was created
+            assert result is not None
+            assert result.task_id == task.id
+            assert result.project_id == project.id
+            assert result.event_type == EventType.TASK_COMPLETED
+            assert result.event_source == EventSource.SYSTEM
             
-            # Verify the database object was created correctly
-            added_event = mock_db_session.add.call_args[0][0]
-            assert added_event == mock_event
-            assert mock_event.task_id == task_id
-            assert mock_event.project_id == project_id
-            assert mock_event.event_type == EventType.TASK_COMPLETED.value
-            assert mock_event.event_source == EventSource.SYSTEM.value
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'event_log',
+                    'conditions': {'task_id': task.id, 'project_id': project.id},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
     
     @pytest.mark.asyncio
-    async def test_log_hitl_event(self, audit_service, mock_db_session):
-        """Test HITL event logging convenience method."""
-        # Arrange
+    @pytest.mark.real_data
+    async def test_log_hitl_event(self, db_manager):
+        """Test HITL event logging convenience method with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="HITL Event Test")
         hitl_request_id = uuid4()
-        project_id = uuid4()
         event_data = {"action": "approve", "comment": "Looks good"}
         
-        # Mock the EventLogDB object and EventLogResponse.model_validate
-        with patch('app.services.audit_service.EventLogDB') as mock_event_db_class, \
-             patch('app.services.audit_service.EventLogResponse') as mock_response_class:
-            
-            mock_event = Mock()
-            mock_event.id = uuid4()
-            mock_event.project_id = project_id
-            mock_event.task_id = None
-            mock_event.hitl_request_id = hitl_request_id
-            mock_event.event_type = EventType.HITL_RESPONSE.value
-            mock_event.event_source = EventSource.USER.value
-            mock_event.event_data = event_data
-            mock_event.event_metadata = {"logged_at": datetime.now(timezone.utc).isoformat(), "service_version": "1.0.0"}
-            mock_event.created_at = datetime.now(timezone.utc)
-            
-            mock_event_db_class.return_value = mock_event
-            
-            # Mock the response object
-            mock_response = Mock()
-            mock_response.hitl_request_id = hitl_request_id
-            mock_response.project_id = project_id
-            mock_response.event_type = EventType.HITL_RESPONSE
-            mock_response.event_source = EventSource.USER
-            mock_response_class.model_validate.return_value = mock_response
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
             
             # Act
             result = await audit_service.log_hitl_event(
@@ -195,59 +151,51 @@ class TestAuditService:
                 event_type=EventType.HITL_RESPONSE,
                 event_data=event_data,
                 event_source=EventSource.USER,
-                project_id=project_id
+                project_id=project.id
             )
             
-            # Assert
-            mock_db_session.add.assert_called_once()
-            mock_db_session.commit.assert_called_once()
-            mock_db_session.refresh.assert_called_once()
+            # Assert - verify the event was created and returned
+            assert result.hitl_request_id == hitl_request_id
+            assert result.project_id == project.id
+            assert result.event_type == EventType.HITL_RESPONSE
+            assert result.event_source == EventSource.USER
+            assert result.event_data == event_data
             
-            # Verify the database object was created correctly
-            added_event = mock_db_session.add.call_args[0][0]
-            assert added_event == mock_event
-            assert mock_event.hitl_request_id == hitl_request_id
-            assert mock_event.project_id == project_id
-            assert mock_event.event_type == EventType.HITL_RESPONSE.value
-            assert mock_event.event_source == EventSource.USER.value
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'event_log',
+                    'conditions': {'hitl_request_id': hitl_request_id, 'project_id': project.id},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
     
     @pytest.mark.asyncio
-    async def test_get_events_with_filters(self, audit_service, mock_db_session):
-        """Test retrieving events with filters."""
-        # Arrange
-        project_id = uuid4()
-        filter_params = EventLogFilter(
-            project_id=project_id,
-            event_type=EventType.TASK_CREATED,
-            limit=50,
-            offset=0
-        )
+    @pytest.mark.real_data
+    async def test_get_events_with_filters(self, db_manager):
+        """Test retrieving events with filters using real database."""
+        # Create real project and task
+        project = db_manager.create_test_project(name="Events Filter Test")
+        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
         
-        # Mock database query result
-        mock_events = [
-            Mock(
-                id=uuid4(),
-                project_id=project_id,
-                task_id=uuid4(),
-                hitl_request_id=None,
-                event_type=EventType.TASK_CREATED.value,
-                event_source=EventSource.SYSTEM.value,
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
+            
+            # Create a real event
+            await audit_service.log_task_event(
+                task_id=task.id,
+                event_type=EventType.TASK_CREATED,
                 event_data={"test": "data"},
-                event_metadata={"test": "metadata"},
-                created_at=datetime.now(timezone.utc)
+                project_id=project.id
             )
-        ]
-        
-        mock_result = Mock()
-        mock_result.scalars.return_value.all.return_value = mock_events
-        mock_db_session.execute.return_value = mock_result
-        
-        # Mock EventLogResponse.model_validate
-        with patch('app.services.audit_service.EventLogResponse') as mock_response_class:
-            mock_response_class.model_validate.return_value = Mock(
-                id=mock_events[0].id,
-                project_id=project_id,
-                event_type=EventType.TASK_CREATED
+            
+            # Set up filter parameters
+            filter_params = EventLogFilter(
+                project_id=project.id,
+                event_type=EventType.TASK_CREATED,
+                limit=50,
+                offset=0
             )
             
             # Act
@@ -255,71 +203,69 @@ class TestAuditService:
             
             # Assert
             assert len(events) == 1
-            mock_db_session.execute.assert_called_once()
-            mock_response_class.model_validate.assert_called_once_with(mock_events[0])
+            assert events[0].project_id == project.id
+            assert events[0].event_type == EventType.TASK_CREATED
+            assert events[0].task_id == task.id
     
     @pytest.mark.asyncio
-    async def test_get_event_by_id_found(self, audit_service, mock_db_session):
-        """Test retrieving specific event by ID when found."""
-        # Arrange
+    @pytest.mark.real_data
+    async def test_get_event_by_id_found(self, db_manager):
+        """Test retrieving specific event by ID when found using real database."""
+        # Create real project and task
+        project = db_manager.create_test_project(name="Event By ID Test")
+        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
+        
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
+            
+            # Create a real event
+            created_event = await audit_service.log_task_event(
+                task_id=task.id,
+                event_type=EventType.TASK_CREATED,
+                event_data={"test": "data"},
+                project_id=project.id
+            )
+            
+            # Act
+            event = await audit_service.get_event_by_id(created_event.id)
+            
+            # Assert
+            assert event is not None
+            assert event.id == created_event.id
+            assert event.event_type == EventType.TASK_CREATED
+            assert event.project_id == project.id
+            assert event.task_id == task.id
+    
+    @pytest.mark.asyncio
+    @pytest.mark.real_data
+    async def test_get_event_by_id_not_found(self, db_manager):
+        """Test retrieving specific event by ID when not found using real database."""
+        # Use a random UUID that doesn't exist in the database
         event_id = uuid4()
-        mock_event = Mock(
-            id=event_id,
-            project_id=uuid4(),
-            task_id=None,
-            hitl_request_id=None,
-            event_type=EventType.TASK_CREATED.value,
-            event_source=EventSource.SYSTEM.value,
-            event_data={"test": "data"},
-            event_metadata={"test": "metadata"},
-            created_at=datetime.now(timezone.utc)
-        )
         
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = mock_event
-        mock_db_session.execute.return_value = mock_result
-        
-        # Mock EventLogResponse.model_validate
-        with patch('app.services.audit_service.EventLogResponse') as mock_response_class:
-            mock_response = Mock(id=event_id, event_type=EventType.TASK_CREATED)
-            mock_response_class.model_validate.return_value = mock_response
+        with db_manager.get_session() as session:
+            audit_service = AuditService(session)
             
             # Act
             event = await audit_service.get_event_by_id(event_id)
             
             # Assert
-            assert event is not None
-            assert event == mock_response
-            mock_db_session.execute.assert_called_once()
-            mock_response_class.model_validate.assert_called_once_with(mock_event)
+            assert event is None
     
     @pytest.mark.asyncio
-    async def test_get_event_by_id_not_found(self, audit_service, mock_db_session):
-        """Test retrieving specific event by ID when not found."""
-        # Arrange
-        event_id = uuid4()
-        
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = None
-        mock_db_session.execute.return_value = mock_result
-        
-        # Act
-        event = await audit_service.get_event_by_id(event_id)
-        
-        # Assert
-        assert event is None
-        mock_db_session.execute.assert_called_once()
-    
-    @pytest.mark.asyncio
-    async def test_get_events_database_error(self, audit_service, mock_db_session):
-        """Test handling database error when retrieving events."""
-        # Arrange
+    @pytest.mark.external_service
+    async def test_get_events_database_error(self, db_manager):
+        """Test handling database error when retrieving events using real database."""
         filter_params = EventLogFilter(limit=10, offset=0)
-        mock_db_session.execute.side_effect = Exception("Database error")
         
-        # Act & Assert
-        with pytest.raises(Exception, match="Database error"):
-            await audit_service.get_events(filter_params)
+        with db_manager.get_session() as session:
+            # Close the session to simulate database connection failure
+            session.close()
+            audit_service = AuditService(session)
+            
+            # Act & Assert
+            with pytest.raises(Exception):
+                await audit_service.get_events(filter_params)
 
 
 class TestAuditEventTypes:

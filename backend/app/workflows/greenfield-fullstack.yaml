@@ -63,7 +63,7 @@ workflow:
     - agent: various
       updates: any_flagged_documents
       condition: po_checklist_issues
-      notes: "If PO finds issues, return to relevant agent to fix and re-save the updated document."
+      notes: "If PO finds issues, return to relevant agent to fix and re-export updated documents to docs/ folder."
 
     - step: project_setup_guidance
       action: guide_project_structure

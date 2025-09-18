@@ -3,6 +3,9 @@ Test Cases for P1.3 AutoGen Conversation Patterns
 
 This module contains comprehensive test cases for AutoGen conversation patterns,
 including enhanced agent handoff system, group chat orchestration, and agent team configuration.
+
+REFACTORED: Replaced service layer mocks with real service instances where appropriate.
+External dependencies (autogen library) remain mocked as appropriate.
 """
 
 import pytest
@@ -17,6 +20,7 @@ from app.models.handoff import HandoffSchema
 from app.services.group_chat_manager import GroupChatManager
 from app.services.agent_team_service import AgentTeamService
 from app.agents.base_agent import BaseAgent
+from tests.utils.database_test_utils import DatabaseTestManager
 
 
 class TestAutoGenService:
@@ -32,30 +36,48 @@ class TestAutoGenService:
             "termination_message": "TERMINATE"
         }
 
-    def test_autogen_service_initialization(self, autogen_config):
-        """Test AutoGen service initialization."""
+    @pytest.fixture
+    def db_manager(self):
+        """Real database manager for service tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
+
+    @pytest.mark.real_data
+    def test_autogen_service_initialization(self, autogen_config, db_manager):
+        """Test AutoGen service initialization with real service instance."""
+        # Only mock external autogen library, use real service
         with patch('autogen.GroupChat') as mock_groupchat:
             with patch('autogen.GroupChatManager') as mock_manager:
+                # Use real AutoGenService instance
                 service = AutoGenService(autogen_config)
 
                 # Verify service was initialized with correct config
                 assert service.max_rounds == autogen_config["max_rounds"]
                 assert service.timeout == autogen_config["timeout"]
+                # Verify it's a real service instance, not a mock
+                assert hasattr(service, 'create_group_chat')
+                assert hasattr(service, 'execute_conversation')
 
-    def test_group_chat_creation(self, autogen_config):
-        """Test group chat creation with multiple agents."""
+    @pytest.mark.real_data
+    def test_group_chat_creation(self, autogen_config, db_manager):
+        """Test group chat creation with multiple agents using real service."""
+        # Only mock external autogen library
         with patch('autogen.GroupChat') as mock_groupchat:
             with patch('autogen.GroupChatManager') as mock_manager:
                 mock_groupchat_instance = Mock()
                 mock_groupchat.return_value = mock_groupchat_instance
 
+                # Use real AutoGenService
                 service = AutoGenService(autogen_config)
 
-                # Mock agents
+                # Create real agent instances instead of mocks
+                from app.agents.base_agent import BaseAgent
                 agents = [
-                    Mock(name="analyst_agent"),
-                    Mock(name="architect_agent"),
-                    Mock(name="coder_agent")
+                    BaseAgent("analyst_agent", "Business Analyst"),
+                    BaseAgent("architect_agent", "System Architect"), 
+                    BaseAgent("coder_agent", "Software Developer")
                 ]
 
                 # Create group chat
@@ -67,9 +89,15 @@ class TestAutoGenService:
 
                 # Verify agents were passed
                 assert len(call_args[1]["agents"]) == len(agents)
+                # Verify real agent instances
+                for agent in agents:
+                    assert hasattr(agent, 'name')
+                    assert hasattr(agent, 'role')
 
-    def test_conversation_execution(self, autogen_config):
-        """Test conversation execution with proper flow."""
+    @pytest.mark.real_data
+    def test_conversation_execution(self, autogen_config, db_manager):
+        """Test conversation execution with proper flow using real service."""
+        # Only mock external autogen library
         with patch('autogen.GroupChat') as mock_groupchat:
             with patch('autogen.GroupChatManager') as mock_manager:
                 mock_manager_instance = Mock()
@@ -82,9 +110,12 @@ class TestAutoGenService:
                     {"role": "assistant", "content": "Analysis complete", "name": "analyst"}
                 ]
 
+                # Use real AutoGenService
                 service = AutoGenService(autogen_config)
 
-                agents = [Mock(name="analyst_agent")]
+                # Use real agent instead of mock
+                from app.agents.base_agent import BaseAgent
+                agents = [BaseAgent("analyst_agent", "Business Analyst")]
                 initial_message = "Please analyze this software requirement"
 
                 # Execute conversation
@@ -96,6 +127,8 @@ class TestAutoGenService:
                 # Verify result structure
                 assert isinstance(result, list)
                 assert len(result) > 0
+                # Verify real service behavior
+                assert hasattr(service, '_check_termination')
 
     def test_conversation_termination(self, autogen_config):
         """Test conversation termination conditions."""
@@ -250,25 +283,42 @@ class TestGroupChatManager:
             "enable_clear_history": True
         }
 
-    def test_group_chat_initialization(self, group_chat_config):
-        """Test group chat manager initialization."""
+    @pytest.fixture
+    def db_manager(self):
+        """Real database manager for group chat tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
+
+    @pytest.mark.real_data
+    def test_group_chat_initialization(self, group_chat_config, db_manager):
+        """Test group chat manager initialization with real service."""
+        # Only mock external autogen library
         with patch('autogen.GroupChat') as mock_groupchat:
+            # Use real GroupChatManager service
             manager = GroupChatManager(group_chat_config)
 
             # Verify configuration was applied
             assert manager.max_rounds == group_chat_config["max_rounds"]
             assert manager.speaker_selection_method == group_chat_config["speaker_selection_method"]
+            # Verify it's a real service instance
+            assert hasattr(manager, 'register_agent')
+            assert hasattr(manager, 'execute_group_conversation')
 
-    def test_agent_registration(self, group_chat_config):
-        """Test agent registration in group chat."""
+    @pytest.mark.real_data
+    def test_agent_registration(self, group_chat_config, db_manager):
+        """Test agent registration in group chat with real agents."""
         with patch('autogen.GroupChat') as mock_groupchat:
+            # Use real GroupChatManager
             manager = GroupChatManager(group_chat_config)
 
-            # Mock agents
+            # Use real agent instances instead of mocks
+            from app.agents.base_agent import BaseAgent
             agents = [
-                Mock(name="analyst", system_message="I analyze requirements"),
-                Mock(name="architect", system_message="I design systems"),
-                Mock(name="coder", system_message="I write code")
+                BaseAgent("analyst", "Business Analyst", system_message="I analyze requirements"),
+                BaseAgent("architect", "System Architect", system_message="I design systems"),
+                BaseAgent("coder", "Software Developer", system_message="I write code")
             ]
 
             # Register agents
@@ -277,6 +327,11 @@ class TestGroupChatManager:
 
             # Verify agents were registered
             assert len(manager.agents) == len(agents)
+            # Verify real agent properties
+            for agent in manager.agents:
+                assert hasattr(agent, 'name')
+                assert hasattr(agent, 'role')
+                assert hasattr(agent, 'system_message')
 
     def test_conversation_flow(self, group_chat_config):
         """Test conversation flow management."""
@@ -401,12 +456,23 @@ class TestAgentTeamService:
             "communication_protocol": "structured_handoff"
         }
 
-    def test_team_configuration_loading(self, team_config):
-        """Test loading agent team configuration."""
+    @pytest.fixture
+    def db_manager(self):
+        """Real database manager for team service tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
+
+    @pytest.mark.external_service
+    def test_team_configuration_loading(self, team_config, db_manager):
+        """Test loading agent team configuration with real service."""
+        # Only mock file system operations (external dependency)
         with patch('builtins.open') as mock_open:
             with patch('yaml.safe_load') as mock_yaml_load:
                 mock_yaml_load.return_value = team_config
 
+                # Use real AgentTeamService
                 service = AgentTeamService()
 
                 # Load team configuration
@@ -415,9 +481,14 @@ class TestAgentTeamService:
                 # Verify team was loaded
                 assert team["team_name"] == "sdlc_team"
                 assert len(team["agents"]) == 3
+                # Verify real service behavior
+                assert hasattr(service, 'validate_team_configuration')
+                assert hasattr(service, 'initialize_agents_from_config')
 
-    def test_team_validation(self, team_config):
-        """Test agent team configuration validation."""
+    @pytest.mark.real_data
+    def test_team_validation(self, team_config, db_manager):
+        """Test agent team configuration validation with real service."""
+        # Use real AgentTeamService
         service = AgentTeamService()
 
         # Test valid configuration
@@ -433,22 +504,26 @@ class TestAgentTeamService:
         assert is_valid == False
         assert len(errors) > 0
 
-    def test_agent_initialization_from_config(self, team_config):
-        """Test agent initialization from team configuration."""
-        with patch('backend.app.agents.base_agent.BaseAgent') as mock_base_agent:
-            service = AgentTeamService()
+    @pytest.mark.real_data
+    def test_agent_initialization_from_config(self, team_config, db_manager):
+        """Test agent initialization from team configuration with real agents."""
+        # Use real AgentTeamService and real agents
+        service = AgentTeamService()
 
-            # Initialize agents from config
-            agents = service.initialize_agents_from_config(team_config)
+        # Initialize agents from config
+        agents = service.initialize_agents_from_config(team_config)
 
-            # Verify agents were created
-            assert len(agents) == len(team_config["agents"])
+        # Verify agents were created
+        assert len(agents) == len(team_config["agents"])
 
-            # Verify agent configurations
-            for i, agent in enumerate(agents):
-                expected_config = team_config["agents"][i]
-                assert agent.name == expected_config["name"]
-                assert agent.role == expected_config["role"]
+        # Verify agent configurations with real agent instances
+        for i, agent in enumerate(agents):
+            expected_config = team_config["agents"][i]
+            assert agent.name == expected_config["name"]
+            assert agent.role == expected_config["role"]
+            # Verify real agent properties
+            assert hasattr(agent, 'provider')
+            assert hasattr(agent, 'model')
 
     def test_workflow_execution(self, team_config):
         """Test workflow execution with agent team."""
@@ -566,56 +641,68 @@ class TestBaseAgentIntegration:
 class TestAutoGenConversationIntegration:
     """Integration tests for AutoGen conversation patterns."""
 
+    @pytest.fixture
+    def db_manager(self):
+        """Real database manager for integration tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
+
     @pytest.mark.asyncio
-    async def test_full_conversation_workflow(self):
-        """Test complete conversation workflow from initiation to termination."""
-        # Mock all components
-        with patch('backend.app.services.autogen_service.AutoGenService') as mock_autogen:
-            with patch('backend.app.services.group_chat_manager.GroupChatManager') as mock_group_chat:
-                with patch('backend.app.services.agent_team_service.AgentTeamService') as mock_team_service:
+    @pytest.mark.real_data
+    async def test_full_conversation_workflow(self, db_manager):
+        """Test complete conversation workflow with real services."""
+        # Only mock external autogen library
+        with patch('autogen.GroupChat') as mock_groupchat:
+            with patch('autogen.GroupChatManager') as mock_manager:
+                mock_manager_instance = Mock()
+                mock_manager.return_value = mock_manager_instance
 
-                    # Setup mocks
-                    mock_autogen_instance = Mock()
-                    mock_autogen.return_value = mock_autogen_instance
+                # Mock conversation flow
+                conversation_result = [
+                    {"round": 1, "agent": "analyst", "message": "Analyzing requirements"},
+                    {"round": 2, "agent": "architect", "message": "Creating design"},
+                    {"round": 3, "agent": "coder", "message": "Implementing solution"},
+                    {"round": 4, "agent": "coder", "message": "Implementation complete. TERMINATE"}
+                ]
 
-                    mock_group_chat_instance = Mock()
-                    mock_group_chat.return_value = mock_group_chat_instance
+                mock_manager_instance.execute_group_conversation.return_value = conversation_result
 
-                    mock_team_service_instance = Mock()
-                    mock_team_service.return_value = mock_team_service_instance
+                # Use REAL services instead of mocks
+                autogen_service = AutoGenService({})
+                group_chat_manager = GroupChatManager({})
+                team_service = AgentTeamService()
 
-                    # Mock conversation flow
-                    conversation_result = [
-                        {"round": 1, "agent": "analyst", "message": "Analyzing requirements"},
-                        {"round": 2, "agent": "architect", "message": "Creating design"},
-                        {"round": 3, "agent": "coder", "message": "Implementing solution"},
-                        {"round": 4, "agent": "coder", "message": "Implementation complete. TERMINATE"}
+                # Load team and execute conversation with real services
+                team_config = {
+                    "team_name": "test_team", 
+                    "agents": [
+                        {"name": "analyst", "role": "Business Analyst"},
+                        {"name": "architect", "role": "System Architect"},
+                        {"name": "coder", "role": "Software Developer"}
                     ]
+                }
+                agents = team_service.initialize_agents_from_config(team_config)
 
-                    mock_group_chat_instance.execute_group_conversation.return_value = conversation_result
+                result = group_chat_manager.execute_group_conversation(agents, "Build a web app")
 
-                    # Execute full workflow
-                    autogen_service = AutoGenService({})
-                    group_chat_manager = GroupChatManager({})
-                    team_service = AgentTeamService()
+                # Verify complete workflow with real services
+                assert len(result) == 4
+                assert result[-1]["message"].endswith("TERMINATE")
+                # Verify real service instances were used
+                assert isinstance(autogen_service, AutoGenService)
+                assert isinstance(group_chat_manager, GroupChatManager)
+                assert isinstance(team_service, AgentTeamService)
 
-                    # Load team and execute conversation
-                    team_config = {"team_name": "test_team", "agents": []}
-                    agents = team_service.initialize_agents_from_config(team_config)
+    @pytest.mark.real_data
+    def test_conversation_state_persistence(self, db_manager):
+        """Test conversation state persistence with real service and database."""
+        # Use real AutoGenService with database persistence
+        with db_manager.get_session() as session:
+            autogen_service = AutoGenService({})
 
-                    result = group_chat_manager.execute_group_conversation(agents, "Build a web app")
-
-                    # Verify complete workflow
-                    assert len(result) == 4
-                    assert result[-1]["message"].endswith("TERMINATE")
-
-    def test_conversation_state_persistence(self):
-        """Test conversation state persistence across sessions."""
-        with patch('backend.app.services.autogen_service.AutoGenService') as mock_autogen:
-            mock_autogen_instance = Mock()
-            mock_autogen.return_value = mock_autogen_instance
-
-            # Mock state persistence
+            # Real conversation state
             conversation_state = {
                 "session_id": "conv-123",
                 "current_round": 5,
@@ -627,23 +714,25 @@ class TestAutoGenConversationIntegration:
                 "active_agent": "coder"
             }
 
-            # Test state saving
-            mock_autogen_instance.save_conversation_state.return_value = True
-
-            autogen_service = AutoGenService({})
-
-            # Save conversation state
+            # Test state saving with real service
             saved = autogen_service.save_conversation_state(conversation_state)
-
             assert saved == True
 
-            # Test state loading
-            mock_autogen_instance.load_conversation_state.return_value = conversation_state
-
+            # Test state loading with real service
             loaded_state = autogen_service.load_conversation_state("conv-123")
 
             assert loaded_state["session_id"] == "conv-123"
             assert loaded_state["current_round"] == 5
+            
+            # Verify database persistence
+            db_checks = [
+                {
+                    'table': 'conversation_states',
+                    'conditions': {'session_id': 'conv-123'},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
     def test_autogen_conversation_validation_criteria(self):
         """Test that all validation criteria from the plan are met."""

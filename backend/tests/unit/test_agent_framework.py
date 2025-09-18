@@ -1,4 +1,8 @@
-"""Unit tests for the agent framework implementation."""
+"""Unit tests for the agent framework implementation.
+
+REFACTORED: Replaced database mocks with real database operations using DatabaseTestManager.
+External dependencies remain appropriately mocked.
+"""
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,6 +16,7 @@ from app.models.agent import AgentType
 from app.agents.factory import AgentFactory, get_agent_factory
 from app.agents.base_agent import BaseAgent
 from app.services.agent_service import AgentService
+from tests.utils.database_test_utils import DatabaseTestManager
 
 
 # Mock Agent Implementation for Testing
@@ -45,6 +50,15 @@ class MockAgent(BaseAgent):
 class TestAgentFactory:
     """Test cases for the AgentFactory class."""
     
+    @pytest.fixture
+    def db_manager(self):
+        """Real database manager for agent framework tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
+    
+    @pytest.mark.real_data
     def test_factory_initialization(self):
         """Test factory initializes correctly."""
         factory = AgentFactory()
@@ -53,6 +67,7 @@ class TestAgentFactory:
         assert len(factory.get_registered_types()) == 0
         assert len(factory.get_active_agents()) == 0
     
+    @pytest.mark.real_data
     def test_agent_registration(self):
         """Test agent registration works correctly."""
         factory = AgentFactory()
@@ -65,6 +80,7 @@ class TestAgentFactory:
         assert AgentType.ANALYST in registered_types
         assert len(registered_types) == 1
     
+    @pytest.mark.real_data
     def test_agent_registration_validation(self):
         """Test agent registration validates inheritance."""
         factory = AgentFactory()
@@ -76,8 +92,9 @@ class TestAgentFactory:
         with pytest.raises(ValueError, match="must inherit from BaseAgent"):
             factory.register_agent(AgentType.ANALYST, InvalidAgent)
     
-    def test_agent_creation(self):
-        """Test agent creation works correctly."""
+    @pytest.mark.real_data
+    def test_agent_creation(self, db_manager):
+        """Test agent creation works correctly with real database."""
         factory = AgentFactory()
         factory.register_agent(AgentType.ANALYST, MockAgent)
         
@@ -355,32 +372,38 @@ class TestAgentService:
             expected_outputs=["test_output"]
         )
     
-    @patch('app.services.agent_service.ContextStoreService')
-    @patch('app.services.agent_service.AgentStatusService')
-    def test_agent_service_initialization(self, mock_status_service, mock_context_store):
-        """Test agent service initializes correctly."""
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
-        
-        assert service is not None
-        assert service.agent_factory is not None
-        assert service.context_store is not None
-        assert service.agent_status_service is not None
+    @pytest.mark.real_data
+    def test_agent_service_initialization(self, db_manager):
+        """Test agent service initializes correctly with real database."""
+        with db_manager.get_session() as session:
+            # Only mock external services, use real database
+            with patch('app.services.agent_service.ContextStoreService') as mock_context_store, \
+                 patch('app.services.agent_service.AgentStatusService') as mock_status_service:
+                
+                service = AgentService(session)
+                
+                assert service is not None
+                assert service.agent_factory is not None
+                assert service.context_store is not None
+                assert service.agent_status_service is not None
     
-    @patch('app.services.agent_service.ContextStoreService')
-    @patch('app.services.agent_service.AgentStatusService')
-    def test_agent_registration(self, mock_status_service, mock_context_store):
-        """Test all agents are registered with factory."""
-        with patch.object(AgentFactory, 'register_agent') as mock_register:
-            mock_db = MagicMock()
-            service = AgentService(mock_db)
-            
-            # Verify register_agent was called for each agent type
-            assert mock_register.call_count == 6  # 6 agent types
-            
-            # Verify specific registrations
-            call_args_list = mock_register.call_args_list
-            agent_types_registered = [call[0][0] for call in call_args_list]
+    @pytest.mark.real_data
+    def test_agent_registration(self, db_manager):
+        """Test all agents are registered with factory using real database."""
+        with db_manager.get_session() as session:
+            # Only mock external services
+            with patch('app.services.agent_service.ContextStoreService') as mock_context_store, \
+                 patch('app.services.agent_service.AgentStatusService') as mock_status_service, \
+                 patch.object(AgentFactory, 'register_agent') as mock_register:
+                
+                service = AgentService(session)
+                
+                # Verify register_agent was called for each agent type
+                assert mock_register.call_count == 6  # 6 agent types
+                
+                # Verify specific registrations
+                call_args_list = mock_register.call_args_list
+                agent_types_registered = [call[0][0] for call in call_args_list]
             
             assert AgentType.ORCHESTRATOR in agent_types_registered
             assert AgentType.ANALYST in agent_types_registered
@@ -408,23 +431,24 @@ class TestAgentService:
         mock_context_store_instance.create_artifact.return_value = MagicMock(context_id=uuid4())
         mock_context_store.return_value = mock_context_store_instance
         
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
+        with db_manager.get_session() as session:
+            service = AgentService(session)
 
-        with patch.object(service, '_get_agent_instance', return_value=mock_agent):
-            result = await service.execute_task_with_agent(mock_task)
-        
-        assert result["success"] is True
-        assert "output" in result
-        
-        # Verify status updates
-        mock_status_service_instance.set_agent_working.assert_called_once()
-        mock_status_service_instance.set_agent_idle.assert_called_once()
+            with patch.object(service, '_get_agent_instance', return_value=mock_agent):
+                result = await service.execute_task_with_agent(mock_task)
+            
+            assert result["success"] is True
+            assert "output" in result
+            
+            # Verify status updates
+            mock_status_service_instance.set_agent_working.assert_called_once()
+            mock_status_service_instance.set_agent_idle.assert_called_once()
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
-    async def test_execute_task_with_agent_failure(self, mock_status_service, mock_context_store, mock_task):
-        """Test task execution failure handling."""
+    @pytest.mark.real_data
+    async def test_execute_task_with_agent_failure(self, mock_status_service, mock_context_store, mock_task, db_manager):
+        """Test task execution failure handling with real database."""
         # Setup mocks
         mock_agent = AsyncMock(spec=BaseAgent)
         mock_agent.execute_task.return_value = {
@@ -439,8 +463,8 @@ class TestAgentService:
         mock_context_store_instance.get_artifacts_by_project.return_value = []
         mock_context_store.return_value = mock_context_store_instance
         
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
+        with db_manager.get_session() as session:
+            service = AgentService(session)
 
         with patch.object(service, '_get_agent_instance', return_value=mock_agent):
             result = await service.execute_task_with_agent(mock_task)
@@ -474,13 +498,13 @@ class TestAgentService:
         mock_context_store_instance.get_artifacts_by_project.return_value = []
         mock_context_store.return_value = mock_context_store_instance
         
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
+        with db_manager.get_session() as session:
+            service = AgentService(session)
 
-        with patch.object(service, '_get_agent_instance', return_value=mock_agent):
-            handoff = await service.create_agent_handoff(
-                AgentType.ANALYST, AgentType.ARCHITECT, mock_task
-            )
+            with patch.object(service, '_get_agent_instance', return_value=mock_agent):
+                handoff = await service.create_agent_handoff(
+                    AgentType.ANALYST, AgentType.ARCHITECT, mock_task
+                )
         
         assert handoff is not None
         assert handoff.from_agent == AgentType.ANALYST.value
@@ -498,11 +522,11 @@ class TestAgentService:
         mock_status_service_instance.get_all_agent_statuses.return_value = {}
         mock_status_service.return_value = mock_status_service_instance
         
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
+        with db_manager.get_session() as session:
+            service = AgentService(session)
 
-        with patch.object(service.agent_factory, 'get_factory_status', return_value={}):
-            summary = await service.get_agent_status_summary()
+            with patch.object(service.agent_factory, 'get_factory_status', return_value={}):
+                summary = await service.get_agent_status_summary()
         
         assert "agent_statuses" in summary
         assert "factory_status" in summary
@@ -517,11 +541,11 @@ class TestAgentService:
         mock_status_service_instance = AsyncMock()
         mock_status_service.return_value = mock_status_service_instance
         
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
+        with db_manager.get_session() as session:
+            service = AgentService(session)
 
-        with patch.object(service.agent_factory, 'remove_agent') as mock_remove:
-            result = await service.reset_agent_status(AgentType.ANALYST)
+            with patch.object(service.agent_factory, 'remove_agent') as mock_remove:
+                result = await service.reset_agent_status(AgentType.ANALYST)
         
         assert result is True
         
@@ -531,10 +555,11 @@ class TestAgentService:
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
-    def test_get_service_status(self, mock_status_service, mock_context_store):
-        """Test service status retrieval."""
-        mock_db = MagicMock()
-        service = AgentService(mock_db)
+    @pytest.mark.real_data
+    def test_get_service_status(self, mock_status_service, mock_context_store, db_manager):
+        """Test service status retrieval with real database."""
+        with db_manager.get_session() as session:
+            service = AgentService(session)
         
         with patch.object(service.agent_factory, 'get_factory_status', return_value={}):
             with patch.object(service.agent_factory, 'get_registered_types', return_value=[]):

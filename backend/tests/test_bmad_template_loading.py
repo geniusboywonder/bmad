@@ -159,7 +159,7 @@ class TestTemplateService:
     def template_service_config(self):
         """Template service configuration for testing."""
         return {
-            "template_dir": ".bmad-core/templates",
+            "template_dir": "backend/app/templates",
             "cache_enabled": True,
             "cache_ttl": 3600
         }
@@ -174,7 +174,7 @@ class TestTemplateService:
             assert service.cache_enabled == template_service_config["cache_enabled"]
 
     def test_dynamic_template_loading(self, template_service_config):
-        """Test dynamic template loading from .bmad-core/."""
+        """Test dynamic template loading from backend/app/."""
         with patch('pathlib.Path') as mock_path:
             mock_path_instance = Mock()
             mock_path.return_value = mock_path_instance
@@ -250,11 +250,11 @@ class TestTemplateService:
 
             # Mock categorized templates
             template_files = [
-                ".bmad-core/templates/prd-template.yaml",
-                ".bmad-core/templates/architecture-template.yaml",
-                ".bmad-core/workflows/sdlc-workflow.yaml",
-                ".bmad-core/tasks/create-doc.md",
-                ".bmad-core/agent-teams/sdlc-team.yaml"
+                "backend/app/templates/prd-template.yaml",
+                "backend/app/templates/architecture-template.yaml",
+                "backend/app/workflows/sdlc-workflow.yaml",
+                "backend/app/tasks/create-doc.md",
+                "backend/app/agent-teams/sdlc-team.yaml"
             ]
 
             # Test template categorization

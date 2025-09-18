@@ -1318,7 +1318,7 @@ NEXT_PUBLIC_AUTH_DOMAIN=your_auth_domain
 **Backend Environment** (`.env`):
 ```bash
 # Database Configuration
-DATABASE_URL=postgresql://user:pass@localhost:5432/bmad_hybrid
+DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database>
 REDIS_URL=redis://localhost:6379/0
 
 # ADK Integration

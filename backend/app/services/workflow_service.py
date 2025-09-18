@@ -97,6 +97,20 @@ class WorkflowService:
 
         return workflow
 
+    async def get_workflow_definition(self, workflow_id: str) -> WorkflowDefinition:
+        """
+        Get workflow definition (async alias for load_workflow).
+        
+        This method provides async compatibility for the execution engine.
+        
+        Args:
+            workflow_id: Unique identifier for the workflow
+            
+        Returns:
+            WorkflowDefinition object
+        """
+        return self.load_workflow(workflow_id)
+
     def start_workflow_execution(
         self,
         workflow_id: str,

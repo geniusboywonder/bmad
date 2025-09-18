@@ -3,10 +3,11 @@ Test Suite for SOLID Refactored Services
 
 This test suite validates the new SOLID-compliant service architecture
 after the major refactoring completed in Phase 1-3.
+
+REFACTORED: Replaced database mocks with real database operations using DatabaseTestManager.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 # Import the refactored services
@@ -22,6 +23,7 @@ from app.services.hitl_service import HitlService
 from app.services.workflow_engine import WorkflowEngine, WorkflowExecutionEngine
 from app.services.autogen_service import AutoGenService
 from app.services.template_service import TemplateService
+from tests.utils.database_test_utils import DatabaseTestManager
 
 
 class TestBackwardCompatibility:
@@ -53,10 +55,14 @@ class TestServiceInitialization:
     """Test that all refactored services can be properly initialized."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return MagicMock()
+    def db_manager(self):
+        """Real database manager for service initialization tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
+    @pytest.mark.real_data
     def test_orchestrator_services_exist(self):
         """Test that all orchestrator service components exist."""
         from app.services.orchestrator import (

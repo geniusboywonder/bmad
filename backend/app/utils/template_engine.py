@@ -36,7 +36,6 @@ class TemplateEngine:
         if template_dirs is None:
             # Default BMAD template directories
             template_dirs = [
-                ".bmad-core/templates",
                 "backend/app/templates",
                 "docs/templates"
             ]

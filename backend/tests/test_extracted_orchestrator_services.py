@@ -9,7 +9,8 @@ This module contains comprehensive tests for the services extracted from orchest
 - StatusTracker
 - ContextManager
 
-Updated to reflect the SOLID design principles and dependency injection pattern.
+REFACTORED: Replaced database mocks with real database operations using DatabaseTestManager.
+External dependencies (Celery, Redis, etc.) remain appropriately mocked.
 """
 
 import pytest
@@ -28,114 +29,132 @@ from app.models.task import Task, TaskStatus
 from app.models.agent import AgentType, AgentStatus
 from app.models.context import ContextArtifact, ArtifactType
 from app.models.hitl import HitlStatus
+from tests.utils.database_test_utils import DatabaseTestManager
 
 
 class TestProjectLifecycleManager:
     """Test cases for ProjectLifecycleManager service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return Mock()
+    def db_manager(self):
+        """Real database manager for orchestrator tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
     @pytest.fixture
-    def project_manager(self, mock_db):
-        """Create ProjectLifecycleManager instance."""
-        return ProjectLifecycleManager(mock_db)
+    def project_manager(self, db_manager):
+        """Create ProjectLifecycleManager with real database session."""
+        with db_manager.get_session() as session:
+            return ProjectLifecycleManager(session)
 
-    def test_initialization(self, project_manager, mock_db):
-        """Test ProjectLifecycleManager initialization."""
+    @pytest.mark.real_data
+    def test_initialization(self, project_manager, db_manager):
+        """Test ProjectLifecycleManager initialization with real database."""
         assert project_manager is not None
-        assert project_manager.db == mock_db
+        assert project_manager.db is not None
+        # Verify it can actually interact with database
+        assert hasattr(project_manager, 'create_project')
+        assert hasattr(project_manager, 'set_current_phase')
 
-    def test_create_project(self, project_manager, mock_db):
-        """Test project creation."""
+    @pytest.mark.real_data
+    def test_create_project(self, db_manager):
+        """Test project creation with real database operations."""
         project_name = "Test Project"
         project_description = "A test project"
 
-        # Mock database operations
-        mock_project = Mock()
-        mock_project.id = uuid4()
-        mock_project.name = project_name
-        mock_project.description = project_description
-        mock_project.current_phase = "discovery"
-        mock_project.status = "active"
+        with db_manager.get_session() as session:
+            project_manager = ProjectLifecycleManager(session)
+            
+            # Create project with real database operations
+            result = project_manager.create_project(project_name, project_description)
 
-        mock_db.add.return_value = None
-        mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
+            assert result is not None
+            assert result.name == project_name
+            assert result.description == project_description
+            assert result.current_phase == "discovery"
+            assert result.status == "active"
+            assert result.id is not None
+            assert result.created_at is not None
 
-        # Set attributes after refresh
-        def refresh_side_effect(obj):
-            obj.id = uuid4()
-            obj.name = project_name
-            obj.description = project_description
-            obj.current_phase = "discovery"
-            obj.status = "active"
-            obj.created_at = datetime.now(timezone.utc)
-            obj.updated_at = datetime.now(timezone.utc)
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'projects',
+                    'conditions': {'name': project_name},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
-        mock_db.refresh.side_effect = refresh_side_effect
+    @pytest.mark.real_data
+    def test_set_current_phase(self, db_manager):
+        """Test setting current project phase with real database."""
+        # Create a real project first
+        project = db_manager.create_test_project(
+            name="Phase Test Project",
+            current_phase="discovery"
+        )
 
-        result = project_manager.create_project(project_name, project_description)
+        with db_manager.get_session() as session:
+            project_manager = ProjectLifecycleManager(session)
+            
+            # Set new phase
+            new_phase = "design"
+            project_manager.set_current_phase(project.id, new_phase)
 
-        assert result is not None
-        assert result.name == project_name
-        assert result.description == project_description
-        assert result.current_phase == "discovery"
-        assert result.status == "active"
+            # Verify phase was updated in database
+            db_checks = [
+                {
+                    'table': 'projects',
+                    'conditions': {'id': str(project.id), 'current_phase': new_phase},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
-    def test_set_current_phase(self, project_manager, mock_db):
-        """Test setting current project phase."""
-        project_id = uuid4()
-        new_phase = "design"
+    @pytest.mark.real_data
+    def test_get_current_phase(self, db_manager):
+        """Test getting current project phase with real database."""
+        # Create a real project
+        project = db_manager.create_test_project(
+            name="Get Phase Test Project",
+            current_phase="design"
+        )
 
-        # Mock project retrieval
-        mock_project = Mock()
-        mock_project.id = project_id
-        mock_project.current_phase = "discovery"
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_project
+        with db_manager.get_session() as session:
+            project_manager = ProjectLifecycleManager(session)
+            
+            result = project_manager.get_current_phase(project.id)
 
-        project_manager.set_current_phase(project_id, new_phase)
+            assert result == "design"
 
-        assert mock_project.current_phase == new_phase
-        assert mock_db.commit.called
+    @pytest.mark.real_data
+    def test_validate_phase_completion(self, db_manager):
+        """Test phase completion validation with real database."""
+        # Create a real project
+        project = db_manager.create_test_project(
+            name="Phase Completion Test",
+            current_phase="discovery"
+        )
 
-    def test_get_current_phase(self, project_manager, mock_db):
-        """Test getting current project phase."""
-        project_id = uuid4()
-        expected_phase = "design"
+        # Create completed tasks for the project
+        for i in range(2):
+            db_manager.create_test_task(
+                project_id=project.id,
+                agent_type="analyst",
+                status=TaskStatus.COMPLETED
+            )
 
-        # Mock project retrieval
-        mock_project = Mock()
-        mock_project.current_phase = expected_phase
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_project
+        with db_manager.get_session() as session:
+            project_manager = ProjectLifecycleManager(session)
+            
+            result = project_manager.validate_phase_completion(project.id, "discovery")
 
-        result = project_manager.get_current_phase(project_id)
+            assert result is True
 
-        assert result == expected_phase
-
-    def test_validate_phase_completion(self, project_manager, mock_db):
-        """Test phase completion validation."""
-        project_id = uuid4()
-        phase = "discovery"
-
-        # Mock project and task retrieval
-        mock_project = Mock()
-        mock_project.current_phase = phase
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_project
-
-        # Mock tasks query
-        mock_tasks = [
-            Mock(status=TaskStatus.COMPLETED),
-            Mock(status=TaskStatus.COMPLETED)
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_tasks
-
-        result = project_manager.validate_phase_completion(project_id, phase)
-
-        assert result is True
-
+    @pytest.mark.real_data
     def test_sdlc_phases_constant(self):
         """Test SDLC_PHASES constant is properly defined."""
         assert isinstance(SDLC_PHASES, dict)
@@ -150,150 +169,177 @@ class TestAgentCoordinator:
     """Test cases for AgentCoordinator service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return Mock()
+    def db_manager(self):
+        """Real database manager for agent coordinator tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
-    @pytest.fixture
-    def agent_coordinator(self, mock_db):
-        """Create AgentCoordinator instance."""
-        return AgentCoordinator(mock_db)
+    @pytest.mark.real_data
+    def test_initialization(self, db_manager):
+        """Test AgentCoordinator initialization with real database."""
+        with db_manager.get_session() as session:
+            agent_coordinator = AgentCoordinator(session)
+            assert agent_coordinator is not None
+            assert agent_coordinator.db == session
 
-    def test_initialization(self, agent_coordinator, mock_db):
-        """Test AgentCoordinator initialization."""
-        assert agent_coordinator is not None
-        assert agent_coordinator.db == mock_db
-
-    def test_create_task(self, agent_coordinator, mock_db):
-        """Test task creation through agent coordinator."""
-        project_id = uuid4()
+    @pytest.mark.real_data
+    def test_create_task(self, db_manager):
+        """Test task creation through agent coordinator with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Agent Coordinator Test")
+        
         agent_type = "analyst"
         instructions = "Analyze requirements"
         context_ids = ["ctx-1", "ctx-2"]
 
-        # Mock database operations
-        mock_task = Mock()
-        mock_task.task_id = uuid4()
-        mock_task.project_id = project_id
-        mock_task.agent_type = agent_type
-        mock_task.instructions = instructions
-        mock_task.context_ids = context_ids
-        mock_task.status = TaskStatus.PENDING
+        with db_manager.get_session() as session:
+            agent_coordinator = AgentCoordinator(session)
+            
+            result = agent_coordinator.create_task(
+                project_id=project.id,
+                agent_type=agent_type,
+                instructions=instructions,
+                context_ids=context_ids
+            )
 
-        mock_db.add.return_value = None
-        mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
+            assert result is not None
+            assert result.agent_type == agent_type
+            assert result.instructions == instructions
+            assert result.context_ids == context_ids
+            assert result.status == TaskStatus.PENDING
 
-        # Set attributes after refresh
-        def refresh_side_effect(obj):
-            obj.task_id = uuid4()
-            obj.status = TaskStatus.PENDING
-            obj.created_at = datetime.now(timezone.utc)
-            obj.updated_at = datetime.now(timezone.utc)
+            # Verify real database persistence
+            db_checks = [
+                {
+                    'table': 'tasks',
+                    'conditions': {'project_id': str(project.id), 'agent_type': agent_type},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
-        mock_db.refresh.side_effect = refresh_side_effect
-
-        result = agent_coordinator.create_task(
-            project_id=project_id,
-            agent_type=agent_type,
-            instructions=instructions,
-            context_ids=context_ids
-        )
-
-        assert result is not None
-        assert result.agent_type == agent_type
-        assert result.instructions == instructions
-        assert result.context_ids == context_ids
-        assert result.status == TaskStatus.PENDING
-
-    def test_update_agent_status(self, agent_coordinator, mock_db):
-        """Test agent status updates."""
+    @pytest.mark.real_data
+    def test_update_agent_status(self, db_manager):
+        """Test agent status updates with real database."""
         agent_type = "analyst"
         new_status = AgentStatus.WORKING
 
-        # Mock agent status retrieval and update
-        mock_agent_status = Mock()
-        mock_agent_status.agent_type = agent_type
-        mock_agent_status.status = AgentStatus.IDLE
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent_status
+        with db_manager.get_session() as session:
+            # Create real agent status record
+            from app.database.models import AgentStatusDB
+            agent_status = AgentStatusDB(
+                agent_type=agent_type,
+                status=AgentStatus.IDLE
+            )
+            session.add(agent_status)
+            session.commit()
+            session.refresh(agent_status)
+            
+            db_manager.track_test_record('agent_statuses', str(agent_status.id))
 
-        agent_coordinator.update_agent_status(agent_type, new_status)
+            agent_coordinator = AgentCoordinator(session)
+            agent_coordinator.update_agent_status(agent_type, new_status)
 
-        assert mock_agent_status.status == new_status
-        assert mock_db.commit.called
+            # Verify status was updated in database
+            session.refresh(agent_status)
+            assert agent_status.status == new_status
 
-    def test_get_agent_status(self, agent_coordinator, mock_db):
-        """Test getting agent status."""
+    @pytest.mark.real_data
+    def test_get_agent_status(self, db_manager):
+        """Test getting agent status with real database."""
         agent_type = "analyst"
         expected_status = AgentStatus.WORKING
 
-        # Mock agent status retrieval
-        mock_agent_status = Mock()
-        mock_agent_status.status = expected_status
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_agent_status
+        with db_manager.get_session() as session:
+            # Create real agent status record
+            from app.database.models import AgentStatusDB
+            agent_status = AgentStatusDB(
+                agent_type=agent_type,
+                status=expected_status
+            )
+            session.add(agent_status)
+            session.commit()
+            session.refresh(agent_status)
+            
+            db_manager.track_test_record('agent_statuses', str(agent_status.id))
 
-        result = agent_coordinator.get_agent_status(agent_type)
+            agent_coordinator = AgentCoordinator(session)
+            result = agent_coordinator.get_agent_status(agent_type)
 
-        assert result == expected_status
+            assert result == expected_status
 
 
 class TestWorkflowIntegrator:
     """Test cases for WorkflowIntegrator service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return Mock()
+    def db_manager(self):
+        """Real database manager for workflow integrator tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
-    @pytest.fixture
-    def mock_context_store(self):
-        """Mock context store service."""
-        service = Mock()
-        return service
+    @pytest.mark.real_data
+    def test_initialization(self, db_manager):
+        """Test WorkflowIntegrator initialization with real database."""
+        with db_manager.get_session() as session:
+            # Mock external context store service (external dependency)
+            with patch('app.services.orchestrator.workflow_integrator.ContextStoreService') as mock_ctx_store:
+                mock_context_store = Mock()
+                mock_ctx_store.return_value = mock_context_store
+                
+                integrator = WorkflowIntegrator(session)
+                
+                assert integrator is not None
+                assert integrator.db == session
+                assert hasattr(integrator, 'context_store')
 
-    @pytest.fixture
-    def workflow_integrator(self, mock_db, mock_context_store):
-        """Create WorkflowIntegrator instance."""
-        with patch('app.services.orchestrator.workflow_integrator.ContextStoreService') as mock_ctx_store:
-            mock_ctx_store.return_value = mock_context_store
-            integrator = WorkflowIntegrator(mock_db)
-            return integrator
+    @pytest.mark.external_service
+    def test_run_workflow(self, db_manager):
+        """Test workflow execution with real database and mocked external workflow engine."""
+        # Create real project
+        project = db_manager.create_test_project(name="Workflow Integration Test")
+        
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.workflow_integrator.ContextStoreService'):
+                integrator = WorkflowIntegrator(session)
+                
+                # Mock external workflow engine (external dependency)
+                integrator.workflow_engine = Mock()
+                mock_result = {"status": "completed", "artifacts": []}
+                integrator.workflow_engine.run_project_workflow = AsyncMock(return_value=mock_result)
 
-    def test_initialization(self, workflow_integrator, mock_db):
-        """Test WorkflowIntegrator initialization."""
-        assert workflow_integrator is not None
-        assert workflow_integrator.db == mock_db
-        assert hasattr(workflow_integrator, 'context_store')
+                # Test that the method exists and can be called
+                assert hasattr(integrator, 'run_workflow')
+                assert callable(integrator.run_workflow)
 
-    def test_run_workflow(self, workflow_integrator):
-        """Test workflow execution."""
-        project_id = uuid4()
-        workflow_type = "greenfield-fullstack"
-        user_idea = "Build a web application"
+    @pytest.mark.external_service
+    def test_pause_workflow(self, db_manager):
+        """Test workflow pausing with real database."""
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.workflow_integrator.ContextStoreService'):
+                integrator = WorkflowIntegrator(session)
+                
+                # Mock external workflow engine (external dependency)
+                integrator.workflow_engine = Mock()
+                integrator.workflow_engine.pause_workflow_execution = AsyncMock(return_value=True)
 
-        # Mock workflow execution
-        mock_result = {"status": "completed", "artifacts": []}
-        workflow_integrator.workflow_engine = Mock()
-        workflow_integrator.workflow_engine.run_project_workflow = AsyncMock(return_value=mock_result)
+                # Test that the method exists
+                assert hasattr(integrator, 'pause_workflow')
+                assert callable(integrator.pause_workflow)
 
-        # Note: This would need to be an async test in real implementation
-        # For now, we'll test the method exists and can be called
-        assert hasattr(workflow_integrator, 'run_workflow')
-
-    def test_pause_workflow(self, workflow_integrator):
-        """Test workflow pausing."""
-        execution_id = "test-execution"
-        reason = "HITL required"
-
-        workflow_integrator.workflow_engine = Mock()
-        workflow_integrator.workflow_engine.pause_workflow_execution = AsyncMock(return_value=True)
-
-        # Test that the method exists
-        assert hasattr(workflow_integrator, 'pause_workflow')
-
-    def test_resume_workflow(self, workflow_integrator):
-        """Test workflow resumption."""
-        execution_id = "test-execution"
+    @pytest.mark.external_service
+    def test_resume_workflow(self, db_manager):
+        """Test workflow resumption with real database."""
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.workflow_integrator.ContextStoreService'):
+                integrator = WorkflowIntegrator(session)
+                
+                # Test that the method exists
+                assert hasattr(integrator, 'resume_workflow')
 
         workflow_integrator.workflow_engine = Mock()
         workflow_integrator.workflow_engine.resume_workflow_execution = AsyncMock(return_value=True)
@@ -306,231 +352,333 @@ class TestHandoffManager:
     """Test cases for HandoffManager service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return Mock()
+    def db_manager(self):
+        """Real database manager for handoff manager tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
     @pytest.fixture
-    def handoff_manager(self, mock_db):
-        """Create HandoffManager instance."""
-        return HandoffManager(mock_db)
+    def handoff_manager(self, db_manager):
+        """Create HandoffManager instance with real database."""
+        with db_manager.get_session() as session:
+            return HandoffManager(session)
 
-    def test_initialization(self, handoff_manager, mock_db):
-        """Test HandoffManager initialization."""
-        assert handoff_manager is not None
-        assert handoff_manager.db == mock_db
+    @pytest.mark.real_data
+    def test_initialization(self, db_manager):
+        """Test HandoffManager initialization with real database."""
+        with db_manager.get_session() as session:
+            handoff_manager = HandoffManager(session)
+            assert handoff_manager is not None
+            assert handoff_manager.db == session
 
-    def test_create_handoff(self, handoff_manager, mock_db):
-        """Test handoff creation."""
-        from_agent = "analyst"
-        to_agent = "architect"
-        context_ids = ["ctx-1", "ctx-2"]
-        task_id = uuid4()
+    @pytest.mark.real_data
+    def test_create_handoff(self, db_manager):
+        """Test handoff creation with real database operations."""
+        # Create real project and task
+        project = db_manager.create_test_project(name="Handoff Test Project")
+        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
+        
+        with db_manager.get_session() as session:
+            handoff_manager = HandoffManager(session)
+            from_agent = "analyst"
+            to_agent = "architect"
+            context_ids = ["ctx-1", "ctx-2"]
 
-        # Mock database operations
-        mock_handoff = Mock()
-        mock_handoff.handoff_id = uuid4()
-        mock_handoff.from_agent = from_agent
-        mock_handoff.to_agent = to_agent
-        mock_handoff.context_ids = context_ids
-        mock_handoff.task_id = task_id
+            # Create handoff with real database operations
+            result = handoff_manager.create_handoff(
+                from_agent=from_agent,
+                to_agent=to_agent,
+                context_ids=context_ids,
+                task_id=task.id
+            )
 
-        mock_db.add.return_value = None
-        mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
+            assert result is not None
+            assert result.from_agent == from_agent
+            assert result.to_agent == to_agent
+            assert result.context_ids == context_ids
+            assert result.task_id == task.id
+            
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'handoffs',
+                    'conditions': {'from_agent': from_agent, 'to_agent': to_agent},
+                    'count': 1
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
-        # Set attributes after refresh
-        def refresh_side_effect(obj):
-            obj.handoff_id = uuid4()
-            obj.created_at = datetime.now(timezone.utc)
+    @pytest.mark.real_data
+    def test_get_pending_handoffs(self, db_manager):
+        """Test getting pending handoffs with real database."""
+        # Create real project and handoffs
+        project = db_manager.create_test_project(name="Pending Handoffs Test")
+        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
+        
+        with db_manager.get_session() as session:
+            handoff_manager = HandoffManager(session)
+            agent_type = "architect"
 
-        mock_db.refresh.side_effect = refresh_side_effect
+            # Create real handoff records
+            from app.database.models import HandoffDB
+            handoff1 = HandoffDB(
+                project_id=project.id,
+                task_id=task.id,
+                from_agent="analyst",
+                to_agent="architect",
+                context_ids=["ctx-1"],
+                status="pending"
+            )
+            handoff2 = HandoffDB(
+                project_id=project.id,
+                task_id=task.id,
+                from_agent="coder",
+                to_agent="architect",
+                context_ids=["ctx-2"],
+                status="pending"
+            )
+            session.add_all([handoff1, handoff2])
+            session.commit()
 
-        result = handoff_manager.create_handoff(
-            from_agent=from_agent,
-            to_agent=to_agent,
-            context_ids=context_ids,
-            task_id=task_id
-        )
+            result = handoff_manager.get_pending_handoffs(agent_type)
 
-        assert result is not None
-        assert result.from_agent == from_agent
-        assert result.to_agent == to_agent
-        assert result.context_ids == context_ids
-        assert result.task_id == task_id
-
-    def test_get_pending_handoffs(self, handoff_manager, mock_db):
-        """Test getting pending handoffs."""
-        agent_type = "architect"
-
-        # Mock handoff retrieval
-        mock_handoffs = [
-            Mock(from_agent="analyst", to_agent="architect", status="pending"),
-            Mock(from_agent="coder", to_agent="architect", status="pending")
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_handoffs
-
-        result = handoff_manager.get_pending_handoffs(agent_type)
-
-        assert len(result) == 2
-        assert all(h.to_agent == agent_type for h in result)
-        assert all(h.status == "pending" for h in result)
+            assert len(result) == 2
+            assert all(h.to_agent == agent_type for h in result)
+            assert all(h.status == "pending" for h in result)
+            
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'handoffs',
+                    'conditions': {'to_agent': agent_type, 'status': 'pending'},
+                    'count': 2
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
 
 class TestStatusTracker:
     """Test cases for StatusTracker service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return Mock()
+    def db_manager(self):
+        """Real database manager for status tracker tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
     @pytest.fixture
-    def status_tracker(self, mock_db):
-        """Create StatusTracker instance."""
-        return StatusTracker(mock_db)
+    def status_tracker(self, db_manager):
+        """Create StatusTracker instance with real database."""
+        with db_manager.get_session() as session:
+            return StatusTracker(session)
 
-    def test_initialization(self, status_tracker, mock_db):
-        """Test StatusTracker initialization."""
-        assert status_tracker is not None
-        assert status_tracker.db == mock_db
+    @pytest.mark.real_data
+    def test_initialization(self, db_manager):
+        """Test StatusTracker initialization with real database."""
+        with db_manager.get_session() as session:
+            status_tracker = StatusTracker(session)
+            assert status_tracker is not None
+            assert status_tracker.db == session
 
-    def test_get_project_status(self, status_tracker, mock_db):
-        """Test getting comprehensive project status."""
-        project_id = uuid4()
+    @pytest.mark.real_data
+    def test_get_project_status(self, db_manager):
+        """Test getting comprehensive project status with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Status Test Project")
+        
+        with db_manager.get_session() as session:
+            status_tracker = StatusTracker(session)
 
-        # Mock project retrieval
-        mock_project = Mock()
-        mock_project.current_phase = "design"
-        mock_project.status = "active"
-        mock_db.query.return_value.filter.return_value.first.return_value = mock_project
+            # Update project phase in real database
+            from app.database.models import ProjectDB
+            project_record = session.query(ProjectDB).filter(ProjectDB.id == project.id).first()
+            if project_record:
+                project_record.current_phase = "design"
+                project_record.status = "active"
+                session.commit()
 
-        # Mock task retrieval
-        mock_tasks = [
-            Mock(status=TaskStatus.COMPLETED),
-            Mock(status=TaskStatus.WORKING),
-            Mock(status=TaskStatus.PENDING)
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_tasks
+            # Create real tasks with different statuses
+            task1 = db_manager.create_test_task(project_id=project.id, agent_type="analyst", status="completed")
+            task2 = db_manager.create_test_task(project_id=project.id, agent_type="architect", status="working")
+            task3 = db_manager.create_test_task(project_id=project.id, agent_type="coder", status="pending")
 
-        result = status_tracker.get_project_status(project_id)
+            result = status_tracker.get_project_status(project.id)
 
-        assert result is not None
-        assert "phase" in result
-        assert "completion_percentage" in result
-        assert "total_tasks" in result
-        assert "completed_tasks" in result
-        assert "in_progress_tasks" in result
-        assert "pending_tasks" in result
+            assert result is not None
+            assert "phase" in result
+            assert "completion_percentage" in result
+            assert "total_tasks" in result
+            assert "completed_tasks" in result
+            assert "in_progress_tasks" in result
+            assert "pending_tasks" in result
+            
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'tasks',
+                    'conditions': {'project_id': str(project.id)},
+                    'count': 3
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
-    def test_get_phase_progress(self, status_tracker, mock_db):
-        """Test getting phase progress."""
-        project_id = uuid4()
-        phase = "design"
+    @pytest.mark.real_data
+    def test_get_phase_progress(self, db_manager):
+        """Test getting phase progress with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Phase Progress Test")
+        
+        with db_manager.get_session() as session:
+            status_tracker = StatusTracker(session)
+            phase = "design"
 
-        # Mock task retrieval for phase
-        mock_tasks = [
-            Mock(status=TaskStatus.COMPLETED),
-            Mock(status=TaskStatus.COMPLETED),
-            Mock(status=TaskStatus.WORKING)
-        ]
-        mock_db.query.return_value.filter.return_value.all.return_value = mock_tasks
+            # Create real tasks for the phase
+            task1 = db_manager.create_test_task(project_id=project.id, agent_type="analyst", status="completed", phase=phase)
+            task2 = db_manager.create_test_task(project_id=project.id, agent_type="architect", status="completed", phase=phase)
+            task3 = db_manager.create_test_task(project_id=project.id, agent_type="coder", status="working", phase=phase)
 
-        result = status_tracker.get_phase_progress(project_id, phase)
+            result = status_tracker.get_phase_progress(project.id, phase)
 
-        assert result is not None
-        assert "phase" in result
-        assert "completion_percentage" in result
-        assert "total_tasks" in result
-        assert "completed_tasks" in result
+            assert result is not None
+            assert "phase" in result
+            assert "completion_percentage" in result
+            assert "total_tasks" in result
+            assert "completed_tasks" in result
+            
+            # Verify database state
+            db_checks = [
+                {
+                    'table': 'tasks',
+                    'conditions': {'project_id': str(project.id), 'phase': phase},
+                    'count': 3
+                }
+            ]
+            assert db_manager.verify_database_state(db_checks)
 
 
 class TestContextManager:
     """Test cases for ContextManager service."""
 
     @pytest.fixture
-    def mock_db(self):
-        """Mock database session."""
-        return Mock()
+    def db_manager(self):
+        """Real database manager for context manager tests."""
+        manager = DatabaseTestManager(use_memory_db=True)
+        manager.setup_test_database()
+        yield manager
+        manager.cleanup_test_database()
 
     @pytest.fixture
     def mock_context_store(self):
-        """Mock context store service."""
+        """Mock context store service (external dependency)."""
         service = Mock()
         return service
 
     @pytest.fixture
-    def context_manager(self, mock_db, mock_context_store):
-        """Create ContextManager instance."""
-        with patch('app.services.orchestrator.context_manager.ContextStoreService') as mock_ctx_store:
-            mock_ctx_store.return_value = mock_context_store
-            manager = ContextManager(mock_db)
-            return manager
+    def context_manager(self, db_manager, mock_context_store):
+        """Create ContextManager instance with real database."""
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.context_manager.ContextStoreService') as mock_ctx_store:
+                mock_ctx_store.return_value = mock_context_store
+                manager = ContextManager(session)
+                return manager
 
-    def test_initialization(self, context_manager, mock_db):
-        """Test ContextManager initialization."""
-        assert context_manager is not None
-        assert context_manager.db == mock_db
-        assert hasattr(context_manager, 'context_store')
+    @pytest.mark.external_service
+    def test_initialization(self, db_manager):
+        """Test ContextManager initialization with real database."""
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.context_manager.ContextStoreService') as mock_ctx_store:
+                mock_context_store = Mock()
+                mock_ctx_store.return_value = mock_context_store
+                
+                context_manager = ContextManager(session)
+                assert context_manager is not None
+                assert context_manager.db == session
+                assert hasattr(context_manager, 'context_store')
 
-    def test_get_integrated_context(self, context_manager):
-        """Test getting integrated context."""
-        project_id = uuid4()
+    @pytest.mark.external_service
+    def test_get_integrated_context(self, db_manager, mock_context_store):
+        """Test getting integrated context with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Context Integration Test")
+        
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.context_manager.ContextStoreService') as mock_ctx_store:
+                mock_ctx_store.return_value = mock_context_store
+                context_manager = ContextManager(session)
 
-        # Mock context artifacts
-        mock_artifacts = [
-            Mock(artifact_type=ArtifactType.USER_INPUT, content={"user_idea": "Build app"}),
-            Mock(artifact_type=ArtifactType.REQUIREMENTS, content={"requirements": "Reqs here"})
-        ]
-        context_manager.context_store.get_artifacts_by_project.return_value = mock_artifacts
+                # Mock external context store (external dependency)
+                mock_artifacts = [
+                    Mock(artifact_type=ArtifactType.USER_INPUT, content={"user_idea": "Build app"}),
+                    Mock(artifact_type=ArtifactType.REQUIREMENTS, content={"requirements": "Reqs here"})
+                ]
+                mock_context_store.get_artifacts_by_project.return_value = mock_artifacts
 
-        result = context_manager.get_integrated_context(project_id)
+                result = context_manager.get_integrated_context(project.id)
 
-        assert result is not None
-        assert "artifacts" in result
-        assert "summary" in result
-        assert "context_ids" in result
+                assert result is not None
+                assert "artifacts" in result
+                assert "summary" in result
+                assert "context_ids" in result
 
-    def test_create_context_artifact(self, context_manager):
-        """Test creating context artifacts."""
-        project_id = uuid4()
-        source_agent = "analyst"
-        artifact_type = ArtifactType.REQUIREMENTS
-        content = {"requirements": "Detailed requirements"}
+    @pytest.mark.external_service
+    def test_create_context_artifact(self, db_manager, mock_context_store):
+        """Test creating context artifacts with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Context Artifact Test")
+        
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.context_manager.ContextStoreService') as mock_ctx_store:
+                mock_ctx_store.return_value = mock_context_store
+                context_manager = ContextManager(session)
 
-        # Mock artifact creation
-        mock_artifact = Mock()
-        mock_artifact.context_id = uuid4()
-        context_manager.context_store.create_artifact.return_value = mock_artifact
+                source_agent = "analyst"
+                artifact_type = ArtifactType.REQUIREMENTS
+                content = {"requirements": "Detailed requirements"}
 
-        result = context_manager.create_context_artifact(
-            project_id=project_id,
-            source_agent=source_agent,
-            artifact_type=artifact_type,
-            content=content
-        )
+                # Mock external context store artifact creation
+                mock_artifact = Mock()
+                mock_artifact.context_id = uuid4()
+                mock_context_store.create_artifact.return_value = mock_artifact
 
-        assert result == mock_artifact
-        context_manager.context_store.create_artifact.assert_called_once()
+                result = context_manager.create_context_artifact(
+                    project_id=project.id,
+                    source_agent=source_agent,
+                    artifact_type=artifact_type,
+                    content=content
+                )
 
-    def test_get_context_granularity_report(self, context_manager):
-        """Test context granularity reporting."""
-        project_id = uuid4()
+                assert result == mock_artifact
+                mock_context_store.create_artifact.assert_called_once()
 
-        # Mock artifacts with different granularities
-        mock_artifacts = [
-            Mock(artifact_type=ArtifactType.USER_INPUT, content={"size": "small"}),
-            Mock(artifact_type=ArtifactType.REQUIREMENTS, content={"size": "large"}),
-            Mock(artifact_type=ArtifactType.ARCHITECTURE, content={"size": "medium"})
-        ]
-        context_manager.context_store.get_artifacts_by_project.return_value = mock_artifacts
+    @pytest.mark.external_service
+    def test_get_context_granularity_report(self, db_manager, mock_context_store):
+        """Test context granularity reporting with real database."""
+        # Create real project
+        project = db_manager.create_test_project(name="Context Granularity Test")
+        
+        with db_manager.get_session() as session:
+            with patch('app.services.orchestrator.context_manager.ContextStoreService') as mock_ctx_store:
+                mock_ctx_store.return_value = mock_context_store
+                context_manager = ContextManager(session)
 
-        result = context_manager.get_context_granularity_report(project_id)
+                # Mock external context store artifacts
+                mock_artifacts = [
+                    Mock(artifact_type=ArtifactType.USER_INPUT, content={"size": "small"}),
+                    Mock(artifact_type=ArtifactType.REQUIREMENTS, content={"size": "large"}),
+                    Mock(artifact_type=ArtifactType.ARCHITECTURE, content={"size": "medium"})
+                ]
+                mock_context_store.get_artifacts_by_project.return_value = mock_artifacts
 
-        assert result is not None
-        assert "total_artifacts" in result
-        assert "granularity_distribution" in result
-        assert "average_size" in result
+                result = context_manager.get_context_granularity_report(project.id)
+
+                assert result is not None
+                assert "total_artifacts" in result
+                assert "granularity_distribution" in result
+                assert "average_size" in result
 
 
 class TestServiceIntegration:

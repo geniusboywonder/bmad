@@ -291,56 +291,71 @@ Always respond with structured JSON containing:
         instruction_templates = {
             AgentType.ANALYST: f"""As the Analyst, your task is to conduct comprehensive requirements analysis for the {phase} phase.
 
+CRITICAL: Your FIRST task MUST be to create an Implementation Plan using the analyst-implementation-plan template. This is mandatory before any requirements analysis begins.
+
 Based on the provided context, please:
-1. Analyze user requirements and business objectives
-2. Create detailed user personas and use cases
-3. Define functional and non-functional requirements
-4. Identify stakeholder needs and constraints
-5. Generate a comprehensive Product Requirements Document (PRD)
+1. **FIRST**: Create comprehensive Implementation Plan for requirements analysis phase
+2. Analyze user requirements and business objectives
+3. Create detailed user personas and use cases
+4. Define functional and non-functional requirements
+5. Identify stakeholder needs and constraints
+6. Generate a comprehensive Product Requirements Document (PRD)
 
 Focus on gathering complete information to minimize rework in later phases.""",
             
             AgentType.ARCHITECT: f"""As the Architect, your task is to design the technical solution for the {phase} phase.
 
+CRITICAL: Your FIRST task MUST be to create an Implementation Plan using the architect-implementation-plan template. This is mandatory before any architecture work begins.
+
 Based on the requirements analysis, please:
-1. Design system architecture and technical specifications
-2. Create detailed API specifications and data models
-3. Define technology stack and architectural decisions
-4. Identify technical risks and mitigation strategies
-5. Generate implementation plan with clear task breakdown
+1. **FIRST**: Create comprehensive Implementation Plan for architecture and design phase
+2. Design system architecture and technical specifications
+3. Create detailed API specifications and data models
+4. Define technology stack and architectural decisions
+5. Identify technical risks and mitigation strategies
+6. Generate detailed technical specifications with clear deliverables
 
 Ensure your design supports scalability and maintainability.""",
             
             AgentType.CODER: f"""As the Developer, your task is to implement the solution for the {phase} phase.
 
+CRITICAL: Your FIRST task MUST be to create an Implementation Plan using the coder-implementation-plan template. This is mandatory before any code development begins.
+
 Based on the architectural specifications, please:
-1. Generate production-ready code following best practices
-2. Implement all features according to specifications
-3. Include comprehensive error handling and validation
-4. Write unit tests for all generated code
-5. Ensure code follows project standards and conventions
+1. **FIRST**: Create comprehensive Implementation Plan for development and coding phase
+2. Generate production-ready code following best practices
+3. Implement all features according to specifications
+4. Include comprehensive error handling and validation
+5. Write unit tests for all generated code
+6. Ensure code follows project standards and conventions
 
 Focus on clean, maintainable, and well-documented code.""",
             
             AgentType.TESTER: f"""As the Tester, your task is to validate the implementation for the {phase} phase.
 
+CRITICAL: Your FIRST task MUST be to create an Implementation Plan using the tester-implementation-plan template. This is mandatory before any testing begins.
+
 Based on the code and requirements, please:
-1. Create comprehensive test plans covering all scenarios
-2. Execute functional and integration testing
-3. Validate against original requirements and specifications
-4. Identify and document any bugs or issues
-5. Verify code quality and performance characteristics
+1. **FIRST**: Create comprehensive Implementation Plan for testing and quality assurance phase
+2. Create comprehensive test plans covering all scenarios
+3. Execute functional and integration testing
+4. Validate against original requirements and specifications
+5. Identify and document any bugs or issues
+6. Verify code quality and performance characteristics
 
 Ensure thorough testing coverage and quality validation.""",
             
             AgentType.DEPLOYER: f"""As the Deployer, your task is to handle deployment for the {phase} phase.
 
+CRITICAL: Your FIRST task MUST be to create an Implementation Plan using the deployer-implementation-plan template. This is mandatory before any deployment work begins.
+
 Based on the tested code, please:
-1. Create deployment strategy and configurations
-2. Set up CI/CD pipelines and infrastructure
-3. Deploy application to target environment
-4. Perform post-deployment validation and health checks
-5. Create monitoring and maintenance procedures
+1. **FIRST**: Create comprehensive Implementation Plan for deployment and launch phase
+2. Create deployment strategy and configurations
+3. Set up CI/CD pipelines and infrastructure
+4. Deploy application to target environment
+5. Perform post-deployment validation and health checks
+6. Create monitoring and maintenance procedures
 
 Ensure secure, reliable deployment with proper monitoring."""
         }

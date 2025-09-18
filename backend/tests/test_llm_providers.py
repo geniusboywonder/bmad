@@ -368,24 +368,36 @@ class TestProviderFactory:
             }
         }
 
+    @pytest.mark.real_data
     def test_provider_creation(self, provider_configs):
-        """Test provider factory creates correct provider instances."""
+        """Test provider factory creates real provider instances."""
+        # Use real ProviderFactory service
         factory = ProviderFactory()
 
-        # Test OpenAI provider creation
-        with patch('backend.app.services.llm_providers.openai_provider.OpenAIProvider'):
+        # Test OpenAI provider creation with real service
+        # Only mock external API calls, not the service itself
+        with patch('openai.OpenAI') as mock_openai_client:
             openai_provider = factory.create_provider("openai", provider_configs["openai"])
             assert openai_provider is not None
+            # Verify it's a real provider instance
+            assert isinstance(openai_provider, OpenAIProvider)
+            assert hasattr(openai_provider, 'generate_text')
 
-        # Test Anthropic provider creation
-        with patch('backend.app.services.llm_providers.anthropic_provider.AnthropicProvider'):
+        # Test Anthropic provider creation with real service
+        with patch('anthropic.Anthropic') as mock_anthropic_client:
             anthropic_provider = factory.create_provider("anthropic", provider_configs["anthropic"])
             assert anthropic_provider is not None
+            # Verify it's a real provider instance
+            assert isinstance(anthropic_provider, AnthropicProvider)
+            assert hasattr(anthropic_provider, 'generate_text')
 
-        # Test Gemini provider creation
-        with patch('backend.app.services.llm_providers.gemini_provider.GeminiProvider'):
+        # Test Gemini provider creation with real service
+        with patch('google.generativeai') as mock_gemini_client:
             gemini_provider = factory.create_provider("gemini", provider_configs["gemini"])
             assert gemini_provider is not None
+            # Verify it's a real provider instance
+            assert isinstance(gemini_provider, GeminiProvider)
+            assert hasattr(gemini_provider, 'generate_text')
 
     def test_invalid_provider_type(self, provider_configs):
         """Test factory handles invalid provider types."""
@@ -572,20 +584,30 @@ class TestMultiProviderIntegration:
     """Integration tests for multi-provider setup."""
 
     @pytest.mark.asyncio
+    @pytest.mark.external_service
     async def test_provider_failover(self):
-        """Test automatic failover between providers."""
-        # Simulate primary provider failure
-        with patch('backend.app.services.llm_providers.openai_provider.OpenAIProvider') as mock_openai:
-            with patch('backend.app.services.llm_providers.anthropic_provider.AnthropicProvider') as mock_anthropic:
-
-                # Make OpenAI fail
-                mock_openai.side_effect = Exception("OpenAI API down")
-
-                # Make Anthropic succeed
-                mock_anthropic_instance = Mock()
-                mock_anthropic_instance.generate_text.return_value = {
-                    "text": "Anthropic response",
-                    "usage": {"total_tokens": 100}
+        """Test automatic failover between providers using real services."""
+        # Use real provider services, mock only external API calls
+        factory = ProviderFactory()
+        
+        # Create real provider instances
+        openai_config = {"api_key": "test-key", "model": "gpt-3.5-turbo"}
+        anthropic_config = {"api_key": "test-key", "model": "claude-3-sonnet-20240229"}
+        
+        with patch('openai.OpenAI') as mock_openai_client:
+            with patch('anthropic.Anthropic') as mock_anthropic_client:
+                
+                # Create real provider instances
+                openai_provider = factory.create_provider("openai", openai_config)
+                anthropic_provider = factory.create_provider("anthropic", anthropic_config)
+                
+                # Mock external API calls to simulate failure/success
+                mock_openai_client.return_value.chat.completions.create.side_effect = Exception("OpenAI API down")
+                
+                mock_anthropic_response = Mock()
+                mock_anthropic_response.content = [Mock(text="Anthropic response")]
+                mock_anthropic_response.usage = Mock(input_tokens=10, output_tokens=5)
+                mock_anthropic_client.return_value.messages.create.return_value = mock_anthropic_response
                 }
                 mock_anthropic.return_value = mock_anthropic_instance
 

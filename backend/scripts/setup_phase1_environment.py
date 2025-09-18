@@ -102,7 +102,7 @@ class Phase1EnvironmentSetup:
 
         # Add database configuration
         db_config = [
-            "DATABASE_URL=postgresql://bmad_user:bmad_password@localhost:5432/bmad_db",
+            f"DATABASE_URL=postgresql://{os.getenv('DB_USER', 'your_user')}:{os.getenv('DB_PASSWORD', 'your_password')}@localhost:5432/bmad_db",
             "DATABASE_POOL_SIZE=10",
             "DATABASE_MAX_OVERFLOW=20",
             "DATABASE_POOL_TIMEOUT=30"
@@ -274,7 +274,7 @@ class Phase1EnvironmentSetup:
         """Set up BMAD core directory structure."""
         self.log("Setting up BMAD core directory structure...")
 
-        bmad_core_dir = Path(".bmad-core")
+        bmad_core_dir = Path("backend/app")
         if not bmad_core_dir.exists():
             bmad_core_dir.mkdir(parents=True)
 
@@ -485,7 +485,7 @@ class Phase1EnvironmentSetup:
         # Check file structure
         required_files = [
             ".env",
-            ".bmad-core/core-config.yaml",
+            "backend/app/config/core-config.yaml",
             "backend/alembic.ini"
         ]
 

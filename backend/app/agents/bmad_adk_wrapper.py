@@ -16,6 +16,7 @@ try:
     from app.services.hitl_safety_service import HITLSafetyService
     from app.services.llm_monitoring import LLMUsageTracker
     from app.services.audit_trail_service import AuditTrailService
+    from app.services.context_store import ContextStoreService
     from app.config import settings
     BMAD_SERVICES_AVAILABLE = True
 except ImportError:
@@ -35,6 +36,11 @@ except ImportError:
         def __init__(self):
             self.log_agent_execution_start = AsyncMock()
             self.log_agent_execution_complete = AsyncMock()
+            
+    class MockContextStoreService:
+        def __init__(self):
+            self.get_artifacts_by_project = AsyncMock(return_value=[])
+            self.create_artifact = AsyncMock(return_value=None)
 
     class MockSettings:
         enable_hitl_for_agents = False
@@ -43,6 +49,7 @@ except ImportError:
     HITLSafetyService = MockHITLSafetyService
     LLMUsageTracker = MockLLMUsageTracker
     AuditTrailService = MockAuditTrailService
+    ContextStoreService = MockContextStoreService
     settings = MockSettings()
     BMAD_SERVICES_AVAILABLE = False
 
@@ -57,7 +64,8 @@ class BMADADKWrapper:
                  agent_type: str = "general",
                  model: str = "gemini-2.0-flash",
                  instruction: str = "You are a helpful assistant.",
-                 tools: Optional[List[FunctionTool]] = None):
+                 tools: Optional[List[FunctionTool]] = None,
+                 context_store: Optional[ContextStoreService] = None):
         self.agent_name = agent_name
         self.agent_type = agent_type
         self.model = model
@@ -73,6 +81,7 @@ class BMADADKWrapper:
         self.hitl_service = HITLSafetyService()
         self.usage_tracker = LLMUsageTracker(enable_tracking=settings.llm_enable_usage_tracking)
         self.audit_service = AuditTrailService()
+        self.context_store = context_store or ContextStoreService()
 
         # State tracking
         self.is_initialized = False
@@ -160,10 +169,13 @@ class BMADADKWrapper:
                 user_id=user_id,
                 input_message=message
             )
+            
+            # Fetch context
+            context = await self.context_store.get_artifacts_by_project(project_id)
 
             # 3. Execute ADK Agent
             start_time = datetime.now()
-            adk_result = await self._execute_adk_agent(message, execution_id)
+            adk_result = await self._execute_adk_agent(message, execution_id, context)
             end_time = datetime.now()
             execution_time = (end_time - start_time).total_seconds()
 
@@ -268,7 +280,7 @@ class BMADADKWrapper:
                 "agent_name": self.agent_name
             }
 
-    async def _execute_adk_agent(self, message: str, execution_id: str) -> Dict[str, Any]:
+    async def _execute_adk_agent(self, message: str, execution_id: str, context: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Execute the ADK agent with proper session management."""
         try:
             # Create a session for this conversation
@@ -278,11 +290,20 @@ class BMADADKWrapper:
                 user_id="bmad_user",
                 session_id=session_id
             )
+            
+            # Prepare context message
+            context_message = ""
+            if context:
+                context_message = "Context:\n"
+                for artifact in context:
+                    context_message += f"- {artifact.artifact_type}: {artifact.content}\n"
+            
+            full_message = f"{context_message}\n{message}"
 
             # Create user message content
             content = types.Content(
                 role='user',
-                parts=[types.Part(text=message)]
+                parts=[types.Part(text=full_message)]
             )
 
             # Execute with ADK runner

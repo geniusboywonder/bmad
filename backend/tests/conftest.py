@@ -696,8 +696,9 @@ pytestmark = [
 
 def pytest_configure(config):
     """Configure custom pytest markers."""
+    # Original markers
     config.addinivalue_line("markers", "unit: Unit tests")
-    config.addinivalue_line("markers", "integration: Integration tests") 
+    config.addinivalue_line("markers", "integration: Integration tests")
     config.addinivalue_line("markers", "e2e: End-to-end tests")
     config.addinivalue_line("markers", "p0: Priority 0 - Critical tests")
     config.addinivalue_line("markers", "p1: Priority 1 - Important tests")
@@ -712,3 +713,67 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "hitl: Human-in-the-loop tests")
     config.addinivalue_line("markers", "workflow: Full workflow tests")
     config.addinivalue_line("markers", "sdlc: SDLC process flow tests")
+
+    # NEW: Data source classification markers (REQUIRED for all tests)
+    config.addinivalue_line("markers", "mock_data: Test uses mock data and may hide database/schema issues")
+    config.addinivalue_line("markers", "real_data: Test uses real database operations and catches actual issues")
+    config.addinivalue_line("markers", "api_integration: Test verifies complete API → Database flow")
+    config.addinivalue_line("markers", "database_schema: Test validates database schema consistency")
+    config.addinivalue_line("markers", "external_service: Test mocks external services (APIs, file system, etc.)")
+
+
+def pytest_runtest_setup(item):
+    """
+    Validate test classification before running.
+
+    ALL TESTS MUST indicate if they use mock or real data.
+    """
+    # Get all markers for this test
+    markers = [marker.name for marker in item.iter_markers()]
+
+    # Check if test has proper data source classification
+    has_mock_marker = "mock_data" in markers
+    has_real_marker = "real_data" in markers
+
+    # REQUIREMENT: Tests must have exactly one data classification marker
+    if not (has_mock_marker or has_real_marker):
+        pytest.fail(
+            f"\n❌ MISSING CLASSIFICATION: Test {item.nodeid} must be marked with either:\n"
+            f"   @pytest.mark.mock_data    (for tests using mocks)\n"
+            f"   @pytest.mark.real_data    (for tests using real database)\n"
+            f"\n📋 This is REQUIRED to track which tests may hide database issues."
+        )
+
+    if has_mock_marker and has_real_marker:
+        pytest.fail(
+            f"\n❌ CONFLICTING MARKERS: Test {item.nodeid} cannot have both mock_data and real_data markers.\n"
+            f"   Choose the marker that matches the primary data source."
+        )
+
+
+def pytest_runtest_call(item):
+    """Display test classification during execution."""
+    markers = [marker.name for marker in item.iter_markers()]
+
+    # Print clear classification info during test execution
+    if "mock_data" in markers:
+        print(f"\n🎭 MOCK DATA TEST: {item.name}")
+        print("   ⚠️  Warning: Using mocked data - may hide real database schema issues")
+        if "database_schema" in markers:
+            print("   🚨 CRITICAL: Mock test claiming to validate database schema!")
+    elif "real_data" in markers:
+        print(f"\n💾 REAL DATA TEST: {item.name}")
+        print("   ✅ Using real database operations - validates actual schema and constraints")
+        if "api_integration" in markers:
+            print("   🔄 Verifying complete API → Database flow")
+
+
+def pytest_runtest_teardown(item, nextitem):
+    """Log test results with data classification."""
+    markers = [marker.name for marker in item.iter_markers()]
+
+    # Log completion status
+    if "mock_data" in markers:
+        print("   🎭 Mock test completed")
+    elif "real_data" in markers:
+        print("   💾 Real database test completed")

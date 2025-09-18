@@ -1,0 +1,106 @@
+{
+  "test_metadata": {
+    "start_time": "2025-09-18T10:32:19.336173+00:00",
+    "test_categories": [
+      "llm_providers",
+      "autogen_framework",
+      "google_adk",
+      "external_apis",
+      "monitoring_services"
+    ],
+    "total_services": 17
+  },
+  "results": {
+    "llm_providers": {
+      "openai": {
+        "status": "import_error",
+        "error": "No module named 'app'"
+      },
+      "anthropic": {
+        "status": "import_error",
+        "error": "No module named 'app'"
+      },
+      "google_gemini": {
+        "status": "error",
+        "error": "No module named 'app'"
+      }
+    },
+    "autogen_framework": {
+      "autogen_core": {
+        "status": "import_error",
+        "error": "No module named 'autogen_core.agents'"
+      },
+      "autogen_ext": {
+        "status": "healthy",
+        "test_type": "import_success",
+        "message": "AutoGen extensions available"
+      },
+      "group_chat": {
+        "status": "error",
+        "error": "No module named 'app'"
+      },
+      "conversable_agents": {
+        "status": "error",
+        "error": "No module named 'app'"
+      }
+    },
+    "google_adk": {
+      "adk_core": {
+        "status": "import_error",
+        "error": "No module named 'google.adk.core'"
+      },
+      "adk_tools": {
+        "status": "import_error",
+        "error": "No module named 'app'"
+      },
+      "adk_wrapper": {
+        "status": "import_error",
+        "error": "No module named 'app'"
+      },
+      "adk_evaluation": {
+        "status": "not_implemented",
+        "test_type": "evaluation_check",
+        "message": "ADK evaluation needs implementation"
+      }
+    },
+    "external_apis": {
+      "websocket_connections": {
+        "status": "error",
+        "error": "No module named 'app'"
+      },
+      "redis_celery": {
+        "status": "error",
+        "error": "No module named 'app'"
+      },
+      "external_webhooks": {
+        "status": "not_implemented",
+        "test_type": "webhook_check",
+        "message": "External webhook testing needs implementation"
+      }
+    },
+    "monitoring_services": {
+      "structlog": {
+        "status": "healthy",
+        "test_type": "logging",
+        "message": "Structured logging operational"
+      },
+      "health_endpoints": {
+        "status": "error",
+        "error": "No module named 'app'"
+      },
+      "prometheus_metrics": {
+        "status": "not_implemented",
+        "test_type": "metrics_collection",
+        "message": "Prometheus metrics need implementation"
+      }
+    }
+  },
+  "summary": {
+    "total_services": 17,
+    "healthy_services": 2,
+    "error_services": 12,
+    "not_configured": 3,
+    "health_percentage": 11.76,
+    "completion_time": "2025-09-18T10:32:25.570023+00:00"
+  }
+}

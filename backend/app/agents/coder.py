@@ -565,8 +565,8 @@ CREATE INDEX idx_tasks_status ON tasks(status);
                 "psycopg2-binary>=2.9.7"
             ],
             "environment_variables": [
-                "DATABASE_URL=postgresql://user:pass@localhost/dbname",
-                "SECRET_KEY=your-secret-key-here",
+                "DATABASE_URL=postgresql://[username]:[password]@[host]/[database]",
+                "SECRET_KEY=[your-secret-key]",
                 "DEBUG=false"
             ],
             "code_metrics": {

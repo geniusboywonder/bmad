@@ -33,6 +33,7 @@ class TaskCreateRequest(BaseModel):
     agent_type: str
     instructions: str
     context_ids: List[UUID] = []
+    estimated_tokens: int = 100
 
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -94,13 +95,27 @@ async def create_task(
         context_ids=request.context_ids
     )
     
-    # Submit task to queue
-    celery_task_id = orchestrator.submit_task(task)
+    # Submit task to queue with estimated tokens
+    task_data = {
+        "task_id": str(task.task_id),
+        "project_id": str(task.project_id),
+        "agent_type": task.agent_type,
+        "instructions": task.instructions,
+        "context_ids": [str(cid) for cid in task.context_ids],
+        "estimated_tokens": request.estimated_tokens
+    }
+    
+    from app.tasks.agent_tasks import process_agent_task
+    celery_task = process_agent_task.delay(task_data)
+    celery_task_id = celery_task.id
     
     return {
         "task_id": task.task_id,
         "celery_task_id": celery_task_id,
-        "status": "submitted"
+        "status": "submitted",
+        "hitl_required": True,
+        "estimated_tokens": request.estimated_tokens,
+        "message": "Task created but requires HITL approval before execution"
     }
 
 

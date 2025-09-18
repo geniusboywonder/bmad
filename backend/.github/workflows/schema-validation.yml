@@ -1,0 +1,66 @@
+name: Database Schema Validation
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'alembic/versions/**'
+      - 'app/database/models.py'
+      - 'app/models/**'
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - 'alembic/versions/**'
+      - 'app/database/models.py'
+      - 'app/models/**'
+
+jobs:
+  schema-validation:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
+          POSTGRES_DB: bmad_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Set environment variables
+      run: |
+        echo "DATABASE_URL=postgresql://postgres:password@localhost:5432/bmad_test" >> $GITHUB_ENV
+
+    - name: Run Alembic migrations
+      run: |
+        cd backend
+        alembic upgrade head
+
+    - name: Validate database schema
+      run: |
+        cd backend
+        python scripts/validate_database_schema.py --fail-on-errors
+
+    - name: Run schema integration tests
+      run: |
+        cd backend
+        python -m pytest tests/integration/test_database_schema_validation.py -v --tb=short

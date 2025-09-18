@@ -39,7 +39,7 @@ services:
     environment:
       POSTGRES_DB: bmad_prod_db
       POSTGRES_USER: bmad_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bmad_password}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
       - "5432:5432"
@@ -104,7 +104,7 @@ services:
     restart: unless-stopped
     environment:
       - APP_ENVIRONMENT=production
-      - DATABASE_URL=postgresql+psycopg://bmad_user:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/bmad_prod_db?sslmode=disable&pool_pre_ping=true&pool_recycle=300
+      - DATABASE_URL=postgresql+psycopg://bmad_user:${POSTGRES_PASSWORD:-bmad_password}@postgres:5432/bmad_prod_db?sslmode=disable&pool_pre_ping=true&pool_recycle=300
       - REDIS_URL=redis://redis:6379/0
       - REDIS_CELERY_URL=redis://redis:6379/1
       - REDIS_CACHE_URL=redis://redis:6379/2
@@ -161,7 +161,7 @@ services:
     restart: unless-stopped
     environment:
       - APP_ENVIRONMENT=production
-      - DATABASE_URL=postgresql+psycopg://bmad_user:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/bmad_prod_db?sslmode=disable&pool_pre_ping=true&pool_recycle=300
+      - DATABASE_URL=postgresql+psycopg://bmad_user:${POSTGRES_PASSWORD:-bmad_password}@postgres:5432/bmad_prod_db?sslmode=disable&pool_pre_ping=true&pool_recycle=300
       - REDIS_URL=redis://redis:6379/0
       - REDIS_CELERY_URL=redis://redis:6379/1
       - CELERY_WORKER_CONCURRENCY=4
@@ -200,7 +200,7 @@ services:
     restart: unless-stopped
     environment:
       - APP_ENVIRONMENT=production
-      - DATABASE_URL=postgresql+psycopg://bmad_user:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/bmad_prod_db?sslmode=disable&pool_pre_ping=true&pool_recycle=300
+      - DATABASE_URL=postgresql+psycopg://bmad_user:${POSTGRES_PASSWORD:-bmad_password}@postgres:5432/bmad_prod_db?sslmode=disable&pool_pre_ping=true&pool_recycle=300
       - REDIS_CELERY_URL=redis://redis:6379/1
       - DEBUG=false
       - LOG_LEVEL=INFO
@@ -364,7 +364,7 @@ services:
     container_name: bmad-backup
     restart: "no"  # Run on schedule, not continuously
     environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bmad_password}
     volumes:
       - backups_data:/backups
     networks:

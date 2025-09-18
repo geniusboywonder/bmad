@@ -1,6 +1,6 @@
 """Manager for AutoGen group chats."""
 from typing import List, Dict, Any
-from autogen import GroupChat, GroupChatManager, ConversableAgent
+from autogen.agentchat import GroupChat, GroupChatManager, ConversableAgent
 import structlog
 
 logger = structlog.get_logger(__name__)
