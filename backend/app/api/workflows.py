@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from ..services.template_service import TemplateService
 from ..services.workflow_service import WorkflowService
@@ -36,10 +36,11 @@ class TemplateRenderRequest(BaseModel):
     variables: Dict[str, Any] = Field(..., description="Variable values for substitution")
     output_format: Optional[str] = Field(None, description="Desired output format")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             dict: lambda v: v
         }
+    )
 
 
 class WorkflowExecutionRequest(BaseModel):
@@ -48,10 +49,11 @@ class WorkflowExecutionRequest(BaseModel):
     project_id: str = Field(..., description="ID of the project")
     context_data: Optional[Dict[str, Any]] = Field(None, description="Additional context data")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             dict: lambda v: v
         }
+    )
 
 
 class WorkflowAdvanceRequest(BaseModel):
@@ -61,10 +63,11 @@ class WorkflowAdvanceRequest(BaseModel):
     result: Optional[Dict[str, Any]] = Field(None, description="Result data from agent")
     error_message: Optional[str] = Field(None, description="Error message if failed")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             dict: lambda v: v
         }
+    )
 
 
 class HandoffGenerationRequest(BaseModel):
@@ -74,10 +77,11 @@ class HandoffGenerationRequest(BaseModel):
     to_agent: str = Field(..., description="Agent receiving handoff")
     context_data: Optional[Dict[str, Any]] = Field(None, description="Additional context")
 
-    class Config:
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             dict: lambda v: v
         }
+    )
 
 
 # API Endpoints

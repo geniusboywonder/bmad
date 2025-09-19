@@ -1,7 +1,7 @@
 """Handoff schema models for agent-to-agent communication."""
 
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from enum import Enum
 
@@ -38,5 +38,4 @@ class HandoffSchema(BaseModel):
     dependencies: List[str] = Field(default_factory=list, description="Dependencies that must be satisfied")
     acceptance_criteria: List[str] = Field(default_factory=list, description="Criteria for accepting the work")
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)

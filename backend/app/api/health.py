@@ -9,7 +9,7 @@ import redis
 import structlog
 
 from app.database.connection import get_session
-from app.config import settings
+from app.settings import settings
 
 router = APIRouter(prefix="/health", tags=["health"])
 logger = structlog.get_logger(__name__)

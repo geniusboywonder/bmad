@@ -13,7 +13,6 @@ import structlog
 
 logger = structlog.get_logger(__name__)
 
-
 class EnterpriseIntegrationTestRunner:
     """Main test runner for enterprise integration tests."""
 
@@ -128,12 +127,10 @@ class EnterpriseIntegrationTestRunner:
 
         return recommendations
 
-
 async def run_enterprise_integration_tests() -> Dict[str, Any]:
     """Convenience function to run all enterprise integration tests."""
     runner = EnterpriseIntegrationTestRunner()
     return await runner.run_all_enterprise_tests()
-
 
 if __name__ == "__main__":
     print("🚀 Starting Enterprise Integration Tests")

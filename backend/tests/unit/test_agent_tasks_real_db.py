@@ -18,7 +18,6 @@ from app.database.models import TaskDB, ProjectDB, ContextArtifactDB
 
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestAgentTaskProcessingReal:
     """Test agent task processing with real database operations."""
 
@@ -96,6 +95,8 @@ class TestAgentTaskProcessingReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_process_agent_task_database_persistence_real_db(self, db_manager, sample_task_data):
         """Test agent task processing with real database persistence."""
         # Create task in database first
@@ -156,6 +157,8 @@ class TestAgentTaskProcessingReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_process_agent_task_failure_real_db(self, db_manager, sample_task_data):
         """Test agent task failure handling with real database updates."""
         # Create task in database
@@ -192,10 +195,10 @@ class TestAgentTaskProcessingReal:
             mock_context_store.return_value = mock_context_store_instance
 
             # Execute task and expect failure
-            with db_manager.get_session() as session:
-                with patch('app.database.connection.get_session', return_value=iter([session])):
-                    with pytest.raises(Exception) as exc_info:
-                        await process_agent_task(sample_task_data)
+            # Note: We don't mock get_session - let the task use real database operations
+            # The DatabaseTestManager ensures we use test database
+            with pytest.raises(Exception) as exc_info:
+                await process_agent_task(sample_task_data)
 
             # Verify the exception message
             assert "Task execution failed" in str(exc_info.value)
@@ -214,6 +217,8 @@ class TestAgentTaskProcessingReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_process_agent_task_with_context_real_db(self, db_manager):
         """Test agent task processing with real context artifacts."""
         project = db_manager.create_test_project(name="Context Integration Test")
@@ -394,7 +399,6 @@ class TestAgentTaskProcessingReal:
             found_types = {task.agent_type for task in project_tasks}
             expected_types = {AgentType.ANALYST, AgentType.ARCHITECT, AgentType.CODER}
             assert found_types == expected_types
-
 
 class TestAgentTaskValidationReal:
     """Test agent task validation with real data constraints."""

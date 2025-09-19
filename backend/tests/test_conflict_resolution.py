@@ -28,7 +28,6 @@ from app.services.conflict_resolver import ConflictResolverService
 from app.services.context_store import ContextStoreService
 from app.services.autogen_service import AutoGenService
 
-
 class TestConflictResolution:
     """Test cases for conflict resolution functionality."""
 
@@ -93,6 +92,8 @@ class TestConflictResolution:
             )
         ]
 
+    @pytest.mark.mock_data
+
     def test_conflict_resolver_initialization(self, conflict_resolver):
         """Test that conflict resolver initializes correctly."""
         assert conflict_resolver.context_store is not None
@@ -101,7 +102,10 @@ class TestConflictResolution:
         assert isinstance(conflict_resolver.conflict_patterns, dict)
         assert len(conflict_resolver.resolution_strategies) > 0
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_output_contradictions(self, conflict_resolver, sample_artifacts):
         """Test detection of output contradictions."""
         project_id = uuid4()
@@ -121,7 +125,10 @@ class TestConflictResolution:
         assert len(conflict.participants) == 2
         assert len(conflict.evidence) == 2
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_requirement_mismatches(self, conflict_resolver):
         """Test detection of requirement mismatches."""
         project_id = uuid4()
@@ -156,7 +163,10 @@ class TestConflictResolution:
         assert conflict.conflict_type == ConflictType.REQUIREMENT_MISMATCH
         assert conflict.severity == ConflictSeverity.HIGH
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_design_inconsistencies(self, conflict_resolver):
         """Test detection of design inconsistencies."""
         project_id = uuid4()
@@ -191,7 +201,10 @@ class TestConflictResolution:
         assert conflict.conflict_type == ConflictType.DESIGN_INCONSISTENCY
         assert conflict.severity == ConflictSeverity.HIGH
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_resource_contentions(self, conflict_resolver, sample_tasks):
         """Test detection of resource contentions."""
         project_id = uuid4()
@@ -228,6 +241,8 @@ class TestConflictResolution:
         conflict = conflicts[0]
         assert conflict.conflict_type == ConflictType.RESOURCE_CONTENTION
         assert conflict.severity == ConflictSeverity.MEDIUM
+
+    @pytest.mark.mock_data
 
     def test_conflict_resolution_complexity_calculation(self, conflict_resolver):
         """Test conflict resolution complexity calculation."""
@@ -266,6 +281,8 @@ class TestConflictResolution:
         assert complexity > 0.8
         assert complexity <= 1.0
 
+    @pytest.mark.mock_data
+
     def test_conflict_escalation_logic(self, conflict_resolver):
         """Test conflict escalation logic."""
         # Create conflict that should be escalated
@@ -289,6 +306,8 @@ class TestConflictResolution:
         conflict.created_at = old_time.isoformat()
 
         assert conflict.is_escalation_required()
+
+    @pytest.mark.mock_data
 
     def test_conflict_resolution_strategy_recommendation(self, conflict_resolver):
         """Test conflict resolution strategy recommendation."""
@@ -321,6 +340,8 @@ class TestConflictResolution:
 
         strategy = simple_conflict.get_recommended_resolution_strategy()
         assert strategy == ResolutionStrategy.AUTOMATIC_MERGE
+
+    @pytest.mark.mock_data
 
     def test_conflict_statistics_tracking(self, conflict_resolver):
         """Test conflict statistics tracking."""
@@ -371,6 +392,8 @@ class TestConflictResolution:
         assert ConflictType.OUTPUT_CONTRADICTION.value in stats["conflict_types"]
         assert ConflictSeverity.MEDIUM.value in stats["severity_distribution"]
 
+    @pytest.mark.mock_data
+
     def test_content_similarity_calculation(self, conflict_resolver):
         """Test content similarity calculation."""
         # Test identical content
@@ -391,7 +414,9 @@ class TestConflictResolution:
         similarity = conflict_resolver._calculate_content_similarity("", "")
         assert similarity == 0.0
 
-    def test_conflict_pattern_detection(self, conflict_resolver):
+    @pytest.mark.mock_data
+    @pytest.mark.asyncio
+    async def test_conflict_pattern_detection(self, conflict_resolver):
         """Test conflict pattern detection and tracking."""
         project_id = str(uuid4())
 
@@ -406,9 +431,7 @@ class TestConflictResolution:
                 description=f"Test pattern conflict {i}"
             )
 
-            # Manually trigger pattern checking (synchronously)
-            import asyncio
-            asyncio.run(conflict_resolver._check_conflict_patterns(conflict))
+            await conflict_resolver._check_conflict_patterns(conflict)
 
         # Check if pattern was detected
         pattern_key = f"{ConflictType.OUTPUT_CONTRADICTION.value}_{project_id}"
@@ -418,7 +441,10 @@ class TestConflictResolution:
         assert pattern.get_frequency() == 4
         assert pattern.is_significant()
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_automatic_merge_resolution(self, conflict_resolver):
         """Test automatic merge resolution strategy."""
         # Create conflict with two participants
@@ -462,7 +488,10 @@ class TestConflictResolution:
         assert "winner_agent" in result.resolution_details
         assert "merge_method" in result.resolution_details
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_compromise_resolution(self, conflict_resolver):
         """Test compromise resolution strategy."""
         conflict = AgentConflict(
@@ -504,7 +533,10 @@ class TestConflictResolution:
         assert len(result.new_artifacts) == 1
         assert "compromise_method" in result.resolution_details
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_priority_based_resolution(self, conflict_resolver):
         """Test priority-based resolution strategy."""
         conflict = AgentConflict(
@@ -529,7 +561,10 @@ class TestConflictResolution:
         # Tester should win due to higher confidence score
         assert result.resolution_details["winner_agent"] == "tester"
 
+    @pytest.mark.mock_data
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_escalation_resolution(self, conflict_resolver):
         """Test escalation resolution strategy."""
         conflict = AgentConflict(
@@ -549,6 +584,8 @@ class TestConflictResolution:
 
         # Check that conflict was marked for escalation
         assert conflict.status == ConflictStatus.ESCALATED
+
+    @pytest.mark.mock_data
 
     def test_conflict_summary_generation(self, conflict_resolver):
         """Test conflict summary generation."""
@@ -591,6 +628,8 @@ class TestConflictResolution:
         assert summary["evidence_count"] == 1
         assert summary["resolution_attempts"] == 1
 
+    @pytest.mark.mock_data
+
     def test_conflict_pattern_report_generation(self, conflict_resolver):
         """Test conflict pattern report generation."""
         # Add some patterns
@@ -618,7 +657,6 @@ class TestConflictResolution:
         assert len(report["patterns"]) == 1
         assert report["patterns"][0]["frequency"] == 4
         assert report["patterns"][0]["type"] == ConflictType.OUTPUT_CONTRADICTION.value
-
 
 if __name__ == "__main__":
     pytest.main([__file__])

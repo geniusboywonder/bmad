@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 from app.main import app
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestHITLSafetyServiceRealDB:
     """
     Replace mock-heavy HITL safety tests with real database operations.
@@ -33,6 +32,8 @@ class TestHITLSafetyServiceRealDB:
     def client(self):
         """FastAPI test client."""
         return TestClient(app)
+
+    @pytest.mark.real_data
 
     def test_hitl_approval_request_real_database(self, db_manager, client):
         """
@@ -77,6 +78,8 @@ class TestHITLSafetyServiceRealDB:
         # Track for cleanup
         db_manager.track_test_record('hitl_agent_approvals', approval_data['id'])
 
+    @pytest.mark.real_data
+
     def test_emergency_stop_real_database(self, db_manager, client):
         """
         Test emergency stop with real database persistence.
@@ -115,6 +118,8 @@ class TestHITLSafetyServiceRealDB:
 
         # Track for cleanup
         db_manager.track_test_record('emergency_stops', stop_response['id'])
+
+    @pytest.mark.real_data
 
     def test_budget_controls_real_database(self, db_manager, client):
         """
@@ -179,7 +184,6 @@ class TestHITLSafetyServiceRealDB:
             'task_id': str(task.id)
         }
 
-
 class TestTaskServiceRealDB:
     """
     Replace mock-heavy task service tests with real database operations.
@@ -197,6 +201,8 @@ class TestTaskServiceRealDB:
     def client(self):
         """FastAPI test client."""
         return TestClient(app)
+
+    @pytest.mark.real_data
 
     def test_task_creation_real_database(self, db_manager, client):
         """
@@ -239,6 +245,8 @@ class TestTaskServiceRealDB:
         # Track for cleanup
         db_manager.track_test_record('tasks', task_response['id'])
 
+    @pytest.mark.real_data
+
     def test_task_status_updates_real_database(self, db_manager, client):
         """
         Test task status updates with real database persistence.
@@ -268,6 +276,8 @@ class TestTaskServiceRealDB:
                 updated_task = session.query(TaskDB).filter_by(id=task.id).first()
                 assert updated_task.status == status
 
+    @pytest.mark.real_data
+
     def test_task_enum_field_validation_real_database(self, db_manager, client):
         """
         Test that invalid enum values are rejected by the database.
@@ -286,7 +296,6 @@ class TestTaskServiceRealDB:
         # Should be rejected by API validation or database constraint
         assert response.status_code in [400, 422]  # Bad Request or Unprocessable Entity
 
-
 class TestContextArtifactServiceRealDB:
     """Replace mock-heavy context artifact tests."""
 
@@ -302,6 +311,8 @@ class TestContextArtifactServiceRealDB:
     def client(self):
         """FastAPI test client."""
         return TestClient(app)
+
+    @pytest.mark.real_data
 
     def test_artifact_creation_real_database(self, db_manager, client):
         """
@@ -340,7 +351,6 @@ class TestContextArtifactServiceRealDB:
 
         # Track for cleanup
         db_manager.track_test_record('context_artifacts', artifact_response['id'])
-
 
 def create_mock_replacement_guide():
     """
@@ -404,7 +414,6 @@ def create_mock_replacement_guide():
         ]
     }
 
-
 # Example usage in test migration
 def example_mock_to_real_migration():
     """
@@ -414,6 +423,8 @@ def example_mock_to_real_migration():
     # BEFORE: Mock-heavy test (hides database issues)
     """
     @patch('app.services.hitl_safety_service.get_session')
+    @pytest.mark.mock_data
+
     def test_hitl_approval_mock(self, mock_get_session):
         mock_db = Mock()
         mock_get_session.return_value.__enter__.return_value = mock_db
@@ -428,6 +439,8 @@ def example_mock_to_real_migration():
 
     # AFTER: Real database test (catches actual issues)
     """
+    @pytest.mark.real_data
+
     def test_hitl_approval_real_db(self, db_manager, client):
         scenario = create_test_scenario(db_manager)
 

@@ -3,10 +3,12 @@
 
 import sys
 import os
+import pytest
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+@pytest.mark.mock_data
 def test_basic_imports():
     """Test basic imports without database connection."""
     print("🔍 Testing basic imports...")
@@ -35,7 +37,7 @@ def test_basic_imports():
     
     try:
         print("  - Testing app configuration...")
-        from app.config import settings
+        from app.settings import settings
         print("  ✅ Configuration loaded successfully")
     except ImportError as e:
         print(f"  ❌ Configuration import failed: {e}")

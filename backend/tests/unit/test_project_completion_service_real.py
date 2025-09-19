@@ -17,7 +17,6 @@ from app.models.task import TaskStatus
 from app.database.models import ProjectDB, TaskDB
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestProjectCompletionServiceReal:
     """Test ProjectCompletionService with real database and service operations."""
 
@@ -45,6 +44,8 @@ class TestProjectCompletionServiceReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_completion_detection_all_tasks_completed_real_db(self, service, db_manager):
         """Test completion detection with all tasks completed using real database."""
         # Create real project
@@ -75,6 +76,8 @@ class TestProjectCompletionServiceReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_completion_detection_with_pending_tasks_real_db(self, service, db_manager):
         """Test completion detection with pending tasks using real database."""
         # Create real project
@@ -100,6 +103,8 @@ class TestProjectCompletionServiceReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_artifact_generation_integration_real_services(self, service, db_manager):
         """Test artifact generation with real services integration."""
         # Create real project with completed tasks
@@ -133,6 +138,8 @@ class TestProjectCompletionServiceReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_completion_status_real_db(self, service, db_manager):
         """Test getting completion status with real database operations."""
         # Create real project
@@ -190,6 +197,8 @@ class TestProjectCompletionServiceReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_completion_workflow_end_to_end_real_services(self, service, db_manager):
         """Test complete completion workflow with real services and database."""
         # Create real project
@@ -239,6 +248,8 @@ class TestProjectCompletionServiceReal:
             # Should handle gracefully with real database
             import asyncio
 
+            @pytest.mark.mock_data
+
             async def test_nonexistent():
                 return await service.check_project_completion(non_existent_id, session)
 
@@ -250,7 +261,6 @@ class TestProjectCompletionServiceReal:
             except Exception as e:
                 # If it raises an exception, it should be a handled one
                 assert "not found" in str(e).lower() or "invalid" in str(e).lower()
-
 
 class TestProjectCompletionServiceConstraints:
     """Test service behavior with database constraints and edge cases."""

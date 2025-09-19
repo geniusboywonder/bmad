@@ -25,31 +25,39 @@ from app.services.autogen_service import AutoGenService
 from app.services.template_service import TemplateService
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestBackwardCompatibility:
     """Test that backward compatibility aliases work correctly."""
+
+    @pytest.mark.mock_data
 
     def test_orchestrator_alias(self):
         """Test that OrchestratorService is properly aliased."""
         assert OrchestratorService == OrchestratorCore
 
+    @pytest.mark.mock_data
+
     def test_hitl_alias(self):
         """Test that HitlService is properly aliased."""
         assert HitlService == HitlCore
+
+    @pytest.mark.mock_data
 
     def test_workflow_aliases(self):
         """Test that workflow engine aliases work."""
         assert WorkflowEngine == ExecutionEngine
         assert WorkflowExecutionEngine == ExecutionEngine
 
+    @pytest.mark.mock_data
+
     def test_autogen_alias(self):
         """Test that AutoGenService is properly aliased."""
         assert AutoGenService == AutoGenCore
 
+    @pytest.mark.mock_data
+
     def test_template_alias(self):
         """Test that TemplateService is properly aliased."""
         assert TemplateService == TemplateCore
-
 
 class TestServiceInitialization:
     """Test that all refactored services can be properly initialized."""
@@ -84,6 +92,8 @@ class TestServiceInitialization:
         assert StatusTracker is not None
         assert ContextManager is not None
 
+    @pytest.mark.mock_data
+
     def test_hitl_services_exist(self):
         """Test that all HITL service components exist."""
         # Verify all services are importable
@@ -93,6 +103,8 @@ class TestServiceInitialization:
         assert ResponseProcessor is not None
         assert ValidationEngine is not None
 
+    @pytest.mark.mock_data
+
     def test_workflow_services_exist(self):
         """Test that all workflow service components exist."""
         # Verify all services are importable
@@ -101,12 +113,16 @@ class TestServiceInitialization:
         assert EventDispatcher is not None
         assert SdlcOrchestrator is not None
 
+    @pytest.mark.mock_data
+
     def test_autogen_services_exist(self):
         """Test that all AutoGen service components exist."""
         # Verify all services are importable
         assert AutoGenCore is not None
         assert AgentFactory is not None
         assert ConversationManager is not None
+
+    @pytest.mark.mock_data
 
     def test_template_services_exist(self):
         """Test that all template service components exist."""
@@ -115,9 +131,10 @@ class TestServiceInitialization:
         assert TemplateLoader is not None
         assert TemplateRenderer is not None
 
-
 class TestServiceInterfaces:
     """Test that service interfaces are properly defined."""
+
+    @pytest.mark.mock_data
 
     def test_orchestrator_interfaces_exist(self):
         """Test that orchestrator interfaces exist."""
@@ -140,29 +157,38 @@ class TestServiceInterfaces:
         assert context_manager_interface is not None
         assert workflow_integrator_interface is not None
 
+    @pytest.mark.mock_data
+
     def test_hitl_interfaces_exist(self):
         """Test that HITL interfaces exist."""
         from app.interfaces import hitl_interface
         assert hitl_interface is not None
+
+    @pytest.mark.mock_data
 
     def test_workflow_interfaces_exist(self):
         """Test that workflow interfaces exist."""
         from app.interfaces import workflow_interface
         assert workflow_interface is not None
 
+    @pytest.mark.mock_data
+
     def test_autogen_interfaces_exist(self):
         """Test that AutoGen interfaces exist."""
         from app.interfaces import autogen_interface
         assert autogen_interface is not None
+
+    @pytest.mark.mock_data
 
     def test_template_interfaces_exist(self):
         """Test that template interfaces exist."""
         from app.interfaces import template_interface
         assert template_interface is not None
 
-
 class TestSOLIDPrinciplesCompliance:
     """Test that the refactored services follow SOLID principles."""
+
+    @pytest.mark.mock_data
 
     def test_single_responsibility_principle(self):
         """Test that each service has a single, well-defined responsibility."""
@@ -186,6 +212,8 @@ class TestSOLIDPrinciplesCompliance:
         assert len(st_methods) < 15, "StatusTracker may have too many responsibilities"
         assert len(cm_methods) < 15, "ContextManager may have too many responsibilities"
 
+    @pytest.mark.mock_data
+
     def test_dependency_inversion_principle(self):
         """Test that services depend on abstractions, not concretions."""
         from app.services.orchestrator.orchestrator_core import OrchestratorCore
@@ -199,6 +227,8 @@ class TestSOLIDPrinciplesCompliance:
         # Should have db parameter (dependency injection)
         param_names = [p.name for p in params if p.name != 'self']
         assert 'db' in param_names, "OrchestratorCore should accept db dependency"
+
+    @pytest.mark.mock_data
 
     def test_interface_segregation_principle(self):
         """Test that interfaces are segregated and focused."""
@@ -223,9 +253,10 @@ class TestSOLIDPrinciplesCompliance:
             interface_path = os.path.join(interface_dir, interface_file)
             assert os.path.exists(interface_path), f"Interface {interface_file} should exist"
 
-
 class TestServiceLineCountCompliance:
     """Test that refactored services meet the line count targets from the plan."""
+
+    @pytest.mark.mock_data
 
     def test_orchestrator_line_counts(self):
         """Test that orchestrator services are within expected line count ranges."""
@@ -252,6 +283,8 @@ class TestServiceLineCountCompliance:
                 assert min_lines <= line_count <= max_lines, \
                     f"{filename} has {line_count} lines, expected {min_lines}-{max_lines}"
 
+    @pytest.mark.mock_data
+
     def test_hitl_line_counts(self):
         """Test that HITL services are within expected line count ranges."""
         import os
@@ -275,6 +308,8 @@ class TestServiceLineCountCompliance:
                 assert min_lines <= line_count <= max_lines, \
                     f"{filename} has {line_count} lines, expected {min_lines}-{max_lines}"
 
+    @pytest.mark.mock_data
+
     def test_workflow_line_counts(self):
         """Test that workflow services are within expected line count ranges."""
         import os
@@ -297,9 +332,10 @@ class TestServiceLineCountCompliance:
                 assert min_lines <= line_count <= max_lines, \
                     f"{filename} has {line_count} lines, expected {min_lines}-{max_lines}"
 
-
 class TestRefactoringCompletion:
     """Test that the SOLID refactoring plan has been fully implemented."""
+
+    @pytest.mark.mock_data
 
     def test_all_monolithic_services_backed_up(self):
         """Test that original monolithic services were backed up."""
@@ -317,6 +353,8 @@ class TestRefactoringCompletion:
             if not backup_file.endswith('hitl_service.py.backup'):  # HITL was different structure
                 assert os.path.exists(backup_file), f"Backup file {backup_file} should exist"
 
+    @pytest.mark.mock_data
+
     def test_refactored_packages_exist(self):
         """Test that all refactored service packages exist."""
         import os
@@ -333,6 +371,8 @@ class TestRefactoringCompletion:
             assert os.path.exists(package_dir), f"Package directory {package_dir} should exist"
             init_file = os.path.join(package_dir, '__init__.py')
             assert os.path.exists(init_file), f"Package init file {init_file} should exist"
+
+    @pytest.mark.mock_data
 
     def test_interface_layer_complete(self):
         """Test that complete interface layer was created."""

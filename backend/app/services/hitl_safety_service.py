@@ -22,7 +22,7 @@ from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
 from app.services.llm_monitoring import LLMUsageTracker
 from app.services.response_safety_analyzer import ResponseSafetyAnalyzer
-from app.config import settings
+from app.settings import settings
 from app.models.agent import AgentStatus
 
 logger = structlog.get_logger(__name__)
@@ -68,11 +68,18 @@ class BudgetCheckResult:
 class HITLSafetyService:
     """Service for managing HITL safety controls and mandatory approvals."""
 
-    def __init__(self):
+    def __init__(self, db_session: Optional[Session] = None):
         self.active_monitors = {}
         self.emergency_stops = set()
         self.usage_tracker = LLMUsageTracker(enable_tracking=settings.llm_enable_usage_tracking)
         self.response_analyzer = ResponseSafetyAnalyzer()
+        self._db_session = db_session
+
+    def _get_session(self):
+        """Get database session, either injected or default."""
+        if self._db_session is not None:
+            return self._db_session
+        return next(get_session())
 
     async def create_approval_request(
         self,
@@ -103,7 +110,7 @@ class HITLSafetyService:
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=timeout_minutes)
         )
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             db.add(approval)
             db.commit()
@@ -133,7 +140,7 @@ class HITLSafetyService:
         start_time = datetime.now(timezone.utc)
         timeout_time = start_time + timedelta(minutes=timeout_minutes)
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             while datetime.now(timezone.utc) < timeout_time:
                 # Check for emergency stops
@@ -175,7 +182,7 @@ class HITLSafetyService:
     ) -> BudgetCheckResult:
         """Check if operation is within budget limits."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             # Get or create budget control
             budget = db.query(AgentBudgetControlDB).filter(
@@ -224,7 +231,7 @@ class HITLSafetyService:
     ):
         """Update budget usage counters."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             budget = db.query(AgentBudgetControlDB).filter(
                 and_(
@@ -260,7 +267,7 @@ class HITLSafetyService:
     ):
         """Trigger an emergency stop for agents with enhanced features."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             stop = EmergencyStopDB(
                 project_id=project_id,
@@ -303,7 +310,7 @@ class HITLSafetyService:
     async def deactivate_emergency_stop(self, stop_id: UUID):
         """Deactivate an emergency stop."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             stop = db.query(EmergencyStopDB).filter(
                 EmergencyStopDB.id == stop_id
@@ -325,7 +332,7 @@ class HITLSafetyService:
     async def get_active_emergency_stops(self) -> List[Dict[str, Any]]:
         """Get all active emergency stops."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             stops = db.query(EmergencyStopDB).filter(
                 EmergencyStopDB.active == True
@@ -372,7 +379,7 @@ class HITLSafetyService:
             return True
 
         # Check database for any active stops
-        db = next(get_session())
+        db = self._get_session()
         try:
             active_stops = db.query(EmergencyStopDB).filter(
                 EmergencyStopDB.active == True
@@ -545,7 +552,7 @@ class HITLSafetyService:
     async def check_budget_emergency_stop(self, project_id: UUID, agent_type: str) -> bool:
         """Check if budget-based emergency stop should be triggered."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             # Get budget control
             budget = db.query(AgentBudgetControlDB).filter(
@@ -600,7 +607,7 @@ class HITLSafetyService:
     async def get_emergency_stop_stats(self, project_id: Optional[UUID] = None) -> Dict[str, Any]:
         """Get statistics about emergency stops."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             query = db.query(EmergencyStopDB)
 
@@ -633,7 +640,7 @@ class HITLSafetyService:
     async def cancel_task_due_to_emergency(self, task_id: UUID, stop_id: UUID, reason: str) -> bool:
         """Cancel a specific task due to emergency stop."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             task = db.query(TaskDB).filter(
                 and_(
@@ -764,7 +771,7 @@ class HITLSafetyService:
     ) -> bool:
         """Manually approve or reject a response after analysis."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             # Get the response approval record
             response_approval = db.query(ResponseApprovalDB).filter(
@@ -816,7 +823,7 @@ class HITLSafetyService:
     async def get_pending_response_reviews(self, project_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
         """Get all pending response reviews that require manual approval."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             query = db.query(ResponseApprovalDB).filter(
                 ResponseApprovalDB.status == "PENDING"
@@ -849,7 +856,7 @@ class HITLSafetyService:
     async def get_response_approval_stats(self, project_id: Optional[UUID] = None) -> Dict[str, Any]:
         """Get statistics about response approvals."""
 
-        db = next(get_session())
+        db = self._get_session()
         try:
             query = db.query(ResponseApprovalDB)
 

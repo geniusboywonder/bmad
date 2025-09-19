@@ -7,6 +7,7 @@ and variable substitution capabilities for workflow and template files.
 
 import os
 import re
+import yaml
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass

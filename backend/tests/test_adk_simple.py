@@ -3,10 +3,12 @@
 
 import sys
 import os
+import pytest
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
 
+@pytest.mark.external_service
 def test_adk_imports():
     """Test basic ADK imports."""
     print("🧪 Testing Google ADK Basic Imports")
@@ -54,6 +56,7 @@ def test_adk_imports():
         print(f"❌ Unexpected Error: {e}")
         return False
 
+@pytest.mark.external_service
 def test_adk_agent_structure():
     """Test ADK agent structure without full BMAD integration."""
     print("\n🔧 Testing ADK Agent Structure")

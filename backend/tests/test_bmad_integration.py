@@ -25,6 +25,7 @@ import time
 import json
 import os
 import sys
+import pytest
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Any, Optional
 from uuid import UUID, uuid4
@@ -55,7 +56,6 @@ from app.services.context_store import ContextStoreService
 from app.services.workflow_engine import WorkflowExecutionEngine
 from app.models.task import TaskStatus
 from app.models.agent import AgentType
-
 
 class BMADIntegrationTestSuite:
     """Comprehensive integration test suite for BMAD platform."""
@@ -178,6 +178,7 @@ class BMADIntegrationTestSuite:
 
         return test_results
 
+    @pytest.mark.real_data
     async def test_project_creation(self) -> Dict[str, Any]:
         """Test project creation and basic setup."""
         try:
@@ -210,6 +211,7 @@ class BMADIntegrationTestSuite:
                 "details": "Project creation test failed"
             }
 
+    @pytest.mark.real_data
     async def test_context_store_integration(self) -> Dict[str, Any]:
         """Test context store integration and artifact management."""
         try:
@@ -270,6 +272,7 @@ class BMADIntegrationTestSuite:
                 "details": "Context store integration test failed"
             }
 
+    @pytest.mark.real_data
     async def test_agent_orchestration(self) -> Dict[str, Any]:
         """Test agent orchestration and task management."""
         try:
@@ -325,6 +328,7 @@ class BMADIntegrationTestSuite:
                 "details": "Agent orchestration test failed"
             }
 
+    @pytest.mark.real_data
     async def test_time_conscious_orchestration(self) -> Dict[str, Any]:
         """Test time-conscious orchestration features."""
         try:
@@ -367,6 +371,7 @@ class BMADIntegrationTestSuite:
                 "details": "Time-conscious orchestration test failed"
             }
 
+    @pytest.mark.real_data
     async def test_context_granularity(self) -> Dict[str, Any]:
         """Test context granularity features."""
         try:
@@ -417,6 +422,7 @@ class BMADIntegrationTestSuite:
                 "details": "Context granularity test failed"
             }
 
+    @pytest.mark.real_data
     async def test_hitl_integration(self) -> Dict[str, Any]:
         """Test HITL integration and phase gates."""
         try:
@@ -470,6 +476,7 @@ class BMADIntegrationTestSuite:
                 "details": "HITL integration test failed"
             }
 
+    @pytest.mark.real_data
     async def test_workflow_execution(self) -> Dict[str, Any]:
         """Test workflow execution engine."""
         try:
@@ -504,6 +511,7 @@ class BMADIntegrationTestSuite:
                 "details": "Workflow execution test failed"
             }
 
+    @pytest.mark.real_data
     async def test_performance_analytics(self) -> Dict[str, Any]:
         """Test performance monitoring and analytics."""
         try:
@@ -538,6 +546,7 @@ class BMADIntegrationTestSuite:
                 "details": "Performance analytics test failed"
             }
 
+    @pytest.mark.external_service
     async def test_deployment_integration(self) -> Dict[str, Any]:
         """Test deployment automation integration."""
         try:
@@ -630,7 +639,6 @@ class BMADIntegrationTestSuite:
         except Exception as e:
             logger.warning("Test cleanup failed", error=str(e))
 
-
 async def run_performance_test():
     """Run performance-focused integration test."""
     print("🏃 Running BMAD Performance Integration Test")
@@ -656,7 +664,6 @@ async def run_performance_test():
     except Exception as e:
         print(f"❌ Performance test failed: {e}")
         return {"status": "failed", "error": str(e)}
-
 
 def main():
     """Main test runner."""
@@ -707,7 +714,6 @@ def main():
         sys.exit(0)
     else:
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

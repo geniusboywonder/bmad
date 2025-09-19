@@ -13,7 +13,6 @@ from tests.utils.database_test_utils import DatabaseTestManager
 
 client = TestClient(app)
 
-
 @pytest.mark.real_data
 def test_health_check():
     """Test basic health check endpoint with real API call."""
@@ -23,7 +22,6 @@ def test_health_check():
     assert data["status"] == "healthy"
     assert "service" in data
     assert "version" in data
-
 
 @pytest.mark.real_data
 def test_detailed_health_check():
@@ -37,14 +35,12 @@ def test_detailed_health_check():
     assert "redis" in data["detail"]["components"]
     assert "celery" in data["detail"]["components"]
 
-
 @pytest.mark.real_data
 def test_readiness_check():
     """Test readiness check endpoint with real API call."""
     response = client.get("/health/ready")
     # This might return 503 if services are not ready
     assert response.status_code in [200, 503]
-
 
 class TestHealthzEndpoint:
     """Test Sprint 4 /healthz endpoint for comprehensive monitoring."""
@@ -57,7 +53,7 @@ class TestHealthzEndpoint:
         yield manager
         manager.cleanup_test_database()
     
-    @pytest.mark.external_service
+    @pytest.mark.real_data
     def test_healthz_endpoint_success(self, db_manager):
         """Test /healthz endpoint with real database and mocked external services."""
         # Only mock external dependencies (Redis, Celery)
@@ -92,6 +88,7 @@ class TestHealthzEndpoint:
                 assert "health_percentage" in data
                 assert "services_healthy" in data
     
+    @pytest.mark.real_data
     def test_healthz_endpoint_degraded_database_failure(self):
         """Test /healthz endpoint with database failure."""
         with patch('app.api.health.check_llm_providers') as mock_check_llm:
@@ -131,14 +128,12 @@ class TestHealthzEndpoint:
             # This validates the health check logic works correctly
             assert data["status"] in ["healthy", "degraded"]
 
-    
-
-
-
 class TestLLMProviderHealthChecks:
     """Test suite for LLM provider health checking functionality."""
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_openai_configured_healthy(self):
         """Test health check with OpenAI configured and healthy."""
         with patch('app.api.health.settings') as mock_settings:
@@ -164,6 +159,8 @@ class TestLLMProviderHealthChecks:
                 assert result["google"]["status"] == "not_configured"
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_openai_authentication_error(self):
         """Test health check with OpenAI authentication error."""
         with patch('app.api.health.settings') as mock_settings:
@@ -184,6 +181,8 @@ class TestLLMProviderHealthChecks:
                 assert "authentication_error" in result["openai"]["message"]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_openai_rate_limit_error(self):
         """Test health check with rate limit error."""
         with patch('app.api.health.settings') as mock_settings:
@@ -201,6 +200,8 @@ class TestLLMProviderHealthChecks:
                 assert "Rate limit exceeded" in result["openai"]["error"]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_openai_timeout_error(self):
         """Test health check with timeout error."""
         with patch('app.api.health.settings') as mock_settings:
@@ -218,6 +219,8 @@ class TestLLMProviderHealthChecks:
                 assert "Request timed out" in result["openai"]["error"]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_anthropic_configured(self):
         """Test health check with Anthropic configured but not tested."""
         with patch('app.api.health.settings') as mock_settings:
@@ -234,6 +237,8 @@ class TestLLMProviderHealthChecks:
             assert result["google"]["status"] == "not_configured"
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_google_configured(self):
         """Test health check with Google configured but not tested."""
         with patch('app.api.health.settings') as mock_settings:
@@ -250,6 +255,8 @@ class TestLLMProviderHealthChecks:
             assert "configured but health check not implemented" in result["google"]["message"]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_llm_providers_all_not_configured(self):
         """Test health check with no providers configured."""
         with patch('app.api.health.settings') as mock_settings:
@@ -264,10 +271,10 @@ class TestLLMProviderHealthChecks:
             assert result["anthropic"]["status"] == "not_configured"
             assert result["google"]["status"] == "not_configured"
 
-
 class TestHealthEndpointLLMIntegration:
     """Test suite for health endpoint integration with LLM providers."""
     
+    @pytest.mark.mock_data
     def test_detailed_health_check_includes_llm_providers(self):
         """Test that detailed health check includes LLM provider status."""
         with patch('app.api.health.check_llm_providers') as mock_check_llm, \
@@ -290,6 +297,7 @@ class TestHealthEndpointLLMIntegration:
             assert "llm_providers" in data["detail"]["components"]
             assert data["detail"]["components"]["llm_providers"]["openai"]["status"] == "healthy"
     
+    @pytest.mark.mock_data
     def test_detailed_health_check_degraded_with_unhealthy_llm(self):
         """Test that health check shows degraded status with unhealthy LLM."""
         with patch('app.api.health.check_llm_providers') as mock_check_llm, \
@@ -308,10 +316,3 @@ class TestHealthEndpointLLMIntegration:
             
             # Health should be degraded due to unhealthy LLM
             assert data["detail"]["status"] == "degraded"
-    
-
-    
-
-    
-
-

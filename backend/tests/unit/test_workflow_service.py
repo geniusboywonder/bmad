@@ -20,7 +20,6 @@ from app.models.workflow import (
 )
 from app.models.handoff import HandoffSchema
 
-
 class TestWorkflowService:
     """Test cases for WorkflowService."""
 
@@ -53,6 +52,8 @@ class TestWorkflowService:
             ]
         )
 
+    @pytest.mark.mock_data
+
     def test_service_initialization(self, workflow_service):
         """Test workflow service initialization."""
         assert workflow_service.yaml_parser is not None
@@ -60,6 +61,8 @@ class TestWorkflowService:
         assert workflow_service._cache_enabled is True
         assert workflow_service._workflow_cache == {}
         assert workflow_service._execution_cache == {}
+
+    @pytest.mark.mock_data
 
     def test_load_workflow_success(self, workflow_service, mock_workflow_definition):
         """Test successful workflow loading."""
@@ -74,11 +77,15 @@ class TestWorkflowService:
             assert result.sequence[0].agent == "analyst"
             assert result.sequence[1].agent == "architect"
 
+    @pytest.mark.mock_data
+
     def test_load_workflow_file_not_found(self, workflow_service):
         """Test workflow loading when file doesn't exist."""
         with patch('pathlib.Path.exists', return_value=False):
             with pytest.raises(FileNotFoundError, match="Workflow 'nonexistent' not found"):
                 workflow_service.load_workflow("nonexistent")
+
+    @pytest.mark.mock_data
 
     def test_start_workflow_execution(self, workflow_service, mock_workflow_definition):
         """Test starting workflow execution."""
@@ -94,6 +101,8 @@ class TestWorkflowService:
             assert len(execution.steps) == 2
             assert execution.steps[0].agent == "analyst"
             assert execution.steps[1].agent == "architect"
+
+    @pytest.mark.mock_data
 
     def test_get_next_agent(self, workflow_service):
         """Test getting next agent in workflow execution."""
@@ -121,6 +130,8 @@ class TestWorkflowService:
 
             assert next_agent == "analyst"
 
+    @pytest.mark.mock_data
+
     def test_get_next_agent_no_pending_steps(self, workflow_service):
         """Test getting next agent when no steps are pending."""
         execution = WorkflowExecution(
@@ -140,6 +151,8 @@ class TestWorkflowService:
             next_agent = workflow_service.get_next_agent("exec-123")
 
             assert next_agent is None
+
+    @pytest.mark.mock_data
 
     def test_advance_workflow_execution(self, workflow_service):
         """Test advancing workflow execution."""
@@ -173,6 +186,8 @@ class TestWorkflowService:
             assert result.steps[0].status == WorkflowExecutionState.COMPLETED
             assert result.steps[0].result == {"analysis": "complete"}
 
+    @pytest.mark.mock_data
+
     def test_advance_workflow_execution_complete(self, workflow_service):
         """Test advancing workflow execution to completion."""
         execution = WorkflowExecution(
@@ -200,6 +215,8 @@ class TestWorkflowService:
             assert result.status == WorkflowExecutionState.COMPLETED
             assert result.completed_at is not None
 
+    @pytest.mark.mock_data
+
     def test_generate_handoff(self, workflow_service, mock_workflow_definition):
         """Test generating handoff between agents."""
         execution = WorkflowExecution(
@@ -222,6 +239,8 @@ class TestWorkflowService:
             assert handoff.to_agent == "architect"
             assert handoff.phase == "workflow_test-workflow"
             assert "architecture.md" in handoff.expected_outputs
+
+    @pytest.mark.mock_data
 
     def test_get_workflow_execution_status(self, workflow_service, mock_workflow_definition):
         """Test getting workflow execution status."""
@@ -255,6 +274,8 @@ class TestWorkflowService:
             assert status["next_agent"] == "architect"
             assert status["workflow_name"] == "Test Workflow"
 
+    @pytest.mark.mock_data
+
     def test_list_available_workflows(self, workflow_service, mock_workflow_definition):
         """Test listing available workflows."""
         # Create a mock Path object that behaves correctly
@@ -278,6 +299,8 @@ class TestWorkflowService:
             assert "analyst" in result[0]["agents"]
             assert "architect" in result[0]["agents"]
 
+    @pytest.mark.mock_data
+
     def test_get_workflow_metadata(self, workflow_service, mock_workflow_definition):
         """Test getting workflow metadata."""
         with patch.object(workflow_service, 'load_workflow', return_value=mock_workflow_definition):
@@ -288,6 +311,8 @@ class TestWorkflowService:
             assert metadata["type"] == "generic"
             assert metadata["steps_count"] == 2
             assert metadata["agents"] == ["analyst", "architect"]
+
+    @pytest.mark.mock_data
 
     def test_validate_workflow_execution(self, workflow_service, mock_workflow_definition):
         """Test workflow execution validation."""
@@ -318,6 +343,8 @@ class TestWorkflowService:
             assert validation["errors"] == []
             assert validation["warnings"] == []
 
+    @pytest.mark.mock_data
+
     def test_cache_operations(self, workflow_service):
         """Test cache operations."""
         # Test cache clearing
@@ -335,6 +362,8 @@ class TestWorkflowService:
         workflow_service.enable_cache(True)
         assert workflow_service._cache_enabled is True
 
+    @pytest.mark.mock_data
+
     def test_find_workflow_file(self, workflow_service):
         """Test workflow file finding."""
         # Create a mock Path object that behaves correctly
@@ -350,12 +379,16 @@ class TestWorkflowService:
             assert result == mock_file
             mock_path.__truediv__.assert_called_with("test-workflow.yaml")
 
+    @pytest.mark.mock_data
+
     def test_workflow_definition_validation(self, mock_workflow_definition):
         """Test workflow definition validation."""
         errors = mock_workflow_definition.validate_sequence()
 
         # Should have no errors for our well-formed workflow
         assert len(errors) == 0
+
+    @pytest.mark.mock_data
 
     def test_workflow_definition_get_methods(self, mock_workflow_definition):
         """Test workflow definition helper methods."""
@@ -376,6 +409,8 @@ class TestWorkflowService:
         # Should return None since we don't have handoff prompts in our mock
         assert prompt is None
 
+    @pytest.mark.mock_data
+
     def test_workflow_execution_state_transitions(self):
         """Test workflow execution state transitions."""
         execution = WorkflowExecution(
@@ -393,6 +428,8 @@ class TestWorkflowService:
 
         execution.status = WorkflowExecutionState.COMPLETED
         assert execution.status == WorkflowExecutionState.COMPLETED
+
+    @pytest.mark.mock_data
 
     def test_workflow_step_validation(self):
         """Test workflow step validation."""

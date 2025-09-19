@@ -10,6 +10,7 @@ import asyncio
 import sys
 import time
 import traceback
+import pytest
 from typing import Dict, List, Any
 from datetime import datetime
 
@@ -135,6 +136,8 @@ class ADKSystemIntegrationTest:
         self.print_test_summary()
 
     @run_test
+    @pytest.mark.external_service
+
     async def test_module_imports(self):
         """Test that all ADK modules can be imported successfully."""
         print("\n📦 Testing Module Imports...")
@@ -158,6 +161,9 @@ class ADKSystemIntegrationTest:
         return f"Successfully imported {len(self.modules_to_test)} modules"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_core_functionality(self):
         """Test core ADK functionality."""
         print("\n🔧 Testing Core Functionality...")
@@ -197,6 +203,9 @@ class ADKSystemIntegrationTest:
         return "Core functionality tests passed"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_agent_factory_integration(self):
         """Test agent factory integration with all components."""
         print("\n🏭 Testing Agent Factory Integration...")
@@ -228,6 +237,9 @@ class ADKSystemIntegrationTest:
         return f"Successfully tested {len(agent_types)} agent types"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_feature_flags_system(self):
         """Test feature flags system comprehensively."""
         print("\n🚩 Testing Feature Flags System...")
@@ -274,6 +286,9 @@ class ADKSystemIntegrationTest:
         return "Feature flags system fully functional"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_performance_optimization(self):
         """Test performance optimization system."""
         print("\n⚡ Testing Performance Optimization...")
@@ -309,6 +324,9 @@ class ADKSystemIntegrationTest:
         return "Performance optimization system working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_multi_model_features(self):
         """Test multi-model features."""
         print("\n🤖 Testing Multi-Model Features...")
@@ -358,6 +376,9 @@ class ADKSystemIntegrationTest:
         return "Multi-model features working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_custom_tools_integration(self):
         """Test custom BMAD tools integration."""
         print("\n🛠️  Testing Custom Tools Integration...")
@@ -424,6 +445,9 @@ class ADKSystemIntegrationTest:
         return "Custom tools integration working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_observability_system(self):
         """Test observability system."""
         print("\n📊 Testing Observability System...")
@@ -468,6 +492,9 @@ class ADKSystemIntegrationTest:
         return "Observability system working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_configuration_management(self):
         """Test configuration management system."""
         print("\n⚙️  Testing Configuration Management...")
@@ -514,6 +541,9 @@ class ADKSystemIntegrationTest:
         return "Configuration management working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_error_handling_resilience(self):
         """Test error handling and system resilience."""
         print("\n🛡️  Testing Error Handling & Resilience...")
@@ -568,6 +598,9 @@ class ADKSystemIntegrationTest:
         return "Error handling and resilience working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_security_validation(self):
         """Test security validation features."""
         print("\n🔒 Testing Security Validation...")
@@ -640,6 +673,9 @@ class ADKSystemIntegrationTest:
         return "Security validation working correctly"
 
     @run_test
+    @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_performance_benchmarks(self):
         """Test performance benchmarks."""
         print("\n📈 Testing Performance Benchmarks...")
@@ -790,7 +826,6 @@ class ADKSystemIntegrationTest:
 
         print("\n" + "=" * 60)
 
-
 async def main():
     """Main test execution function."""
     print("🚀 ADK System Integration Test Suite")
@@ -800,7 +835,6 @@ async def main():
 
     test_suite = ADKSystemIntegrationTest()
     await test_suite.run_full_test_suite()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

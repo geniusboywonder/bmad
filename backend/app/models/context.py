@@ -49,3 +49,24 @@ class ContextArtifact(BaseModel):
     @field_serializer('created_at', 'updated_at')  
     def serialize_datetime(self, value: datetime) -> str:
         return value.isoformat()
+
+
+class ContextArtifactCreate(BaseModel):
+    """Model for creating new context artifacts."""
+    
+    project_id: UUID = Field(description="Project this artifact belongs to")
+    source_agent: AgentType = Field(description="Agent that created this artifact")
+    artifact_type: ArtifactType = Field(description="Type of artifact")
+    content: Dict[str, Any] = Field(description="Artifact content data")
+    artifact_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
+    
+    model_config = ConfigDict(
+        json_encoders={
+            UUID: lambda v: str(v),
+        }
+    )
+    
+    @field_serializer('project_id')
+    def serialize_uuid(self, value: UUID) -> str:
+        return str(value)
+        return value.isoformat()

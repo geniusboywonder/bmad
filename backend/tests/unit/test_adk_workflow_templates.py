@@ -10,9 +10,10 @@ from app.workflows.adk_workflow_templates import (
     WorkflowType
 )
 
-
 class TestADKWorkflowTemplates:
     """Test ADK Workflow Templates functionality."""
+
+    @pytest.mark.mock_data
 
     def test_get_template_requirements_analysis(self):
         """Test getting requirements analysis template."""
@@ -25,6 +26,8 @@ class TestADKWorkflowTemplates:
         assert template.required_agents == ["analyst", "architect"]
         assert template.max_duration_minutes == 45
 
+    @pytest.mark.mock_data
+
     def test_get_template_system_design(self):
         """Test getting system design template."""
         template = ADKWorkflowTemplates.get_template(WorkflowType.SYSTEM_DESIGN)
@@ -34,6 +37,8 @@ class TestADKWorkflowTemplates:
         assert template.name == "System Design Collaboration"
         assert len(template.steps) == 3
         assert template.required_agents == ["architect", "analyst"]
+
+    @pytest.mark.mock_data
 
     def test_get_template_code_review(self):
         """Test getting code review template."""
@@ -45,6 +50,8 @@ class TestADKWorkflowTemplates:
         assert len(template.steps) == 3
         assert template.required_agents == ["coder", "architect", "analyst"]
 
+    @pytest.mark.mock_data
+
     def test_get_template_testing_strategy(self):
         """Test getting testing strategy template."""
         template = ADKWorkflowTemplates.get_template(WorkflowType.TESTING_STRATEGY)
@@ -54,6 +61,8 @@ class TestADKWorkflowTemplates:
         assert template.name == "Testing Strategy Collaboration"
         assert len(template.steps) == 3
         assert template.required_agents == ["analyst", "architect", "coder"]
+
+    @pytest.mark.mock_data
 
     def test_get_template_deployment_planning(self):
         """Test getting deployment planning template."""
@@ -65,10 +74,14 @@ class TestADKWorkflowTemplates:
         assert len(template.steps) == 3
         assert template.required_agents == ["architect", "analyst", "coder"]
 
+    @pytest.mark.mock_data
+
     def test_get_template_unknown_type_fails(self):
         """Test getting unknown template type fails."""
         with pytest.raises(ValueError, match="Unsupported workflow type"):
             ADKWorkflowTemplates.get_template("unknown_type")
+
+    @pytest.mark.mock_data
 
     def test_list_available_templates(self):
         """Test listing all available templates."""
@@ -96,6 +109,8 @@ class TestADKWorkflowTemplates:
             assert "step_count" in template_info
             assert "success_criteria" in template_info
 
+    @pytest.mark.mock_data
+
     def test_get_template_for_agents_all_available(self):
         """Test getting templates for agents when all required agents are available."""
         available_agents = ["analyst", "architect", "coder", "tester", "deployer"]
@@ -104,6 +119,8 @@ class TestADKWorkflowTemplates:
         assert len(templates) == 5  # All templates should be available
         template_names = [t.name for t in templates]
         assert "Comprehensive Requirements Analysis" in template_names
+
+    @pytest.mark.mock_data
 
     def test_get_template_for_agents_partial_availability(self):
         """Test getting templates for agents with partial availability."""
@@ -116,12 +133,16 @@ class TestADKWorkflowTemplates:
         assert "Comprehensive Requirements Analysis" in template_names
         assert "System Design Collaboration" in template_names
 
+    @pytest.mark.mock_data
+
     def test_get_template_for_agents_no_matches(self):
         """Test getting templates for agents with no matches."""
         available_agents = ["unknown_agent"]
         templates = ADKWorkflowTemplates.get_template_for_agents(available_agents)
 
         assert len(templates) == 0
+
+    @pytest.mark.mock_data
 
     def test_create_custom_template(self):
         """Test creating a custom workflow template."""
@@ -151,9 +172,10 @@ class TestADKWorkflowTemplates:
         assert custom_template.max_duration_minutes == 30
         assert custom_template.success_criteria == ["Custom workflow completed successfully"]
 
-
 class TestWorkflowStep:
     """Test WorkflowStep dataclass."""
+
+    @pytest.mark.mock_data
 
     def test_workflow_step_creation(self):
         """Test creating a workflow step."""
@@ -175,6 +197,8 @@ class TestWorkflowStep:
         assert step.timeout_minutes == 20
         assert step.required_context == ["project_description", "stakeholder_input"]
 
+    @pytest.mark.mock_data
+
     def test_workflow_step_default_values(self):
         """Test workflow step with default values."""
         step = WorkflowStep(
@@ -188,9 +212,10 @@ class TestWorkflowStep:
         assert step.timeout_minutes == 10
         assert step.required_context == []
 
-
 class TestWorkflowTemplate:
     """Test WorkflowTemplate dataclass."""
+
+    @pytest.mark.mock_data
 
     def test_workflow_template_creation(self):
         """Test creating a workflow template."""
@@ -228,6 +253,8 @@ class TestWorkflowTemplate:
         assert template.success_criteria == ["All steps completed", "Quality standards met"]
         assert template.fallback_strategies == {}
 
+    @pytest.mark.mock_data
+
     def test_workflow_template_default_fallback_strategies(self):
         """Test workflow template default fallback strategies."""
         template = WorkflowTemplate(
@@ -242,9 +269,10 @@ class TestWorkflowTemplate:
 
         assert template.fallback_strategies == {}
 
-
 class TestWorkflowType:
     """Test WorkflowType enum."""
+
+    @pytest.mark.mock_data
 
     def test_workflow_type_values(self):
         """Test workflow type enum values."""
@@ -256,6 +284,8 @@ class TestWorkflowType:
         assert WorkflowType.ARCHITECTURE_REVIEW.value == "architecture_review"
         assert WorkflowType.SECURITY_ASSESSMENT.value == "security_assessment"
         assert WorkflowType.PERFORMANCE_OPTIMIZATION.value == "performance_optimization"
+
+    @pytest.mark.mock_data
 
     def test_workflow_type_string_representation(self):
         """Test workflow type string representation."""

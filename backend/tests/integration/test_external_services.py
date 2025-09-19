@@ -37,14 +37,12 @@ try:
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
-from app.config import settings
-
+from app.settings import settings
 
 class TestLLMProviderIntegrations:
     """Test LLM provider external service integrations."""
 
     @pytest.mark.external_service
-    @pytest.mark.real_data
     def test_openai_connectivity(self):
         """Test OpenAI API connectivity and configuration."""
         if not settings.openai_api_key:
@@ -96,7 +94,6 @@ class TestLLMProviderIntegrations:
         # For now, just verify the configuration exists
         assert settings.google_api_key is not None
         assert len(settings.google_api_key) > 0
-
 
 class TestAutoGenFrameworkIntegration:
     """Test Microsoft AutoGen framework integration."""
@@ -166,7 +163,6 @@ class TestAutoGenFrameworkIntegration:
         except Exception as e:
             pytest.fail(f"Agent factory creation failed: {str(e)}")
 
-
 class TestGoogleADKIntegration:
     """Test Google Agent Development Kit integration."""
 
@@ -220,7 +216,6 @@ class TestGoogleADKIntegration:
 
         except Exception as e:
             pytest.fail(f"Minimal ADK agent failed: {str(e)}")
-
 
 class TestExternalAPIs:
     """Test external API integrations."""
@@ -309,6 +304,8 @@ class TestExternalAPIs:
 
     @pytest.mark.external_service
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_websocket_notification_system(self):
         """Test WebSocket notification system components."""
         try:
@@ -371,7 +368,6 @@ class TestExternalAPIs:
         except Exception as e:
             pytest.fail(f"Redis connectivity failed: {str(e)}")
 
-
 class TestMonitoringServices:
     """Test monitoring and observability integrations."""
 
@@ -406,7 +402,6 @@ class TestMonitoringServices:
         except Exception as e:
             pytest.fail(f"Health check functions failed: {str(e)}")
 
-
 class TestRealAPIConnectivity:
     """Test actual API connectivity with rate limiting and error handling."""
 
@@ -414,6 +409,8 @@ class TestRealAPIConnectivity:
     @pytest.mark.real_api
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_openai_real_api_call(self):
         """Test actual OpenAI API call (use sparingly due to cost)."""
         if not settings.openai_api_key:
@@ -476,13 +473,14 @@ class TestRealAPIConnectivity:
         except Exception as e:
             pytest.fail(f"Real Anthropic API call failed: {str(e)}")
 
-
 @pytest.mark.external_service
 class TestExternalServiceHealthEndpoint:
     """Test the health endpoint for external services."""
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_llm_providers_health_check(self):
         """Test LLM providers health check function."""
         try:

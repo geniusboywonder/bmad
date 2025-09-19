@@ -24,7 +24,6 @@ from app.models.task import TaskStatus
 from app.models.agent import AgentType
 from tests.conftest import assert_performance_threshold
 
-
 class TestHitlRequestCreationAndPersistence:
     """Test scenario 2.3-INT-001: HITL request creation and persistence (P0)"""
     
@@ -184,7 +183,6 @@ class TestHitlRequestCreationAndPersistence:
             HitlRequestDB.project_id == project.id
         ).count()
         assert db_hitl_count == 3
-
 
 class TestResponseProcessingWithDBUpdates:
     """Test scenario 2.3-INT-002: Response processing with DB updates (P0)"""
@@ -426,7 +424,6 @@ class TestResponseProcessingWithDBUpdates:
         db_session.refresh(hitl_request)
         assert hitl_request.status in [HitlStatus.APPROVED, HitlStatus.REJECTED, HitlStatus.AMENDED]
 
-
 class TestWorkflowResumeAfterHitlResponse:
     """Test scenario 2.3-INT-003: Workflow resume after HITL response (P1)"""
     
@@ -435,6 +432,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.hitl
     @pytest.mark.workflow
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_workflow_resume_after_approval(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_with_hitl
@@ -474,6 +473,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.hitl
     @pytest.mark.workflow
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_workflow_handling_after_rejection(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_with_hitl
@@ -517,6 +518,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.hitl
     @pytest.mark.workflow
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_workflow_continuation_after_amendment(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_with_hitl
@@ -562,6 +565,8 @@ class TestWorkflowResumeAfterHitlResponse:
     @pytest.mark.hitl
     @pytest.mark.workflow
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_multi_stage_hitl_workflow(
         self, client: TestClient, db_session: Session,
         orchestrator_service, project_factory, task_factory,
@@ -649,7 +654,6 @@ class TestWorkflowResumeAfterHitlResponse:
         # Verify workflow can continue with amendments applied
         assert architecture_hitl.amended_content is not None
 
-
 class TestWebSocketEventEmissionForHitl:
     """Test scenario 2.3-INT-004: WebSocket event emission for HITL (P1)"""
     
@@ -657,6 +661,8 @@ class TestWebSocketEventEmissionForHitl:
     @pytest.mark.p1
     @pytest.mark.hitl
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_websocket_events_on_hitl_request_creation(
         self, db_session: Session, orchestrator_service,
         project_factory, task_factory, mock_websocket_manager
@@ -687,6 +693,8 @@ class TestWebSocketEventEmissionForHitl:
     @pytest.mark.p1
     @pytest.mark.hitl
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_websocket_events_on_hitl_response_submission(
         self, client: TestClient, db_session: Session,
         project_with_hitl, mock_websocket_manager
@@ -811,7 +819,6 @@ class TestWebSocketEventEmissionForHitl:
             2000,  # 2 seconds for 10 HITL requests with WebSocket events
             "Create 10 HITL requests with WebSocket events"
         )
-
 
 class TestHitlRequestHistoryTracking:
     """Test scenario 2.3-INT-005: HITL request history tracking (P2)"""

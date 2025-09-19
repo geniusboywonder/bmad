@@ -69,7 +69,7 @@ class ExternalServiceTester:
         try:
             from autogen_ext.models.openai import OpenAIChatCompletionClient
             from autogen_core.models import UserMessage
-            from app.config import settings
+            from app.settings import settings
 
             if settings.openai_api_key:
                 start_time = time.time()
@@ -110,7 +110,7 @@ class ExternalServiceTester:
         print("  🔗 Testing Anthropic connectivity...")
         try:
             import anthropic
-            from app.config import settings
+            from app.settings import settings
 
             if settings.anthropic_api_key:
                 start_time = time.time()
@@ -142,7 +142,7 @@ class ExternalServiceTester:
         # Test Google/Gemini
         print("  🔗 Testing Google Gemini connectivity...")
         try:
-            from app.config import settings
+            from app.settings import settings
 
             if settings.google_api_key:
                 # Test Google Vertex AI / Gemini connectivity
@@ -336,7 +336,7 @@ class ExternalServiceTester:
         print("  📬 Testing Redis/Celery connectivity...")
         try:
             import redis
-            from app.config import settings
+            from app.settings import settings
 
             redis_client = redis.from_url(settings.redis_celery_url)
             redis_client.ping()

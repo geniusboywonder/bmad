@@ -38,6 +38,12 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "real_data: Test uses real database/services (no mocking internal components)",
+    "external_service: Test mocks external dependencies only (APIs, third-party services)",
+    "mock_data: Test uses mocks (legacy/comparison tests)",
+    "real_api: Test uses real API endpoints"
+]
 
 [tool.black]
 line-length = 88

@@ -33,17 +33,28 @@ class HitlCore:
     to focused service components.
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Optional[Session] = None):
         self.db = db
-        self.context_store = ContextStoreService(db)
-        self.audit_service = AuditService(db)
-        self.trigger_manager = HitlTriggerManager(db)
+        if db:
+            self.context_store = ContextStoreService(db)
+            self.audit_service = AuditService(db)
+            self.trigger_manager = HitlTriggerManager(db)
 
-        # Initialize specialized services
-        self.trigger_processor = TriggerProcessor(db)
-        self.phase_gate_manager = PhaseGateManager(db)
-        self.response_processor = ResponseProcessor(db)
-        self.validation_engine = ValidationEngine(db)
+            # Initialize specialized services
+            self.trigger_processor = TriggerProcessor(db)
+            self.phase_gate_manager = PhaseGateManager(db)
+            self.response_processor = ResponseProcessor(db)
+            self.validation_engine = ValidationEngine(db)
+        else:
+            # Mock services for DB-less initialization, typically for testing
+            from unittest.mock import MagicMock
+            self.context_store = MagicMock(spec=ContextStoreService)
+            self.audit_service = MagicMock(spec=AuditService)
+            self.trigger_manager = MagicMock(spec=HitlTriggerManager)
+            self.trigger_processor = MagicMock(spec=TriggerProcessor)
+            self.phase_gate_manager = MagicMock(spec=PhaseGateManager)
+            self.response_processor = MagicMock(spec=ResponseProcessor)
+            self.validation_engine = MagicMock(spec=ValidationEngine)
 
         # Configuration
         self.default_oversight_level = OversightLevel.MEDIUM

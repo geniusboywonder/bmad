@@ -11,7 +11,6 @@ from app.services.context_store import ContextStoreService
 from app.services.agent_status_service import AgentStatusService
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 @pytest.mark.asyncio
 class TestAgentConversationFlow:
     @pytest.fixture
@@ -41,6 +40,8 @@ class TestAgentConversationFlow:
             service.context_store = context_store
             service.agent_status_service = agent_status_service
             yield service
+
+    @pytest.mark.mock_data
 
     async def test_orchestrator_to_analyst_handoff(self, db_manager, agent_service, context_store):
         """Test handoff from Orchestrator to Analyst with requirements analysis."""

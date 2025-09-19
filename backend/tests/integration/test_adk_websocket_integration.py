@@ -20,7 +20,6 @@ from app.websocket.events import EventType
 
 logger = structlog.get_logger(__name__)
 
-
 async def run_adk_websocket_integration_tests() -> Dict[str, Any]:
     """Run comprehensive ADK WebSocket integration tests."""
     logger.info("Starting ADK WebSocket integration tests")
@@ -198,7 +197,6 @@ async def run_adk_websocket_integration_tests() -> Dict[str, Any]:
             "connection_management_success": False,
             "test_type": "adk_websocket_integration"
         }
-
 
 if __name__ == "__main__":
     print("🧪 Testing ADK WebSocket Integration")

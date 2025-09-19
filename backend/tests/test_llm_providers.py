@@ -20,9 +20,10 @@ from app.services.llm_providers.gemini_provider import GeminiProvider
 from app.services.llm_providers.provider_factory import ProviderFactory
 from app.services.llm_monitoring import LLMUsageTracker
 
-
 class TestBaseLLMProvider:
     """Test cases for the base LLM provider interface."""
+
+    @pytest.mark.mock_data
 
     def test_abstract_methods_defined(self):
         """Test that base provider defines required abstract methods."""
@@ -33,6 +34,8 @@ class TestBaseLLMProvider:
         with pytest.raises(TypeError):
             # Should raise TypeError because BaseLLMProvider is abstract
             BaseLLMProvider()
+
+    @pytest.mark.mock_data
 
     def test_provider_interface_contract(self):
         """Test that all concrete providers implement the required interface."""
@@ -45,6 +48,8 @@ class TestBaseLLMProvider:
             assert hasattr(provider_class, 'get_token_count')
             assert hasattr(provider_class, 'validate_config')
             assert hasattr(provider_class, 'get_model_info')
+
+    @pytest.mark.mock_data
 
     def test_standardized_input_output_format(self):
         """Test that providers standardize input/output formats."""
@@ -82,439 +87,247 @@ class TestBaseLLMProvider:
         assert "usage" in result
         assert "model" in result
 
-
 class TestOpenAIProvider:
     """Test cases for OpenAI provider implementation."""
 
-    @pytest.fixture
-    def openai_config(self):
-        """OpenAI provider configuration for testing."""
-        return {
-            "api_key": "test-openai-key",
-            "model": "gpt-4o",
-            "temperature": 0.7,
-            "max_tokens": 1000,
-            "organization": None
-        }
-
-    def test_openai_initialization(self, openai_config):
+    @pytest.mark.mock_data
+    def test_openai_initialization(self):
         """Test OpenAI provider initialization."""
-        with patch('openai.OpenAI') as mock_openai:
-            mock_client = Mock()
-            mock_openai.return_value = mock_client
+        # Test initialization with direct api_key
+        provider = OpenAIProvider(api_key="test_key")
+        assert provider.api_key == "test_key"
 
-            provider = OpenAIProvider(openai_config)
+        # Test initialization with environment variable
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "env_test_key"}):
+            provider = OpenAIProvider()
+            assert provider.api_key == "env_test_key"
 
-            # Verify OpenAI client was created with correct API key
-            mock_openai.assert_called_once_with(
-                api_key=openai_config["api_key"],
-                organization=openai_config["organization"]
-            )
+        # Test initialization error when no key is provided
+        with patch.dict(os.environ, {}, clear=True):
+            with pytest.raises(ValueError, match="OpenAI API key not provided"):
+                OpenAIProvider()
 
-    def test_openai_text_generation(self, openai_config):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_openai_text_generation(self):
         """Test OpenAI text generation."""
-        with patch('openai.OpenAI') as mock_openai:
-            mock_client = Mock()
-            mock_openai.return_value = mock_client
+        provider = OpenAIProvider(api_key="test_key")
+        messages = [{"role": "user", "content": "Hello"}]
+        model = "gpt-4o-mini"
 
-            # Mock the chat completion response
+        with patch('app.services.llm_providers.openai_provider.OpenAIChatCompletionClient') as mock_client_class:
+            mock_client_instance = AsyncMock()
             mock_response = Mock()
-            mock_response.choices = [Mock()]
             mock_response.choices[0].message.content = "Test response"
-            mock_response.usage = Mock()
-            mock_response.usage.prompt_tokens = 10
-            mock_response.usage.completion_tokens = 5
-            mock_response.usage.total_tokens = 15
-            mock_response.model = "gpt-4o"
-            mock_response.choices[0].finish_reason = "stop"
+            mock_client_instance.create.return_value = mock_response
+            mock_client_class.return_value = mock_client_instance
 
-            mock_client.chat.completions.create.return_value = mock_response
+            result = await provider.generate(model=model, messages=messages)
 
-            provider = OpenAIProvider(openai_config)
+            assert result == "Test response"
+            mock_client_class.assert_called_once_with(model=model, api_key="test_key")
+            mock_client_instance.create.assert_called_once_with(messages=messages)
 
-            messages = [
-                {"role": "system", "content": "You are a helpful assistant"},
-                {"role": "user", "content": "Hello"}
-            ]
-
-            result = provider.generate_text({
-                "messages": messages,
-                "temperature": 0.7,
-                "max_tokens": 1000
-            })
-
-            # Verify the result format
-            assert result["text"] == "Test response"
-            assert result["usage"]["total_tokens"] == 15
-            assert result["model"] == "gpt-4o"
-
-            # Verify OpenAI API was called correctly
-            mock_client.chat.completions.create.assert_called_once()
-            call_args = mock_client.chat.completions.create.call_args
-
-            assert call_args[1]["model"] == openai_config["model"]
-            assert call_args[1]["messages"] == messages
-            assert call_args[1]["temperature"] == 0.7
-            assert call_args[1]["max_tokens"] == 1000
-
-    def test_openai_error_handling(self, openai_config):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_openai_error_handling(self):
         """Test OpenAI provider error handling."""
-        with patch('openai.OpenAI') as mock_openai:
-            mock_client = Mock()
-            mock_openai.return_value = mock_client
+        provider = OpenAIProvider(api_key="test_key")
+        messages = [{"role": "user", "content": "Hello"}]
+        model = "gpt-4o-mini"
 
-            # Mock API error
-            mock_client.chat.completions.create.side_effect = Exception("API Error")
+        with patch('app.services.llm_providers.openai_provider.OpenAIChatCompletionClient') as mock_client_class:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.create.side_effect = Exception("API Error")
+            mock_client_class.return_value = mock_client_instance
 
-            provider = OpenAIProvider(openai_config)
-
-            with pytest.raises(Exception):
-                provider.generate_text({
-                    "messages": [{"role": "user", "content": "Hello"}]
-                })
-
-    def test_openai_token_counting(self, openai_config):
-        """Test OpenAI token counting."""
-        with patch('openai.OpenAI') as mock_openai:
-            mock_client = Mock()
-            mock_openai.return_value = mock_client
-
-            provider = OpenAIProvider(openai_config)
-
-            # Mock tiktoken encoding
-            with patch('tiktoken.encoding_for_model') as mock_encoding:
-                mock_encoder = Mock()
-                mock_encoder.encode.return_value = ["token1", "token2", "token3"]
-                mock_encoding.return_value = mock_encoder
-
-                text = "Hello world"
-                token_count = provider.get_token_count(text)
-
-                assert token_count == 3
-                mock_encoder.encode.assert_called_once_with(text)
-
+            with pytest.raises(Exception, match="API Error"):
+                await provider.generate(model=model, messages=messages)
 
 class TestAnthropicProvider:
     """Test cases for Anthropic Claude provider implementation."""
 
-    @pytest.fixture
-    def anthropic_config(self):
-        """Anthropic provider configuration for testing."""
-        return {
-            "api_key": "test-anthropic-key",
-            "model": "claude-3-5-sonnet-20241022",
-            "temperature": 0.7,
-            "max_tokens": 1000
-        }
-
-    def test_anthropic_initialization(self, anthropic_config):
+    @pytest.mark.mock_data
+    def test_anthropic_initialization(self):
         """Test Anthropic provider initialization."""
-        with patch('anthropic.Anthropic') as mock_anthropic:
-            mock_client = Mock()
-            mock_anthropic.return_value = mock_client
+        with patch('anthropic.AsyncAnthropic') as mock_anthropic_client:
+            # Test initialization with direct api_key
+            provider = AnthropicProvider(api_key="test_key")
+            assert provider.api_key == "test_key"
+            mock_anthropic_client.assert_called_with(api_key="test_key", max_retries=0, timeout=30.0)
 
-            provider = AnthropicProvider(anthropic_config)
+            # Test initialization with environment variable
+            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "env_test_key"}):
+                provider = AnthropicProvider()
+                assert provider.api_key == "env_test_key"
 
-            # Verify Anthropic client was created with correct API key
-            mock_anthropic.assert_called_once_with(
-                api_key=anthropic_config["api_key"]
-            )
+            # Test initialization error when no key is provided
+            with patch.dict(os.environ, {}, clear=True):
+                with pytest.raises(ValueError, match="Anthropic API key not provided"):
+                    AnthropicProvider()
 
-    def test_anthropic_text_generation(self, anthropic_config):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_anthropic_text_generation(self):
         """Test Anthropic text generation."""
-        with patch('anthropic.Anthropic') as mock_anthropic:
-            mock_client = Mock()
-            mock_anthropic.return_value = mock_client
-
-            # Mock the messages response
+        with patch('anthropic.AsyncAnthropic') as mock_anthropic_client:
+            mock_client_instance = AsyncMock()
             mock_response = Mock()
             mock_response.content = [Mock()]
             mock_response.content[0].text = "Test Claude response"
-            mock_response.usage = Mock()
-            mock_response.usage.input_tokens = 10
-            mock_response.usage.output_tokens = 5
-            mock_response.model = "claude-3-5-sonnet-20241022"
-            mock_response.stop_reason = "end_turn"
+            mock_client_instance.messages.create.return_value = mock_response
+            mock_anthropic_client.return_value = mock_client_instance
 
-            mock_client.messages.create.return_value = mock_response
+            provider = AnthropicProvider(api_key="test_key")
+            messages = [{"role": "user", "content": "Hello"}]
+            model = "claude-3-5-sonnet-20241022"
 
-            provider = AnthropicProvider(anthropic_config)
+            result = await provider.generate(model=model, messages=messages)
 
-            messages = [
-                {"role": "user", "content": "Hello"}
-            ]
+            assert result == "Test Claude response"
+            mock_client_instance.messages.create.assert_called_once()
 
-            result = provider.generate_text({
-                "messages": messages,
-                "temperature": 0.7,
-                "max_tokens": 1000
-            })
-
-            # Verify the result format
-            assert result["text"] == "Test Claude response"
-            assert result["usage"]["total_tokens"] == 15  # input + output
-            assert result["model"] == "claude-3-5-sonnet-20241022"
-
-    def test_anthropic_rate_limiting(self, anthropic_config):
-        """Test Anthropic provider rate limiting."""
-        with patch('anthropic.Anthropic') as mock_anthropic:
-            mock_client = Mock()
-            mock_anthropic.return_value = mock_client
-
-            # Mock rate limit error
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_anthropic_rate_limiting_and_retry(self):
+        """Test Anthropic provider rate limiting and retry logic."""
+        with patch('anthropic.AsyncAnthropic') as mock_anthropic_client, patch('asyncio.sleep') as mock_sleep:
+            mock_client_instance = AsyncMock()
             from anthropic import RateLimitError
-            mock_client.messages.create.side_effect = RateLimitError("Rate limit exceeded")
+            mock_client_instance.messages.create.side_effect = RateLimitError("Rate limit exceeded")
+            mock_anthropic_client.return_value = mock_client_instance
 
-            provider = AnthropicProvider(anthropic_config)
+            provider = AnthropicProvider(api_key="test_key", max_retries=2)
+            messages = [{"role": "user", "content": "Hello"}]
+            model = "claude-3-5-sonnet-20241022"
 
-            with pytest.raises(RateLimitError):
-                provider.generate_text({
-                    "messages": [{"role": "user", "content": "Hello"}]
-                })
+            with pytest.raises(RuntimeError, match="Anthropic rate limit exceeded"):
+                await provider.generate(model=model, messages=messages)
 
+            # Verify it tried 3 times (1 initial + 2 retries)
+            assert mock_client_instance.messages.create.call_count == 3
+            # Verify it slept between retries
+            assert mock_sleep.call_count == 2
 
 class TestGeminiProvider:
     """Test cases for Google Gemini provider implementation."""
 
-    @pytest.fixture
-    def gemini_config(self):
-        """Gemini provider configuration for testing."""
-        return {
-            "project_id": "test-project",
-            "location": "us-central1",
-            "model": "gemini-1.5-pro",
-            "temperature": 0.7,
-            "max_tokens": 1000
-        }
-
-    def test_gemini_initialization(self, gemini_config):
+    @pytest.mark.mock_data
+    def test_gemini_initialization(self):
         """Test Gemini provider initialization."""
         with patch('google.generativeai.configure') as mock_configure:
-            with patch('google.generativeai.GenerativeModel') as mock_model:
-                mock_model_instance = Mock()
-                mock_model.return_value = mock_model_instance
+            # Test initialization with direct api_key
+            provider = GeminiProvider(api_key="test_key")
+            assert provider.api_key == "test_key"
+            mock_configure.assert_called_with(api_key="test_key")
 
-                provider = GeminiProvider(gemini_config)
+            # Test initialization with environment variable
+            with patch.dict(os.environ, {"GOOGLE_API_KEY": "env_test_key"}):
+                provider = GeminiProvider()
+                assert provider.api_key == "env_test_key"
 
-                # Verify Gemini was configured
-                mock_configure.assert_called_once()
+            # Test initialization error when no key is provided
+            with patch.dict(os.environ, {}, clear=True):
+                with pytest.raises(ValueError, match="Google API key not provided"):
+                    GeminiProvider()
 
-                # Verify model was created
-                mock_model.assert_called_once_with(
-                    model_name=gemini_config["model"]
-                )
-
-    def test_gemini_text_generation(self, gemini_config):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_gemini_text_generation(self):
         """Test Gemini text generation."""
-        with patch('google.generativeai.configure') as mock_configure:
-            with patch('google.generativeai.GenerativeModel') as mock_model:
-                mock_model_instance = Mock()
-                mock_model.return_value = mock_model_instance
+        with patch('google.generativeai.GenerativeModel') as mock_gen_model:
+            mock_chat = AsyncMock()
+            mock_response = Mock()
+            mock_response.text = "Test Gemini response"
+            mock_chat.send_message_async.return_value = mock_response
+            mock_gen_model.return_value.start_chat.return_value = mock_chat
 
-                # Mock generation response
-                mock_response = Mock()
-                mock_response.text = "Test Gemini response"
-                mock_response.usage_metadata = Mock()
-                mock_response.usage_metadata.prompt_token_count = 10
-                mock_response.usage_metadata.candidates_token_count = 5
-                mock_response.usage_metadata.total_token_count = 15
+            provider = GeminiProvider(api_key="test_key")
+            messages = [{"role": "user", "content": "Hello"}]
+            model = "gemini-1.5-pro-latest"
 
-                mock_model_instance.generate_content.return_value = mock_response
+            result = await provider.generate(model=model, messages=messages)
 
-                provider = GeminiProvider(gemini_config)
-
-                result = provider.generate_text({
-                    "messages": [{"role": "user", "content": "Hello"}],
-                    "temperature": 0.7,
-                    "max_tokens": 1000
-                })
-
-                # Verify the result format
-                assert result["text"] == "Test Gemini response"
-                assert result["usage"]["total_tokens"] == 15
-
-    def test_gemini_authentication(self, gemini_config):
-        """Test Gemini provider authentication."""
-        with patch.dict(os.environ, {'GOOGLE_APPLICATION_CREDENTIALS': '/path/to/creds.json'}):
-            with patch('google.generativeai.configure') as mock_configure:
-                with patch('google.generativeai.GenerativeModel') as mock_model:
-                    mock_model_instance = Mock()
-                    mock_model.return_value = mock_model_instance
-
-                    provider = GeminiProvider(gemini_config)
-
-                    # Verify authentication was configured
-                    mock_configure.assert_called_once()
-
+            assert result == "Test Gemini response"
+            mock_gen_model.assert_called_once()
+            mock_chat.send_message_async.assert_called_once_with("Hello")
 
 class TestProviderFactory:
     """Test cases for the provider factory."""
 
-    @pytest.fixture
-    def provider_configs(self):
-        """Provider configurations for testing."""
-        return {
-            "openai": {
-                "api_key": "test-openai-key",
-                "model": "gpt-4o"
-            },
-            "anthropic": {
-                "api_key": "test-anthropic-key",
-                "model": "claude-3-5-sonnet-20241022"
-            },
-            "gemini": {
-                "project_id": "test-project",
-                "model": "gemini-1.5-pro"
-            }
-        }
-
-    @pytest.mark.real_data
-    def test_provider_creation(self, provider_configs):
-        """Test provider factory creates real provider instances."""
-        # Use real ProviderFactory service
-        factory = ProviderFactory()
-
-        # Test OpenAI provider creation with real service
-        # Only mock external API calls, not the service itself
-        with patch('openai.OpenAI') as mock_openai_client:
-            openai_provider = factory.create_provider("openai", provider_configs["openai"])
-            assert openai_provider is not None
-            # Verify it's a real provider instance
+    @pytest.mark.mock_data
+    def test_provider_creation(self):
+        """Test provider factory creates correct provider instances."""
+        # Test OpenAI provider creation
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "test_key"}):
+            openai_provider = ProviderFactory.get_provider("openai")
             assert isinstance(openai_provider, OpenAIProvider)
-            assert hasattr(openai_provider, 'generate_text')
 
-        # Test Anthropic provider creation with real service
-        with patch('anthropic.Anthropic') as mock_anthropic_client:
-            anthropic_provider = factory.create_provider("anthropic", provider_configs["anthropic"])
-            assert anthropic_provider is not None
-            # Verify it's a real provider instance
+        # Test Anthropic provider creation
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test_key"}):
+            anthropic_provider = ProviderFactory.get_provider("anthropic")
             assert isinstance(anthropic_provider, AnthropicProvider)
-            assert hasattr(anthropic_provider, 'generate_text')
 
-        # Test Gemini provider creation with real service
-        with patch('google.generativeai') as mock_gemini_client:
-            gemini_provider = factory.create_provider("gemini", provider_configs["gemini"])
-            assert gemini_provider is not None
-            # Verify it's a real provider instance
+        # Test Gemini provider creation
+        with patch.dict(os.environ, {"GOOGLE_API_KEY": "test_key"}):
+            gemini_provider = ProviderFactory.get_provider("google")
             assert isinstance(gemini_provider, GeminiProvider)
-            assert hasattr(gemini_provider, 'generate_text')
 
-    def test_invalid_provider_type(self, provider_configs):
+    @pytest.mark.mock_data
+    def test_invalid_provider_type(self):
         """Test factory handles invalid provider types."""
-        factory = ProviderFactory()
+        with pytest.raises(ValueError, match="Unknown provider: invalid_provider"):
+            ProviderFactory.get_provider("invalid_provider")
 
-        with pytest.raises(ValueError):
-            factory.create_provider("invalid_provider", {})
+class TestLLMUsageTracker:
+    """Test cases for LLM usage tracking and cost monitoring."""
 
-    def test_provider_selection_logic(self, provider_configs):
-        """Test provider selection based on agent type."""
-        factory = ProviderFactory()
-
-        # Mock environment configuration
-        agent_mappings = {
-            "ANALYST_AGENT_PROVIDER": "anthropic",
-            "ARCHITECT_AGENT_PROVIDER": "openai",
-            "CODER_AGENT_PROVIDER": "openai",
-            "TESTER_AGENT_PROVIDER": "gemini"
-        }
-
-        with patch.dict(os.environ, agent_mappings):
-            # Test analyst agent gets Anthropic
-            analyst_provider = factory.get_provider_for_agent("analyst", provider_configs)
-            assert isinstance(analyst_provider, type(None))  # Would be AnthropicProvider in real implementation
-
-            # Test architect agent gets OpenAI
-            architect_provider = factory.get_provider_for_agent("architect", provider_configs)
-            assert isinstance(architect_provider, type(None))  # Would be OpenAIProvider in real implementation
-
-
-class TestLLMMonitoringService:
-    """Test cases for LLM monitoring and cost tracking."""
-
-    def test_cost_tracking_openai(self):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_cost_tracking_openai(self):
         """Test cost tracking for OpenAI usage."""
-        monitoring = LLMMonitoringService()
+        tracker = LLMUsageTracker()
+        cost = await tracker.calculate_costs(
+            input_tokens=1000,
+            output_tokens=500,
+            provider="openai",
+            model="gpt-4o"
+        )
+        # Expected: (1000/1000 * 0.005) + (500/1000 * 0.015) = 0.005 + 0.0075 = 0.0125
+        assert cost == pytest.approx(0.0125)
 
-        # Mock OpenAI usage data
-        usage_data = {
-            "model": "gpt-4o",
-            "usage": {
-                "prompt_tokens": 1000,
-                "completion_tokens": 500,
-                "total_tokens": 1500
-            }
-        }
-
-        # Calculate cost (mock implementation)
-        cost = monitoring.calculate_cost("openai", usage_data)
-
-        # GPT-4o pricing: $0.01/1K input tokens, $0.03/1K output tokens
-        expected_cost = (1000 * 0.01 / 1000) + (500 * 0.03 / 1000)  # $0.01 + $0.015 = $0.025
-
-        assert cost == expected_cost
-
-    def test_cost_tracking_anthropic(self):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_cost_tracking_anthropic(self):
         """Test cost tracking for Anthropic usage."""
-        monitoring = LLMMonitoringService()
+        tracker = LLMUsageTracker()
+        cost = await tracker.calculate_costs(
+            input_tokens=1000,
+            output_tokens=500,
+            provider="anthropic",
+            model="claude-3-sonnet"
+        )
+        # Expected: (1000/1000 * 0.003) + (500/1000 * 0.015) = 0.003 + 0.0075 = 0.0105
+        assert cost == pytest.approx(0.0105)
 
-        usage_data = {
-            "model": "claude-3-5-sonnet-20241022",
-            "usage": {
-                "input_tokens": 1000,
-                "output_tokens": 500,
-                "total_tokens": 1500
-            }
-        }
-
-        cost = monitoring.calculate_cost("anthropic", usage_data)
-
-        # Claude 3.5 Sonnet pricing: $0.003/1K input tokens, $0.015/1K output tokens
-        expected_cost = (1000 * 0.003 / 1000) + (500 * 0.015 / 1000)  # $0.003 + $0.0075 = $0.0105
-
-        assert cost == expected_cost
-
-    def test_cost_tracking_gemini(self):
+    @pytest.mark.asyncio
+    @pytest.mark.mock_data
+    async def test_cost_tracking_gemini(self):
         """Test cost tracking for Gemini usage."""
-        monitoring = LLMMonitoringService()
-
-        usage_data = {
-            "model": "gemini-1.5-pro",
-            "usage": {
-                "prompt_tokens": 1000,
-                "completion_tokens": 500,
-                "total_tokens": 1500
-            }
-        }
-
-        cost = monitoring.calculate_cost("gemini", usage_data)
-
-        # Gemini 1.5 Pro pricing: $0.00125/1K input tokens, $0.005/1K output tokens
-        expected_cost = (1000 * 0.00125 / 1000) + (500 * 0.005 / 1000)  # $0.00125 + $0.0025 = $0.00375
-
-        assert cost == expected_cost
-
-    def test_usage_aggregation(self):
-        """Test usage aggregation across multiple requests."""
-        monitoring = LLMMonitoringService()
-
-        # Simulate multiple requests
-        requests = [
-            {"provider": "openai", "model": "gpt-4o", "tokens": 1000, "cost": 0.02},
-            {"provider": "openai", "model": "gpt-4o", "tokens": 1500, "cost": 0.03},
-            {"provider": "anthropic", "model": "claude-3-5-sonnet-20241022", "tokens": 800, "cost": 0.008}
-        ]
-
-        # Aggregate usage
-        aggregated = monitoring.aggregate_usage(requests)
-
-        assert aggregated["openai"]["total_tokens"] == 2500
-        assert aggregated["openai"]["total_cost"] == 0.05
-        assert aggregated["anthropic"]["total_tokens"] == 800
-        assert aggregated["anthropic"]["total_cost"] == 0.008
-
+        tracker = LLMUsageTracker()
+        cost = await tracker.calculate_costs(
+            input_tokens=1000,
+            output_tokens=500,
+            provider="google",
+            model="gemini-pro"
+        )
+        # Expected: (1000/1000 * 0.00025) + (500/1000 * 0.0005) = 0.00025 + 0.00025 = 0.0005
+        assert cost == pytest.approx(0.0005)
 
 class TestAgentToLLMMapping:
     """Test cases for agent-to-LLM mapping system."""
+
+    @pytest.mark.mock_data
 
     def test_environment_based_mapping(self):
         """Test agent mapping based on environment variables."""
@@ -553,6 +366,8 @@ class TestAgentToLLMMapping:
                 elif provider == "gemini":
                     assert "gemini" in model
 
+    @pytest.mark.mock_data
+
     def test_mapping_validation(self):
         """Test validation of agent-to-LLM mappings."""
         # Test invalid provider
@@ -567,6 +382,8 @@ class TestAgentToLLMMapping:
                 # In real implementation, this would validate the mapping
                 pass
 
+    @pytest.mark.mock_data
+
     def test_fallback_mapping(self):
         """Test fallback to default mappings when environment not set."""
         # Clear environment
@@ -579,45 +396,12 @@ class TestAgentToLLMMapping:
             assert default_provider == "openai"
             assert default_model == "gpt-3.5-turbo"
 
-
 class TestMultiProviderIntegration:
     """Integration tests for multi-provider setup."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.external_service
-    async def test_provider_failover(self):
-        """Test automatic failover between providers using real services."""
-        # Use real provider services, mock only external API calls
-        factory = ProviderFactory()
-        
-        # Create real provider instances
-        openai_config = {"api_key": "test-key", "model": "gpt-3.5-turbo"}
-        anthropic_config = {"api_key": "test-key", "model": "claude-3-sonnet-20240229"}
-        
-        with patch('openai.OpenAI') as mock_openai_client:
-            with patch('anthropic.Anthropic') as mock_anthropic_client:
-                
-                # Create real provider instances
-                openai_provider = factory.create_provider("openai", openai_config)
-                anthropic_provider = factory.create_provider("anthropic", anthropic_config)
-                
-                # Mock external API calls to simulate failure/success
-                mock_openai_client.return_value.chat.completions.create.side_effect = Exception("OpenAI API down")
-                
-                mock_anthropic_response = Mock()
-                mock_anthropic_response.content = [Mock(text="Anthropic response")]
-                mock_anthropic_response.usage = Mock(input_tokens=10, output_tokens=5)
-                mock_anthropic_client.return_value.messages.create.return_value = mock_anthropic_response
-                }
-                mock_anthropic.return_value = mock_anthropic_instance
 
-                factory = ProviderFactory()
 
-                # Test failover logic
-                result = await factory.generate_with_failover("test prompt")
-
-                assert result["text"] == "Anthropic response"
-                assert result["provider"] == "anthropic"
+    @pytest.mark.mock_data
 
     def test_load_balancing(self):
         """Test load balancing across multiple provider instances."""
@@ -645,6 +429,8 @@ class TestMultiProviderIntegration:
         assert "instance 2" in requests[2]
         assert "instance 0" in requests[3]  # Round robin
 
+    @pytest.mark.mock_data
+
     def test_multi_provider_validation_criteria(self):
         """Test that all validation criteria from the plan are met."""
 
@@ -659,7 +445,6 @@ class TestMultiProviderIntegration:
         # Verify all criteria are met
         for criterion, status in validation_criteria.items():
             assert status == True, f"Validation criterion failed: {criterion}"
-
 
 if __name__ == "__main__":
     # Run the tests

@@ -19,7 +19,6 @@ from app.services.orchestrator.status_tracker import StatusTracker
 from app.services.orchestrator.context_manager import ContextManager
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestOrchestratorRefactoring:
     """Test the refactored orchestrator services."""
 
@@ -109,6 +108,8 @@ class TestOrchestratorRefactoring:
         orchestrator_core.status_tracker.get_performance_metrics.assert_called_once_with(project_id)
         assert result == expected_metrics
 
+    @pytest.mark.mock_data
+
     def test_context_management_delegation(self, orchestrator_core):
         """Test that context management methods delegate to ContextManager."""
         project_id = uuid4()
@@ -146,7 +147,6 @@ class TestOrchestratorRefactoring:
             # Verify health check method exists
             assert hasattr(orchestrator_core, 'health_check')
             assert callable(orchestrator_core.health_check)
-
 
 class TestIndividualServices:
     """Test individual service components."""
@@ -193,7 +193,6 @@ class TestIndividualServices:
                 manager = ContextManager(session, mock_context_store)
         assert manager.db == session
         assert manager.context_store == mock_context_store
-
 
 class TestSOLIDPrinciples:
     """Test that the refactoring follows SOLID principles."""
@@ -256,6 +255,8 @@ class TestSOLIDPrinciples:
         assert hasattr(orchestrator, 'status_tracker')
         assert hasattr(orchestrator, 'context_manager')
 
+    @pytest.mark.mock_data
+
     def test_interface_segregation_principle(self):
         """Test that interfaces are focused and specific."""
         from app.interfaces import (
@@ -276,7 +277,6 @@ class TestSOLIDPrinciples:
         assert len(agent_methods) <= 15   # Agent coordination might have more methods
         assert len(status_methods) <= 8   # Status tracking should be focused
         assert len(context_methods) <= 8  # Context management should be focused
-
 
 if __name__ == "__main__":
     pytest.main([__file__])

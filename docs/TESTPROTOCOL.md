@@ -12,6 +12,7 @@ Testing standards. Prioritize real data over mocks, automate test maintenance, e
 - **Auto-Sync Tests**: Generate tests from schemas, flag outdated tests on code changes
 - **Mandatory Coverage**: Security, accessibility, and critical paths require >80% coverage
 - **Production-Like**: Tests must replicate real-world behavior and edge cases
+- **IF THERE IS A DISCREPRENCY BETWEEN THE TEST AND THE CODE, VERIFY THE CORRECT CODE STRUCTURE IN THE REST OF THE CODEBASE**.
 
 ## Frontend Testing
 
@@ -55,12 +56,48 @@ Testing standards. Prioritize real data over mocks, automate test maintenance, e
 
 ### Test Classification System
 
-**MANDATORY**: All tests must use classification markers:
+**MANDATORY**: All tests must use classification markers. Multiple markers are allowed and encouraged for complex scenarios:
 
 ```python
 @pytest.mark.real_data        # Uses real database/services
-@pytest.mark.external_service # Mocks external dependencies only  
+@pytest.mark.external_service # Mocks external dependencies only
 @pytest.mark.mock_data        # Uses mocks (legacy/comparison)
+
+# RECOMMENDED COMBINATIONS:
+@pytest.mark.real_data @pytest.mark.external_service  # Integration tests (preferred)
+@pytest.mark.mock_data @pytest.mark.external_service  # Legacy compatibility
+```
+
+**Classification Rules**:
+- Every test MUST have at least one classification marker
+- Tests can combine `real_data` + `external_service` (recommended pattern)
+- Tests can combine `mock_data` + `external_service` (legacy compatibility)
+- Tests CANNOT combine `mock_data` + `real_data` (conflicting approaches)
+
+**Best Practice**: Use `@pytest.mark.real_data @pytest.mark.external_service` for integration tests that use real database operations but mock external APIs.
+
+### Running Tests by Classification
+
+The multi-marker system enables powerful test filtering:
+
+```bash
+# Run only tests that use real database operations
+pytest -m "real_data"
+
+# Run tests that mock external services only (no real database)
+pytest -m "external_service and not real_data"
+
+# Run integration tests (real database + external service mocking)
+pytest -m "real_data and external_service"
+
+# Run legacy mock tests
+pytest -m "mock_data"
+
+# Run all tests except legacy mocks
+pytest -m "not mock_data"
+
+# Run fast tests (no external service calls)
+pytest -m "not external_service"
 ```
 
 ### Database Testing Standards
@@ -80,7 +117,7 @@ def test_with_real_database(db_manager):
     with db_manager.get_session() as session:
         service = RealService(session)
         result = service.create_record(data)
-        
+
         # Verify actual database state
         db_checks = [{'table': 'records', 'conditions': {'id': result.id}, 'count': 1}]
         assert db_manager.verify_database_state(db_checks)
@@ -124,7 +161,7 @@ def test_with_real_database(db_manager):
 
 ```
 frontend/tests/     # Component unit/integration tests
-backend/tests/      # API and business logic tests  
+backend/tests/      # API and business logic tests
 tests/visual/       # Visual regression baselines
 tests/e2e/         # Critical user flow tests
 ```
@@ -136,16 +173,17 @@ tests/e2e/         # Critical user flow tests
 - All accessibility (`axe-core`) and security tests pass
 - Visual diffs approved or resolved
 - No hardcoded test data (use factories/staging data)
-- **All tests have proper classification markers**
-- **No inappropriate database/service mocking**
-- **Database state verification for data operations**
+- **All tests have proper classification markers** (at least one of: real_data, external_service, mock_data)
+- **No inappropriate database/service mocking** (no mocking of internal services/database sessions)
+- **Database state verification for data operations** (real_data tests must verify actual DB state)
+- **Prefer `real_data + external_service` pattern** for integration tests
 
 **Mock Analysis Tools**:
 ```bash
 # Identify inappropriate mocking
 python scripts/analyze_mock_usage.py
 
-# Full test suite analysis  
+# Full test suite analysis
 python scripts/comprehensive_mock_analysis.py
 
 # Compare mock vs real test approaches
@@ -159,7 +197,10 @@ python scripts/compare_mock_vs_real_tests.py
 - Hardcoded JSON fixtures
 - **Mocking internal services/database sessions**
 - **Tests that only validate mock interactions**
-- **Missing test classification markers**
+- **Missing test classification markers** (every test needs at least one)
+- **Conflicting marker combinations** (cannot use mock_data + real_data)
+- **Single-marker integration tests** (prefer real_data + external_service)
+- **CHANGING CODE IF THERE IS A DISCREPRENCY BETWEEN THE TEST AND THE CODE.**
 
 ## Service Testing Patterns
 
@@ -183,6 +224,25 @@ def test_external_integration():
         assert result["status"] == "success"
 ```
 
+### ✅ RECOMMENDED: Integration Testing Pattern
+```python
+@pytest.mark.real_data
+@pytest.mark.external_service
+def test_full_integration_flow(db_manager):
+    """Test complete flow: real database + mocked external APIs."""
+    with patch('external_api.LLMClient') as mock_llm:
+        mock_llm.return_value.generate.return_value = {"text": "response"}
+
+        with db_manager.get_session() as session:
+            service = RealService(session)  # Real database operations
+            result = service.process_with_llm_call(user_input)
+
+            # Verify real database state
+            assert result.id is not None
+            db_checks = [{'table': 'results', 'conditions': {'id': result.id}, 'count': 1}]
+            assert db_manager.verify_database_state(db_checks)
+```
+
 ### ❌ Anti-Patterns
 ```python
 # DON'T: Mock internal services
@@ -190,7 +250,7 @@ def test_external_integration():
 def test_with_service_mock(mock_service):
     # This hides business logic issues
 
-# DON'T: Mock database sessions  
+# DON'T: Mock database sessions
 @patch('app.database.get_session')
 def test_with_db_mock(mock_session):
     # This hides schema and constraint issues

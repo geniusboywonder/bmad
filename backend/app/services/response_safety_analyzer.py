@@ -9,7 +9,7 @@ from datetime import datetime
 
 from app.database.models import ResponseApprovalDB
 from app.database.connection import get_session
-from app.config import settings
+from app.settings import settings
 
 logger = structlog.get_logger(__name__)
 

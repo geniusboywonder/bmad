@@ -16,7 +16,7 @@ from app.services.llm_monitoring import LLMUsageTracker
 from app.services.hitl_safety_service import HITLSafetyService, ApprovalTimeoutError
 from app.database.models import ResponseApprovalDB
 from app.services.response_safety_analyzer import ResponseSafetyAnalyzer
-from app.config import settings
+from app.settings import settings
 
 logger = structlog.get_logger(__name__)
 

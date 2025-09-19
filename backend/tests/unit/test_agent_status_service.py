@@ -14,7 +14,6 @@ from app.services.agent_status_service import AgentStatusService, agent_status_s
 from app.models.agent import AgentType, AgentStatus, AgentStatusModel
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestAgentStatusServiceInitialization:
     """Test AgentStatusService initialization - S3-UNIT-001."""
     
@@ -54,7 +53,6 @@ class TestAgentStatusServiceInitialization:
         assert len(new_statuses) == len(AgentType)
         assert new_statuses[test_agent].status == AgentStatus.IDLE
 
-
 class TestAgentStatusUpdates:
     """Test agent status update functionality - S3-UNIT-002."""
     
@@ -73,6 +71,8 @@ class TestAgentStatusUpdates:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_update_agent_status_creates_correct_model(self, service, db_manager):
         """Test that status updates create correct AgentStatusModel."""
         # Create real task for testing
@@ -99,6 +99,8 @@ class TestAgentStatusUpdates:
         assert isinstance(result.last_activity, datetime)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_update_agent_status_with_error_message(self, service):
         """Test status update with error message."""
         agent_type = AgentType.CODER
@@ -117,6 +119,8 @@ class TestAgentStatusUpdates:
         assert result.error_message == error_msg
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_update_agent_status_broadcasts_websocket_event(self, service):
         """Test that status updates trigger WebSocket broadcasts."""
         agent_type = AgentType.TESTER
@@ -141,7 +145,6 @@ class TestAgentStatusUpdates:
             assert event.agent_type == agent_type.value
             assert event.data["status"] == AgentStatus.WORKING.value
 
-
 class TestAgentStatusCache:
     """Test status cache operations - S3-UNIT-003."""
     
@@ -149,6 +152,8 @@ class TestAgentStatusCache:
     def service(self):
         return AgentStatusService()
     
+    @pytest.mark.mock_data
+
     def test_get_agent_status_returns_cached_status(self, service):
         """Test that get_agent_status returns cached status."""
         agent_type = AgentType.ARCHITECT
@@ -169,6 +174,8 @@ class TestAgentStatusCache:
         assert updated_status.status == AgentStatus.WORKING
         assert updated_status.current_task_id is not None
     
+    @pytest.mark.mock_data
+
     def test_get_all_agent_statuses_returns_copy(self, service):
         """Test that get_all_agent_statuses returns a copy of cache."""
         all_statuses = service.get_all_agent_statuses()
@@ -184,13 +191,14 @@ class TestAgentStatusCache:
         original_status = service.get_agent_status(test_agent)
         assert original_status.status == AgentStatus.IDLE
     
+    @pytest.mark.mock_data
+
     def test_get_nonexistent_agent_status_returns_none(self, service):
         """Test that getting status for invalid agent returns None."""
         # Clear cache and try to get status
         service._status_cache = {}
         result = service.get_agent_status(AgentType.ANALYST)
         assert result is None
-
 
 class TestAgentStatusErrorHandling:
     """Test error handling for invalid agent types - S3-UNIT-004."""
@@ -200,6 +208,8 @@ class TestAgentStatusErrorHandling:
         return AgentStatusService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_invalid_agent_type_handled_gracefully(self, service):
         """Test that invalid agent types are handled gracefully."""
         # This test ensures the service handles edge cases properly
@@ -217,7 +227,6 @@ class TestAgentStatusErrorHandling:
             assert result is not None
             assert result.agent_type == AgentType.ANALYST
 
-
 class TestAgentStatusThreadSafety:
     """Test thread-safety of status updates - S3-UNIT-005."""
     
@@ -226,6 +235,8 @@ class TestAgentStatusThreadSafety:
         return AgentStatusService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_concurrent_status_updates(self, service):
         """Test that concurrent status updates are handled safely."""
         agent_type = AgentType.DEPLOYER
@@ -257,7 +268,6 @@ class TestAgentStatusThreadSafety:
             final_status = service.get_agent_status(agent_type)
             assert isinstance(final_status, AgentStatusModel)
 
-
 class TestAgentStatusHelperMethods:
     """Test helper methods for common status operations."""
     
@@ -266,6 +276,8 @@ class TestAgentStatusHelperMethods:
         return AgentStatusService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_set_agent_working(self, service):
         """Test set_agent_working convenience method."""
         agent_type = AgentType.ORCHESTRATOR
@@ -280,6 +292,8 @@ class TestAgentStatusHelperMethods:
             assert result.current_task_id == task_id
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_set_agent_idle(self, service):
         """Test set_agent_idle convenience method."""
         agent_type = AgentType.ORCHESTRATOR
@@ -297,6 +311,8 @@ class TestAgentStatusHelperMethods:
             assert result.current_task_id is None
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_set_agent_waiting_for_hitl(self, service):
         """Test set_agent_waiting_for_hitl convenience method."""
         agent_type = AgentType.ANALYST
@@ -311,6 +327,8 @@ class TestAgentStatusHelperMethods:
             assert result.current_task_id == task_id
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_set_agent_error(self, service):
         """Test set_agent_error convenience method."""
         agent_type = AgentType.CODER
@@ -323,7 +341,6 @@ class TestAgentStatusHelperMethods:
             
             assert result.status == AgentStatus.ERROR
             assert result.error_message == error_msg
-
 
 class TestDatabasePersistence:
     """Test database persistence functionality."""
@@ -342,6 +359,7 @@ class TestDatabasePersistence:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_database_persistence_success(self, service, db_manager):
         """Test successful database persistence with real database."""
         agent_type = AgentType.TESTER
@@ -364,6 +382,8 @@ class TestDatabasePersistence:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.real_data
+
     async def test_database_persistence_failure_handling(self, service, db_manager):
         """Test graceful handling of database failures with real database."""
         agent_type = AgentType.ARCHITECT

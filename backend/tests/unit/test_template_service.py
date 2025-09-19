@@ -13,7 +13,6 @@ from app.services.template_service import TemplateService
 from app.models.template import TemplateDefinition, TemplateSection, TemplateSectionType
 from app.utils.yaml_parser import YAMLParser, ParserError, ValidationResult
 
-
 class TestTemplateService:
     """Test cases for TemplateService."""
 
@@ -42,23 +41,23 @@ class TestTemplateService:
             }
         }
 
+    @pytest.mark.mock_data
     def test_service_initialization(self, template_service):
         """Test template service initialization."""
-        assert template_service.yaml_parser is not None
-        assert template_service.template_base_path.name == "templates"
-        assert template_service._cache_enabled is True
-        assert template_service._template_cache == {}
+        assert template_service.template_loader.yaml_parser is not None
+        assert template_service.template_loader.template_base_path.name == "templates"
+        assert template_service.template_loader._cache_enabled is True
+        assert template_service.template_loader._template_cache == {}
 
+    @pytest.mark.mock_data
     def test_load_template_success(self, template_service, mock_template_data):
         """Test successful template loading."""
-        # Mock the _find_template_file method to return a valid path
         mock_file_path = MagicMock(spec=Path)
         mock_file_path.exists.return_value = True
         mock_file_path.is_file.return_value = True
 
-        with patch.object(template_service, '_find_template_file', return_value=mock_file_path):
-            # Mock the YAMLParser to return our test data
-            with patch.object(template_service.yaml_parser, 'load_template') as mock_load:
+        with patch.object(template_service.template_loader, '_find_template_file', return_value=mock_file_path):
+            with patch.object(template_service.template_loader.yaml_parser, 'load_template') as mock_load:
                 mock_template = TemplateDefinition(
                     id="test-template",
                     name="Test Template",
@@ -79,30 +78,31 @@ class TestTemplateService:
                 assert result.name == "Test Template"
                 mock_load.assert_called_once()
 
+    @pytest.mark.mock_data
     def test_load_template_file_not_found(self, template_service):
         """Test template loading when file doesn't exist."""
-        with patch('pathlib.Path.exists', return_value=False):
+        with patch.object(template_service.template_loader, '_find_template_file', return_value=None):
             with pytest.raises(FileNotFoundError, match="Template 'nonexistent' not found"):
                 template_service.load_template("nonexistent")
 
+    @pytest.mark.mock_data
     def test_load_template_parse_error(self, template_service):
         """Test template loading with parse error."""
-        # Mock the _find_template_file method to return a valid path
         mock_file_path = MagicMock(spec=Path)
         mock_file_path.exists.return_value = True
         mock_file_path.is_file.return_value = True
 
-        with patch.object(template_service, '_find_template_file', return_value=mock_file_path), \
-             patch.object(template_service.yaml_parser, 'load_template', side_effect=ParserError("Parse failed")):
+        with patch.object(template_service.template_loader, '_find_template_file', return_value=mock_file_path), \
+             patch.object(template_service.template_loader.yaml_parser, 'load_template', side_effect=ParserError("Parse failed")):
 
             with pytest.raises(ParserError, match="Parse failed"):
                 template_service.load_template("test-template")
 
+    @pytest.mark.mock_data
     def test_render_template_success(self, template_service):
         """Test successful template rendering."""
         variables = {"name": "Alice", "project": "BotArmy"}
 
-        # Create a mock template
         mock_template = TemplateDefinition(
             id="test-template",
             name="Test Template",
@@ -117,7 +117,7 @@ class TestTemplateService:
         )
 
         with patch.object(template_service, 'load_template', return_value=mock_template), \
-             patch.object(template_service.yaml_parser, 'validate_template_variables') as mock_validate:
+             patch.object(template_service.template_renderer.yaml_parser, 'validate_template_variables') as mock_validate:
 
             mock_validate.return_value = ValidationResult(
                 is_valid=True,
@@ -130,11 +130,14 @@ class TestTemplateService:
             assert "Hello Alice, welcome to BotArmy!" in result
             assert "## Greeting" in result
 
+    @pytest.mark.mock_data
     def test_render_template_validation_failure(self, template_service):
         """Test template rendering with validation failure."""
         variables = {"name": "Alice"}  # Missing 'project' variable
+        mock_template = TemplateDefinition(id="test", name="Test", sections=[])
 
-        with patch.object(template_service.yaml_parser, 'validate_template_variables') as mock_validate:
+        with patch.object(template_service, 'load_template', return_value=mock_template), \
+            patch.object(template_service.template_renderer.yaml_parser, 'validate_template_variables') as mock_validate:
             mock_validate.return_value = ValidationResult(
                 is_valid=False,
                 errors=["Missing required variables: project"],
@@ -144,12 +147,13 @@ class TestTemplateService:
             with pytest.raises(Exception):  # Should raise TemplateError
                 template_service.render_template("test-template", variables)
 
+    @pytest.mark.mock_data
     def test_validate_template_variables(self, template_service):
         """Test template variable validation."""
         variables = {"name": "Alice", "project": "BotArmy"}
 
         with patch.object(template_service, 'load_template') as mock_load, \
-             patch.object(template_service.yaml_parser, 'validate_template_variables') as mock_validate:
+             patch.object(template_service.template_renderer, 'validate_template_variables') as mock_validate:
 
             mock_template = TemplateDefinition(
                 id="test-template",
@@ -165,11 +169,11 @@ class TestTemplateService:
             )
             mock_load.return_value = mock_template
 
-            mock_validate.return_value = ValidationResult(
-                is_valid=True,
-                errors=[],
-                warnings=[]
-            )
+            mock_validate.return_value = {
+                "is_valid": True,
+                "required_variables": ["name"],
+                "missing_variables": []
+            }
 
             result = template_service.validate_template_variables("test-template", variables)
 
@@ -177,19 +181,21 @@ class TestTemplateService:
             assert result["required_variables"] == ["name"]
             assert result["missing_variables"] == []
 
+    @pytest.mark.mock_data
     def test_get_template_metadata(self, template_service):
         """Test getting template metadata."""
-        with patch.object(template_service, 'load_template') as mock_load:
-            mock_template = TemplateDefinition(
-                id="test-template",
-                name="Test Template",
-                version="1.0",
-                description="A test template",
-                sections=[
-                    TemplateSection(id="section1", title="Section 1"),
-                    TemplateSection(id="section2", title="Section 2")
-                ]
-            )
+        with patch.object(template_service.template_loader, 'load_template') as mock_load:
+            mock_template = MagicMock(spec=TemplateDefinition)
+            mock_template.id = "test-template"
+            mock_template.name = "Test Template"
+            mock_template.version = "1.0"
+            mock_template.description = "A test template"
+            mock_template.sections = [MagicMock(), MagicMock()]
+            mock_template.output.format.value = "markdown"
+            mock_template.get_elicitation_sections.return_value = []
+            mock_template.estimate_complexity.return_value = 10
+            mock_template.tags = []
+            mock_template.metadata = {}
             mock_load.return_value = mock_template
 
             result = template_service.get_template_metadata("test-template")
@@ -199,22 +205,19 @@ class TestTemplateService:
             assert result["version"] == "1.0"
             assert result["sections_count"] == 2
 
+    @pytest.mark.mock_data
     def test_list_available_templates(self, template_service):
         """Test listing available templates."""
-        # Create a mock Path object that behaves correctly
         mock_path = MagicMock(spec=Path)
         mock_path.exists.return_value = True
+        mock_path.is_dir.return_value = True
 
-        # Mock template files
-        mock_file1 = MagicMock(spec=Path)
-        mock_file1.stem = "test-template1"
-        mock_file2 = MagicMock(spec=Path)
-        mock_file2.stem = "test-template2"
-
+        mock_file1 = MagicMock(spec=Path); mock_file1.stem = "test-template1"
+        mock_file2 = MagicMock(spec=Path); mock_file2.stem = "test-template2"
         mock_path.glob.return_value = [mock_file1, mock_file2]
 
-        with patch.object(template_service, 'template_base_path', mock_path), \
-             patch.object(template_service, 'get_template_metadata') as mock_meta:
+        with patch.object(template_service.template_loader, 'template_base_path', mock_path), \
+             patch.object(template_service.template_loader, 'get_template_metadata') as mock_meta:
 
             mock_meta.side_effect = [
                 {"id": "test-template1", "name": "Template 1"},
@@ -227,84 +230,75 @@ class TestTemplateService:
             assert result[0]["id"] == "test-template1"
             assert result[1]["id"] == "test-template2"
 
+    @pytest.mark.mock_data
     def test_cache_operations(self, template_service):
         """Test cache operations."""
-        # Test cache clearing
-        template_service._template_cache["test"] = "cached_data"
+        template_service.template_loader._template_cache["test"] = "cached_data"
         template_service.clear_cache()
-        assert template_service._template_cache == {}
+        assert template_service.template_loader._template_cache == {}
 
-        # Test cache enabling/disabling
         template_service.enable_cache(False)
-        assert template_service._cache_enabled is False
+        assert template_service.template_loader._cache_enabled is False
 
         template_service.enable_cache(True)
-        assert template_service._cache_enabled is True
+        assert template_service.template_loader._cache_enabled is True
 
+    @pytest.mark.mock_data
     def test_find_template_file(self, template_service):
         """Test template file finding."""
-        # Create a mock Path object that behaves correctly
         mock_base_path = MagicMock(spec=Path)
         mock_file = MagicMock(spec=Path)
         mock_file.exists.return_value = True
         mock_file.is_file.return_value = True
 
-        # Mock the Path constructor and the / operator
-        with patch('pathlib.Path') as mock_path_class, \
-             patch.object(template_service, 'template_base_path', mock_base_path):
-
-            mock_path_class.return_value = mock_base_path
+        with patch('pathlib.Path', return_value=mock_base_path):
+            template_service.template_loader.template_base_path = mock_base_path
             mock_base_path.__truediv__.return_value = mock_file
 
-            result = template_service._find_template_file("test-template")
+            result = template_service.template_loader._find_template_file("test-template")
 
-            # The result should be the mock file if it exists
-            if result is not None:
-                assert result == mock_file
-                mock_base_path.__truediv__.assert_called_with("test-template.yaml")
-            else:
-                # If result is None, the mocking didn't work as expected
-                # This is a test infrastructure issue, not a code issue
-                pytest.skip("Path mocking issue in test environment")
+            assert result == mock_file
+            mock_base_path.__truediv__.assert_called_with("test-template.yaml")
 
+    @pytest.mark.mock_data
     def test_format_output_markdown(self, template_service):
         """Test markdown output formatting."""
-        template = TemplateDefinition(
-            id="test-template",
-            name="Test Template",
-            output={"title": "Test Document", "format": "markdown"}
-        )
+        template = MagicMock(spec=TemplateDefinition)
+        template.id = "test-template"
+        template.name = "Test Template"
+        template.output.title = "Test Document"
         variables = {"name": "Alice"}
 
-        result = template_service._format_output("Test content", "markdown", template, variables)
+        with patch.object(template_service.template_renderer.yaml_parser, 'substitute_variables_in_template', return_value="Test Document"):
+            result = template_service.template_renderer._format_output("Test content", TemplateSectionType.MARKDOWN, template, variables)
 
-        assert "# Test Document" in result
-        assert "Test content" in result
-        assert "template: test-template" in result
+            assert "# Test Document" in result
+            assert "Test content" in result
+            assert "template: test-template" in result
 
+    @pytest.mark.mock_data
     def test_format_output_json(self, template_service):
         """Test JSON output formatting."""
-        template = TemplateDefinition(
-            id="test-template",
-            name="Test Template"
-        )
+        template = MagicMock(spec=TemplateDefinition)
+        template.id = "test-template"
+        template.name = "Test Template"
         variables = {"name": "Alice"}
 
-        result = template_service._format_output("Test content", "json", template, variables)
+        result = template_service.template_renderer._format_output("Test content", TemplateSectionType.JSON, template, variables)
 
         assert '"template": "test-template"' in result
         assert '"content": "Test content"' in result
         assert '"name": "Alice"' in result
 
+    @pytest.mark.mock_data
     def test_format_output_html(self, template_service):
         """Test HTML output formatting."""
-        template = TemplateDefinition(
-            id="test-template",
-            name="Test Template"
-        )
+        template = MagicMock(spec=TemplateDefinition)
+        template.id = "test-template"
+        template.name = "Test Template"
         variables = {"name": "Alice"}
 
-        result = template_service._format_output("Test content", "html", template, variables)
+        result = template_service.template_renderer._format_output("Test content", TemplateSectionType.HTML, template, variables)
 
         assert "<!DOCTYPE html>" in result
         assert "<title>Test Template</title>" in result

@@ -18,9 +18,10 @@ from app.database.connection import get_engine, get_session
 from app.tasks.celery_app import celery_app
 from app.database.models import ProjectDB, TaskDB, ContextArtifactDB, HitlRequestDB
 
-
 class TestDatabaseConnection:
     """Test cases for database connection setup and management."""
+
+    @pytest.mark.mock_data
 
     def test_get_engine_creation(self):
         """Test that engine is created successfully."""
@@ -28,6 +29,7 @@ class TestDatabaseConnection:
         assert engine is not None
         assert hasattr(engine, 'url')
 
+    @pytest.mark.real_data
     def test_get_session_creation(self):
         """Test that database session is created successfully."""
         session_gen = get_session()
@@ -40,6 +42,8 @@ class TestDatabaseConnection:
         except StopIteration:
             pass  # Expected behavior
 
+    @pytest.mark.real_data
+
     def test_database_tables_exist(self):
         """Test that all required database tables exist."""
         engine = get_engine()
@@ -47,20 +51,22 @@ class TestDatabaseConnection:
         # Check if main tables exist
         with engine.connect() as conn:
             # Test projects table
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='projects'"))
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='projects'"))
             assert result.fetchone() is not None, "Projects table should exist"
 
             # Test tasks table
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"))
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='tasks'"))
             assert result.fetchone() is not None, "Tasks table should exist"
 
             # Test context_artifacts table
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='context_artifacts'"))
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='context_artifacts'"))
             assert result.fetchone() is not None, "Context artifacts table should exist"
 
             # Test workflow_states table (Phase 1 requirement)
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='workflow_states'"))
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='workflow_states'"))
             assert result.fetchone() is not None, "Workflow states table should exist"
+
+    @pytest.mark.real_data
 
     def test_database_indexes_exist(self):
         """Test that performance indexes exist."""
@@ -68,11 +74,13 @@ class TestDatabaseConnection:
 
         with engine.connect() as conn:
             # Check for performance indexes
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_tasks_project_agent_status'"))
+            result = conn.execute(text("SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname='idx_tasks_project_agent_status'"))
             assert result.fetchone() is not None, "Tasks performance index should exist"
 
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_context_artifacts_project_type'"))
+            result = conn.execute(text("SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname='idx_context_artifacts_project_type'"))
             assert result.fetchone() is not None, "Context artifacts performance index should exist"
+
+    @pytest.mark.real_data
 
     def test_database_migration_status(self):
         """Test that database migrations are up to date."""
@@ -80,7 +88,7 @@ class TestDatabaseConnection:
 
         with engine.connect() as conn:
             # Check that alembic version table exists
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'"))
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='alembic_version'"))
             assert result.fetchone() is not None, "Alembic version table should exist"
 
             # Check that we have a current revision
@@ -88,10 +96,10 @@ class TestDatabaseConnection:
             version = result.fetchone()
             assert version is not None, "Should have current migration version"
 
-
 class TestDatabaseModels:
     """Test cases for database model operations."""
 
+    @pytest.mark.real_data
     def test_project_model_creation(self):
         """Test creating project records."""
         session_gen = get_session()
@@ -118,15 +126,18 @@ class TestDatabaseModels:
             except StopIteration:
                 pass
 
-
 class TestRedisIntegration:
     """Test cases for Redis integration with Celery."""
+
+    @pytest.mark.mock_data
 
     def test_celery_app_configuration(self):
         """Test that Celery app is properly configured."""
         assert celery_app is not None
         assert celery_app.conf.broker_url is not None
         assert celery_app.conf.result_backend is not None
+
+    @pytest.mark.mock_data
 
     def test_celery_app_tasks(self):
         """Test that Celery tasks are registered."""
@@ -135,15 +146,18 @@ class TestRedisIntegration:
         # Should have at least some tasks registered
         assert len(tasks) > 0
 
+    @pytest.mark.mock_data
+
     def test_celery_queue_configuration(self):
         """Test that Celery queues are properly configured."""
         # Check task routes configuration
         assert hasattr(celery_app.conf, 'task_routes')
         assert celery_app.conf.task_routes is not None
 
-
 class TestPhase1Requirements:
     """Test cases specifically for Phase 1 completion criteria."""
+
+    @pytest.mark.real_data
 
     def test_database_with_proper_indexing(self):
         """Test that database has proper indexing per Phase 1 requirements."""
@@ -158,8 +172,10 @@ class TestPhase1Requirements:
             ]
 
             for index_name in required_indexes:
-                result = conn.execute(text(f"SELECT name FROM sqlite_master WHERE type='index' AND name='{index_name}'"))
+                result = conn.execute(text(f"SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname='{index_name}'"))
                 assert result.fetchone() is not None, f"Required index {index_name} should exist"
+
+    @pytest.mark.mock_data
 
     def test_redis_backed_celery_operational(self):
         """Test that Redis-backed Celery task queue is operational."""
@@ -171,17 +187,19 @@ class TestPhase1Requirements:
         assert celery_app.conf.result_backend is not None
         assert 'redis' in celery_app.conf.result_backend
 
+    @pytest.mark.mock_data
+
     def test_workflow_states_table_exists(self):
         """Test that workflow_states table exists (critical for Phase 1)."""
         engine = get_engine()
 
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='workflow_states'"))
+            result = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='workflow_states'"))
             assert result.fetchone() is not None, "Workflow states table must exist for Phase 1"
 
             # Test table structure
-            result = conn.execute(text("PRAGMA table_info(workflow_states)"))
-            columns = [row[1] for row in result.fetchall()]
+            result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='workflow_states' AND table_schema='public'"))
+            columns = [row[0] for row in result.fetchall()]
 
             required_columns = ['id', 'project_id', 'workflow_id', 'execution_id', 'status']
             for col in required_columns:

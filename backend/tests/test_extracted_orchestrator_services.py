@@ -31,7 +31,6 @@ from app.models.context import ContextArtifact, ArtifactType
 from app.models.hitl import HitlStatus
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestProjectLifecycleManager:
     """Test cases for ProjectLifecycleManager service."""
 
@@ -139,20 +138,27 @@ class TestProjectLifecycleManager:
             current_phase="discovery"
         )
 
-        # Create completed tasks for the project
-        for i in range(2):
-            db_manager.create_test_task(
-                project_id=project.id,
-                agent_type="analyst",
-                status=TaskStatus.COMPLETED
-            )
+        # Create tasks that satisfy the completion criteria for the 'discovery' phase
+        db_manager.create_test_task(
+            project_id=project.id,
+            agent_type="analyst",
+            status=TaskStatus.COMPLETED,
+            instructions="analyze user input" # Satisfies "user_input_analyzed"
+        )
+        db_manager.create_test_task(
+            project_id=project.id,
+            agent_type="analyst",
+            status=TaskStatus.COMPLETED,
+            instructions="gather requirements" # Satisfies "requirements_gathered"
+        )
 
         with db_manager.get_session() as session:
             project_manager = ProjectLifecycleManager(session)
             
             result = project_manager.validate_phase_completion(project.id, "discovery")
 
-            assert result is True
+            assert result["valid"] is True
+            assert len(result["missing_criteria"]) == 0
 
     @pytest.mark.real_data
     def test_sdlc_phases_constant(self):
@@ -163,7 +169,6 @@ class TestProjectLifecycleManager:
         assert "build" in SDLC_PHASES
         assert "validate" in SDLC_PHASES
         assert "launch" in SDLC_PHASES
-
 
 class TestAgentCoordinator:
     """Test cases for AgentCoordinator service."""
@@ -270,7 +275,6 @@ class TestAgentCoordinator:
 
             assert result == expected_status
 
-
 class TestWorkflowIntegrator:
     """Test cases for WorkflowIntegrator service."""
 
@@ -338,15 +342,13 @@ class TestWorkflowIntegrator:
             with patch('app.services.orchestrator.workflow_integrator.ContextStoreService'):
                 integrator = WorkflowIntegrator(session)
                 
-                # Test that the method exists
+                # Mock external workflow engine (external dependency)
+                integrator.workflow_engine = Mock()
+                integrator.workflow_engine.resume_workflow_execution = AsyncMock(return_value=True)
+
+                # Test that the method exists and is callable
                 assert hasattr(integrator, 'resume_workflow')
-
-        workflow_integrator.workflow_engine = Mock()
-        workflow_integrator.workflow_engine.resume_workflow_execution = AsyncMock(return_value=True)
-
-        # Test that the method exists
-        assert hasattr(workflow_integrator, 'resume_workflow')
-
+                assert callable(integrator.resume_workflow)
 
 class TestHandoffManager:
     """Test cases for HandoffManager service."""
@@ -458,7 +460,6 @@ class TestHandoffManager:
             ]
             assert db_manager.verify_database_state(db_checks)
 
-
 class TestStatusTracker:
     """Test cases for StatusTracker service."""
 
@@ -485,80 +486,34 @@ class TestStatusTracker:
             assert status_tracker.db == session
 
     @pytest.mark.real_data
-    def test_get_project_status(self, db_manager):
-        """Test getting comprehensive project status with real database."""
-        # Create real project
+    def test_get_performance_metrics(self, db_manager, status_tracker):
+        """Test getting comprehensive project performance metrics with real database."""
         project = db_manager.create_test_project(name="Status Test Project")
-        
-        with db_manager.get_session() as session:
-            status_tracker = StatusTracker(session)
+        db_manager.create_test_task(project_id=project.id, agent_type="analyst", status=TaskStatus.COMPLETED)
+        db_manager.create_test_task(project_id=project.id, agent_type="architect", status=TaskStatus.WORKING)
 
-            # Update project phase in real database
-            from app.database.models import ProjectDB
-            project_record = session.query(ProjectDB).filter(ProjectDB.id == project.id).first()
-            if project_record:
-                project_record.current_phase = "design"
-                project_record.status = "active"
-                session.commit()
+        result = status_tracker.get_performance_metrics(project.id)
 
-            # Create real tasks with different statuses
-            task1 = db_manager.create_test_task(project_id=project.id, agent_type="analyst", status="completed")
-            task2 = db_manager.create_test_task(project_id=project.id, agent_type="architect", status="working")
-            task3 = db_manager.create_test_task(project_id=project.id, agent_type="coder", status="pending")
-
-            result = status_tracker.get_project_status(project.id)
-
-            assert result is not None
-            assert "phase" in result
-            assert "completion_percentage" in result
-            assert "total_tasks" in result
-            assert "completed_tasks" in result
-            assert "in_progress_tasks" in result
-            assert "pending_tasks" in result
-            
-            # Verify database state
-            db_checks = [
-                {
-                    'table': 'tasks',
-                    'conditions': {'project_id': str(project.id)},
-                    'count': 3
-                }
-            ]
-            assert db_manager.verify_database_state(db_checks)
+        assert result is not None
+        assert "time_metrics" in result
+        assert "task_metrics" in result
+        assert result["task_metrics"]["total_tasks"] == 2
+        assert result["task_metrics"]["completed_tasks"] == 1
+        assert result["task_metrics"]["working_tasks"] == 1
 
     @pytest.mark.real_data
-    def test_get_phase_progress(self, db_manager):
-        """Test getting phase progress with real database."""
-        # Create real project
+    def test_get_phase_progress(self, db_manager, status_tracker):
+        """Test getting phase progress for all phases with real database."""
         project = db_manager.create_test_project(name="Phase Progress Test")
-        
-        with db_manager.get_session() as session:
-            status_tracker = StatusTracker(session)
-            phase = "design"
+        db_manager.create_test_task(project_id=project.id, agent_type="analyst", status=TaskStatus.COMPLETED, instructions="analyze")
 
-            # Create real tasks for the phase
-            task1 = db_manager.create_test_task(project_id=project.id, agent_type="analyst", status="completed", phase=phase)
-            task2 = db_manager.create_test_task(project_id=project.id, agent_type="architect", status="completed", phase=phase)
-            task3 = db_manager.create_test_task(project_id=project.id, agent_type="coder", status="working", phase=phase)
+        result = status_tracker.get_phase_progress(project.id)
 
-            result = status_tracker.get_phase_progress(project.id, phase)
-
-            assert result is not None
-            assert "phase" in result
-            assert "completion_percentage" in result
-            assert "total_tasks" in result
-            assert "completed_tasks" in result
-            
-            # Verify database state
-            db_checks = [
-                {
-                    'table': 'tasks',
-                    'conditions': {'project_id': str(project.id), 'phase': phase},
-                    'count': 3
-                }
-            ]
-            assert db_manager.verify_database_state(db_checks)
-
+        assert result is not None
+        assert "overall_progress" in result
+        assert "phases" in result
+        assert "discovery" in result["phases"]
+        assert result["phases"]["discovery"]["completed"] is True
 
 class TestContextManager:
     """Test cases for ContextManager service."""
@@ -680,7 +635,6 @@ class TestContextManager:
                 assert "granularity_distribution" in result
                 assert "average_size" in result
 
-
 class TestServiceIntegration:
     """Integration tests for service interactions."""
 
@@ -689,6 +643,7 @@ class TestServiceIntegration:
         """Mock database session."""
         return Mock()
 
+    @pytest.mark.mock_data
     def test_services_work_together(self, mock_db):
         """Test that all services can be instantiated and work together."""
         # Create all services
@@ -720,6 +675,7 @@ class TestServiceIntegration:
         assert handoff_manager.db == mock_db
         assert status_tracker.db == mock_db
 
+    @pytest.mark.mock_data
     def test_dependency_injection_pattern(self, mock_db):
         """Test that services follow dependency injection pattern."""
         # This test verifies that services accept their dependencies through constructor
@@ -743,7 +699,6 @@ class TestServiceIntegration:
         assert agent_coordinator.db is mock_db
         assert handoff_manager.db is mock_db
         assert status_tracker.db is mock_db
-
 
 if __name__ == "__main__":
     # Run the tests

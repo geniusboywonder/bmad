@@ -13,7 +13,7 @@ from adk_agent_factory import ADKAgentFactory
 from app.services.adk_orchestration_service import ADKOrchestrationService
 from app.tools.adk_tool_registry import ADKToolRegistry
 from app.services.adk_handoff_service import ADKHandoffService
-from app.config import settings
+from app.settings import settings
 
 logger = structlog.get_logger(__name__)
 

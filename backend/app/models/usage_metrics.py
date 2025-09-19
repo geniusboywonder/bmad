@@ -7,7 +7,7 @@ costs, and performance data across different providers and agents.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from uuid import UUID
 from enum import Enum
 
@@ -91,12 +91,12 @@ class UsageRecord(BaseModel):
     # Custom tags for categorization
     tags: Dict[str, str] = Field(default_factory=dict)
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v)
         }
+    )
 
     def dict(self, **kwargs) -> Dict[str, Any]:
         """Convert to dictionary with proper serialization."""
@@ -215,12 +215,12 @@ class UsageAggregate(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     record_count: int = 0  # Number of individual records aggregated
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v)
         }
+    )
 
     def dict(self, **kwargs) -> Dict[str, Any]:
         """Convert to dictionary with proper serialization."""
@@ -312,12 +312,12 @@ class CostOptimizationRecommendation(BaseModel):
     data_source: str = "usage_analysis"
     priority: str = "medium"  # low, medium, high, critical
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v)
         }
+    )
 
     def dict(self, **kwargs) -> Dict[str, Any]:
         """Convert to dictionary with proper serialization."""
@@ -388,12 +388,12 @@ class UsageAlert(BaseModel):
     alert_source: str = "usage_monitor"
     tags: Dict[str, str] = Field(default_factory=dict)
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat(),
             UUID: lambda v: str(v)
         }
+    )
 
     def dict(self, **kwargs) -> Dict[str, Any]:
         """Convert to dictionary with proper serialization."""
@@ -456,11 +456,11 @@ class ProviderPricing(BaseModel):
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     source: str = "provider_api"
 
-    class Config:
-        """Pydantic configuration."""
-        json_encoders = {
+    model_config = ConfigDict(
+        json_encoders={
             datetime: lambda v: v.isoformat()
         }
+    )
 
     def calculate_cost(self, input_tokens: int, output_tokens: int, cached_tokens: int = 0) -> Dict[str, float]:
         """Calculate cost for given token usage."""

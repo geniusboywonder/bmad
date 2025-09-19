@@ -32,7 +32,6 @@ from app.agents.tester import TesterAgent
 from app.agents.deployer import DeployerAgent
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestWorkflowEngine:
     """Test cases for the enhanced workflow engine."""
 
@@ -69,15 +68,6 @@ class TestWorkflowEngine:
             # Verify real service methods exist
             assert hasattr(engine, 'start_workflow_execution')
             assert hasattr(engine, 'get_workflow_status')
-
-
-
-
-
-
-
-
-
 
 class TestOrchestratorService:
     """Test cases for the refactored orchestrator service with extracted components."""
@@ -220,6 +210,7 @@ class TestOrchestratorService:
         assert result == mock_result
         orchestrator_core.workflow_integrator.run_workflow.assert_called_once()
 
+    @pytest.mark.mock_data
     def test_handoff_management(self, orchestrator_core):
         """Test handoff management through extracted service."""
         # Mock handoff operations
@@ -237,6 +228,7 @@ class TestOrchestratorService:
         assert handoff == mock_handoff
         orchestrator_core.handoff_manager.create_handoff.assert_called_once()
 
+    @pytest.mark.mock_data
     def test_status_tracking(self, orchestrator_core):
         """Test status tracking through extracted service."""
         # Mock status tracking operations
@@ -249,6 +241,7 @@ class TestOrchestratorService:
         assert status == mock_status
         orchestrator_core.status_tracker.get_project_status.assert_called_once_with("test-project")
 
+    @pytest.mark.mock_data
     def test_context_management(self, orchestrator_core):
         """Test context management through extracted service."""
         # Mock context operations
@@ -284,15 +277,10 @@ class TestOrchestratorService:
             assert core.status_tracker.db == session
             assert core.context_manager.db == session
 
-
-
-
-
 class TestSDLCIntegration:
     """Integration tests for SDLC orchestration."""
 
-
-
+    @pytest.mark.mock_data
     def test_sdlc_workflow_validation_criteria(self):
         """Test that all SDLC workflow validation criteria are met."""
 
@@ -310,7 +298,6 @@ class TestSDLCIntegration:
         # Verify all criteria are met
         for criterion, status in validation_criteria.items():
             assert status == True, f"Validation criterion failed: {criterion}"
-
 
 if __name__ == "__main__":
     # Run the tests

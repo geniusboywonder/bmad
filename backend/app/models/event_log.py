@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Dict, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from enum import Enum
 
 
@@ -73,8 +73,7 @@ class EventLogResponse(BaseModel):
     event_metadata: Dict[str, Any]
     created_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EventLogFilter(BaseModel):

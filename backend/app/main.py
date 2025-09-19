@@ -1,11 +1,12 @@
 """Main FastAPI application."""
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import structlog
 
-from app.config import settings
+from app.settings import settings
 from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk, hitl_safety, hitl_request_endpoints
 from app.database.connection import get_engine, Base
 
@@ -30,8 +31,22 @@ structlog.configure(
 
 logger = structlog.get_logger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan context manager."""
+    # Startup
+    logger.info("BotArmy Backend starting up",
+                version=settings.app_version,
+                debug=settings.debug)
+    yield
+    # Shutdown
+    logger.info("BotArmy Backend shutting down")
+
+
 # Create FastAPI application
 app = FastAPI(
+    lifespan=lifespan,
     title=settings.app_name,
     version=settings.app_version,
     description="BotArmy POC Backend Services - Multi-Agent Orchestration Platform",
@@ -123,18 +138,6 @@ app.include_router(hitl_safety.router)
 app.include_router(hitl_request_endpoints.router)
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event."""
-    logger.info("BotArmy Backend starting up", 
-                version=settings.app_version,
-                debug=settings.debug)
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown event."""
-    logger.info("BotArmy Backend shutting down")
 
 
 @app.exception_handler(Exception)

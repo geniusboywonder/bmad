@@ -12,13 +12,16 @@ from typing import Dict, Any, List
 from app.services.llm_providers.base_provider import BaseProvider
 from app.services.llm_providers.provider_factory import ProviderFactory
 
-
 class TestLLMProviderFactory:
     """Test cases for the LLM provider factory."""
+
+    @pytest.mark.mock_data
 
     def test_provider_factory_exists(self):
         """Test that the provider factory exists and is importable."""
         assert ProviderFactory is not None
+
+    @pytest.mark.mock_data
 
     def test_provider_factory_has_providers(self):
         """Test that provider factory has registered providers."""
@@ -26,12 +29,16 @@ class TestLLMProviderFactory:
         assert hasattr(ProviderFactory, '_providers')
         assert len(ProviderFactory._providers) > 0
 
+    @pytest.mark.mock_data
+
     def test_provider_factory_supports_required_providers(self):
         """Test that factory supports OpenAI, Anthropic, and Google providers."""
         required_providers = ["openai", "anthropic", "google"]
 
         for provider_name in required_providers:
             assert provider_name in ProviderFactory._providers, f"{provider_name} provider should be registered"
+
+    @pytest.mark.mock_data
 
     def test_get_openai_provider(self):
         """Test getting OpenAI provider from factory."""
@@ -44,6 +51,8 @@ class TestLLMProviderFactory:
             # Expected if no API keys are configured
             assert "API key" in str(e) or "key" in str(e).lower()
 
+    @pytest.mark.mock_data
+
     def test_get_anthropic_provider(self):
         """Test getting Anthropic provider from factory."""
         try:
@@ -54,6 +63,8 @@ class TestLLMProviderFactory:
         except Exception as e:
             # Expected if no API keys are configured
             assert "API key" in str(e) or "key" in str(e).lower()
+
+    @pytest.mark.mock_data
 
     def test_get_google_provider(self):
         """Test getting Google provider from factory."""
@@ -66,28 +77,34 @@ class TestLLMProviderFactory:
             # Expected if no API keys are configured
             assert "API key" in str(e) or "key" in str(e).lower()
 
+    @pytest.mark.mock_data
+
     def test_invalid_provider_raises_error(self):
         """Test that requesting invalid provider raises ValueError."""
         with pytest.raises(ValueError, match="Unknown provider"):
             ProviderFactory.get_provider("invalid_provider")
 
-
 class TestBaseProvider:
     """Test cases for the base provider interface."""
+
+    @pytest.mark.mock_data
 
     def test_base_provider_is_abstract(self):
         """Test that BaseProvider is abstract and cannot be instantiated directly."""
         with pytest.raises(TypeError):
             BaseProvider()
 
+    @pytest.mark.mock_data
+
     def test_base_provider_interface(self):
         """Test that BaseProvider defines the required interface."""
         assert hasattr(BaseProvider, 'generate')
         assert hasattr(BaseProvider, 'get_models')
 
-
 class TestPhase1LLMRequirements:
     """Test cases specifically for Phase 1 LLM provider requirements."""
+
+    @pytest.mark.mock_data
 
     def test_all_three_providers_available(self):
         """Test that all three required providers (OpenAI, Anthropic, Gemini) are available."""
@@ -112,6 +129,8 @@ class TestPhase1LLMRequirements:
 
         assert len(available_providers) == 3, f"All three providers should be available. Found: {available_providers}"
 
+    @pytest.mark.mock_data
+
     def test_provider_abstraction_layer_exists(self):
         """Test that provider abstraction layer exists per Phase 1 requirements."""
         # From Phase1and2.md: Create Provider Interface
@@ -122,6 +141,8 @@ class TestPhase1LLMRequirements:
         for method in required_methods:
             assert hasattr(BaseProvider, method), f"BaseProvider should have {method} method"
 
+    @pytest.mark.mock_data
+
     def test_provider_factory_pattern_implemented(self):
         """Test that provider factory pattern is implemented."""
         # From Phase1and2.md: Provider Factory and Configuration
@@ -129,6 +150,7 @@ class TestPhase1LLMRequirements:
         assert hasattr(ProviderFactory, 'get_provider')
         assert callable(getattr(ProviderFactory, 'get_provider'))
 
+    @pytest.mark.external_service
     @pytest.mark.parametrize("provider_name", ["openai", "anthropic", "google"])
     def test_provider_interface_compliance(self, provider_name):
         """Test that each provider implements the required interface."""

@@ -6,12 +6,10 @@ from unittest.mock import Mock, patch, AsyncMock
 from app.tools.adk_tool_registry import ADKToolRegistry
 from app.models.agent import AgentType
 
-
 @pytest.fixture
 def tool_registry():
     """Create a fresh ADK Tool Registry for testing."""
     return ADKToolRegistry()
-
 
 @pytest.fixture
 def sample_openapi_spec():
@@ -27,9 +25,10 @@ def sample_openapi_spec():
         }
     }
 
-
 class TestADKToolRegistry:
     """Test ADK Tool Registry functionality."""
+
+    @pytest.mark.mock_data
 
     def test_registry_initialization(self, tool_registry):
         """Test registry initialization with default agent mappings."""
@@ -44,6 +43,8 @@ class TestADKToolRegistry:
         assert AgentType.CODER in tool_registry.agent_tool_mappings
         assert AgentType.TESTER in tool_registry.agent_tool_mappings
         assert AgentType.DEPLOYER in tool_registry.agent_tool_mappings
+
+    @pytest.mark.mock_data
 
     def test_register_function_tool_success(self, tool_registry):
         """Test successful function tool registration."""
@@ -62,6 +63,8 @@ class TestADKToolRegistry:
         assert tool_registry.tool_metadata["test_tool"]["type"] == "function"
         assert tool_registry.tool_metadata["test_tool"]["description"] == "A test function tool"
 
+    @pytest.mark.mock_data
+
     def test_register_function_tool_failure(self, tool_registry):
         """Test function tool registration failure."""
         # Invalid function
@@ -75,6 +78,8 @@ class TestADKToolRegistry:
         assert "invalid_tool" not in tool_registry.registered_tools
 
     @patch('app.tools.adk_tool_registry.BMADOpenAPITool')
+    @pytest.mark.mock_data
+
     async def test_register_openapi_tool_success(self, mock_openapi_tool_class, tool_registry, sample_openapi_spec):
         """Test successful OpenAPI tool registration."""
         # Mock BMADOpenAPITool
@@ -94,6 +99,8 @@ class TestADKToolRegistry:
         mock_tool.initialize.assert_called_once()
 
     @patch('app.tools.adk_tool_registry.BMADOpenAPITool')
+    @pytest.mark.mock_data
+
     async def test_register_openapi_tool_initialization_failure(self, mock_openapi_tool_class, tool_registry, sample_openapi_spec):
         """Test OpenAPI tool registration with initialization failure."""
         mock_tool = Mock()
@@ -107,9 +114,13 @@ class TestADKToolRegistry:
         assert result is False
         assert "failing_tool" not in tool_registry.registered_tools
 
+    @pytest.mark.mock_data
+
     def test_unregister_tool_success(self, tool_registry):
         """Test successful tool unregistration."""
         # First register a tool
+        @pytest.mark.mock_data
+
         def test_func():
             return "test"
 
@@ -123,11 +134,15 @@ class TestADKToolRegistry:
         assert "test_tool" not in tool_registry.function_tools
         assert tool_registry.tool_metadata["test_tool"]["status"] == "unregistered"
 
+    @pytest.mark.mock_data
+
     def test_unregister_tool_not_found(self, tool_registry):
         """Test unregistration of non-existent tool."""
         result = tool_registry.unregister_tool("non_existent_tool")
 
         assert result is False
+
+    @pytest.mark.mock_data
 
     def test_get_tools_for_agent(self, tool_registry):
         """Test getting tools for a specific agent type."""
@@ -150,6 +165,8 @@ class TestADKToolRegistry:
         # Tools should be ADK FunctionTool instances
         assert all(hasattr(tool, 'func') for tool in tools)
 
+    @pytest.mark.mock_data
+
     def test_get_tools_for_agent_with_missing_tools(self, tool_registry):
         """Test getting tools for agent when some tools don't exist."""
         # Set mapping that includes non-existent tool
@@ -166,8 +183,12 @@ class TestADKToolRegistry:
         # Should only return the existing tool
         assert len(tools) == 1
 
+    @pytest.mark.mock_data
+
     def test_get_tool_by_name(self, tool_registry):
         """Test getting tool by name."""
+        @pytest.mark.mock_data
+
         def test_func():
             return "test"
 
@@ -179,6 +200,8 @@ class TestADKToolRegistry:
         # Non-existent tool
         tool = tool_registry.get_tool_by_name("non_existent")
         assert tool is None
+
+    @pytest.mark.mock_data
 
     def test_update_agent_tool_mapping_success(self, tool_registry):
         """Test successful agent tool mapping update."""
@@ -198,6 +221,8 @@ class TestADKToolRegistry:
         assert result is True
         assert tool_registry.agent_tool_mappings[AgentType.TESTER] == ["tool1", "tool2"]
 
+    @pytest.mark.mock_data
+
     def test_update_agent_tool_mapping_with_invalid_tools(self, tool_registry):
         """Test agent tool mapping update with invalid tool names."""
         # Register only one tool
@@ -214,6 +239,8 @@ class TestADKToolRegistry:
         assert result is True
         # Should only include valid tools
         assert tool_registry.agent_tool_mappings[AgentType.TESTER] == ["valid_tool"]
+
+    @pytest.mark.mock_data
 
     def test_get_available_tools(self, tool_registry):
         """Test getting available tools summary."""
@@ -247,8 +274,12 @@ class TestADKToolRegistry:
         assert available["total_count"] >= 1
         assert "func_tool" in available["function_tools"]
 
+    @pytest.mark.mock_data
+
     def test_get_tool_metadata(self, tool_registry):
         """Test getting tool metadata."""
+        @pytest.mark.mock_data
+
         def test_tool():
             return "test"
 
@@ -262,6 +293,8 @@ class TestADKToolRegistry:
         assert metadata["parameters"] == {"param1": "value1"}
         assert "registered_at" in metadata
         assert metadata["status"] == "active"
+
+    @pytest.mark.mock_data
 
     def test_get_registry_status(self, tool_registry):
         """Test getting comprehensive registry status."""
@@ -288,6 +321,8 @@ class TestADKToolRegistry:
         assert "tool_count" in analyst_mapping
         assert "available_tools" in analyst_mapping
 
+    @pytest.mark.mock_data
+
     def test_search_tools_by_name(self, tool_registry):
         """Test searching tools by name."""
         def searchable_tool():
@@ -306,6 +341,8 @@ class TestADKToolRegistry:
         results = tool_registry.search_tools("nonexistent")
         assert len(results) == 0
 
+    @pytest.mark.mock_data
+
     def test_search_tools_by_description(self, tool_registry):
         """Test searching tools by description."""
         def desc_tool():
@@ -315,6 +352,8 @@ class TestADKToolRegistry:
 
         results = tool_registry.search_tools("searchable")
         assert "desc_tool" in results
+
+    @pytest.mark.mock_data
 
     def test_search_tools_with_type_filter(self, tool_registry):
         """Test searching tools with type filter."""
@@ -330,6 +369,8 @@ class TestADKToolRegistry:
         # Search with non-matching type
         results = tool_registry.search_tools("tool", "openapi")
         assert "func_tool" not in results
+
+    @pytest.mark.mock_data
 
     def test_validate_tool_compatibility(self, tool_registry):
         """Test tool compatibility validation."""
@@ -354,6 +395,8 @@ class TestADKToolRegistry:
         assert "non_existent" in compatibility["missing_tools"]
         assert compatibility["compatibility_score"] > 0
 
+    @pytest.mark.mock_data
+
     def test_export_tool_configuration(self, tool_registry):
         """Test exporting tool configuration."""
         # Register a tool
@@ -370,6 +413,8 @@ class TestADKToolRegistry:
         assert "registry_stats" in config
 
         assert "export_tool" in config["tool_metadata"]
+
+    @pytest.mark.external_service
 
     def test_import_tool_configuration_validation(self, tool_registry):
         """Test tool configuration import validation."""
@@ -392,6 +437,8 @@ class TestADKToolRegistry:
         result = tool_registry.import_tool_configuration(invalid_config)
         assert result is False
 
+    @pytest.mark.mock_data
+
     def test_cleanup_inactive_tools(self, tool_registry):
         """Test cleanup of inactive tools."""
         # This test would need timestamp mocking for proper testing
@@ -399,9 +446,10 @@ class TestADKToolRegistry:
         assert isinstance(result, int)
         assert result >= 0
 
-
 class TestADKToolRegistryIntegration:
     """Integration tests for ADK Tool Registry."""
+
+    @pytest.mark.mock_data
 
     def test_full_tool_lifecycle(self, tool_registry):
         """Test complete tool registration to usage lifecycle."""
@@ -447,6 +495,8 @@ class TestADKToolRegistryIntegration:
         metadata = tool_registry.get_tool_metadata("lifecycle_tool")
         assert metadata["status"] == "unregistered"
 
+    @pytest.mark.mock_data
+
     def test_multiple_tool_types_management(self, tool_registry):
         """Test managing multiple tool types simultaneously."""
         # Register function tools
@@ -486,6 +536,8 @@ class TestADKToolRegistryIntegration:
         results = tool_registry.search_tools("func")
         assert len(results) >= 2
 
+    @pytest.mark.mock_data
+
     def test_agent_tool_mapping_edge_cases(self, tool_registry):
         """Test agent tool mapping edge cases."""
         # Empty mapping
@@ -500,6 +552,8 @@ class TestADKToolRegistryIntegration:
         result = tool_registry.update_agent_tool_mapping(AgentType.TESTER, ["invalid1", "invalid2"])
         assert result is True
         assert tool_registry.agent_tool_mappings[AgentType.TESTER] == []
+
+    @pytest.mark.mock_data
 
     def test_tool_health_monitoring(self, tool_registry):
         """Test tool health status monitoring."""

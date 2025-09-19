@@ -16,7 +16,6 @@ from tests.utils.database_test_utils import (
     verify_celery_task_in_database, create_full_stack_test_scenario
 )
 
-
 @pytest.fixture
 def db_manager():
     """Database manager for full-stack tests."""
@@ -25,15 +24,15 @@ def db_manager():
     yield manager
     manager.cleanup_test_database()
 
-
 @pytest.fixture
 def api_client(db_manager):
     """API test client with database verification."""
     return APITestClient(app, db_manager)
 
-
 class TestProjectManagementFlow:
     """Test complete project management API → Database flow."""
+
+    @pytest.mark.real_data
 
     def test_create_project_persists_to_database(self, api_client, db_manager):
         """Test that creating a project via API persists to database."""
@@ -42,8 +41,7 @@ class TestProjectManagementFlow:
 
         project_data = {
             'name': 'Full Stack Test Project',
-            'description': 'Testing API to DB flow',
-            'status': 'active'
+            'description': 'Testing API to DB flow'
         }
 
         result = api_client.post_and_verify_db(
@@ -65,6 +63,8 @@ class TestProjectManagementFlow:
         # Verify project ID is tracked for cleanup
         project_id = result['json']['id']
         db_manager.track_test_record('projects', project_id)
+
+    @pytest.mark.real_data
 
     def test_update_project_modifies_database(self, api_client, db_manager):
         """Test that updating a project modifies the database."""
@@ -93,6 +93,8 @@ class TestProjectManagementFlow:
         assert result.status_code == 200
         assert db_state_valid
 
+    @pytest.mark.real_data
+
     def test_get_projects_matches_database_state(self, api_client, db_manager):
         """Test that GET projects returns data consistent with database."""
         # Create test projects
@@ -118,30 +120,30 @@ class TestProjectManagementFlow:
         assert 'Test Project 1' in project_names
         assert 'Test Project 2' in project_names
 
-
 class TestTaskManagementFlow:
     """Test complete task management API → Database → Celery flow."""
 
+    @pytest.mark.real_data
     def test_create_task_persists_to_database(self, api_client, db_manager):
         """Test that creating a task via API persists to database."""
         # Create test scenario
         scenario = create_full_stack_test_scenario(db_manager)
+        project_id = scenario['project_id']
 
         task_data = {
-            'project_id': scenario['project_id'],
             'agent_type': 'analyst',
             'instructions': 'Full stack test task',
             'context_ids': []
         }
 
         result = api_client.post_and_verify_db(
-            '/api/v1/tasks',
+            f'/api/v1/projects/{project_id}/tasks',
             data=task_data,
             db_checks=[
                 {
                     'table': 'tasks',
                     'conditions': {
-                        'project_id': scenario['project']['id'],
+                        'project_id': project_id,
                         'agent_type': 'analyst'
                     },
                     'count': 2  # Original + new task
@@ -151,11 +153,14 @@ class TestTaskManagementFlow:
 
         assert result['status_code'] == 201
         assert result['db_state_valid']
-        assert result['json']['agent_type'] == 'analyst'
+        assert result['json']['status'] == 'submitted'
+        assert 'task_id' in result['json']
 
         # Track for cleanup
-        task_id = result['json']['id']
+        task_id = result['json']['task_id']
         db_manager.track_test_record('tasks', task_id)
+
+    @pytest.mark.real_data
 
     def test_task_status_updates_persist_to_database(self, api_client, db_manager):
         """Test that task status updates persist correctly."""
@@ -181,6 +186,8 @@ class TestTaskManagementFlow:
         assert result.status_code == 200
         assert db_state_valid
 
+    @pytest.mark.real_data
+
     def test_task_deletion_removes_from_database(self, api_client, db_manager):
         """Test that deleting a task removes it from database."""
         scenario = create_full_stack_test_scenario(db_manager)
@@ -201,44 +208,50 @@ class TestTaskManagementFlow:
         assert result.status_code == 204
         assert db_state_valid
 
-
 class TestHITLSafetyFlow:
     """Test HITL safety system API → Database flow."""
 
+    @pytest.mark.real_data
     def test_create_hitl_request_persists_to_database(self, api_client, db_manager):
         """Test that HITL requests are properly persisted."""
         scenario = create_full_stack_test_scenario(db_manager)
 
         hitl_data = {
-            'project_id': scenario['project_id'],
-            'task_id': scenario['task_id'],
+            'project_id': str(scenario['project_id']),
+            'task_id': str(scenario['task_id']),
             'agent_type': 'analyst',
-            'request_type': 'EXECUTION_APPROVAL',
-            'request_data': {'action': 'test_action'},
+            'instructions': 'Test agent execution',
             'estimated_tokens': 100
         }
 
-        result = api_client.post_and_verify_db(
-            '/api/v1/hitl-safety/request-approval',
-            data=hitl_data,
-            db_checks=[
-                {
-                    'table': 'hitl_agent_approvals',
-                    'conditions': {
-                        'project_id': scenario['project']['id'],
-                        'agent_type': 'analyst'
-                    },
-                    'count': 1
-                }
-            ]
+        result = api_client.client.post(
+            '/api/v1/hitl-safety/request-agent-execution',
+            json=hitl_data
         )
 
-        assert result['status_code'] == 201
-        assert result['db_state_valid']
+        assert result.status_code == 200
+        response_json = result.json()
+        assert 'approval_id' in response_json
+
+        approval_id = response_json['approval_id']
+
+        db_state_valid = db_manager.verify_database_state([
+            {
+                'table': 'hitl_agent_approvals',
+                'conditions': {
+                    'id': approval_id,
+                    'project_id': str(scenario['project_id']),
+                    'agent_type': 'analyst'
+                },
+                'count': 1
+            }
+        ])
+        assert db_state_valid
 
         # Track for cleanup
-        approval_id = result['json']['id']
         db_manager.track_test_record('hitl_agent_approvals', approval_id)
+
+    @pytest.mark.real_data
 
     def test_emergency_stop_creates_database_record(self, api_client, db_manager):
         """Test that emergency stops are properly persisted."""
@@ -273,6 +286,8 @@ class TestHITLSafetyFlow:
         stop_id = result['json']['id']
         db_manager.track_test_record('emergency_stops', stop_id)
 
+    @pytest.mark.mock_data
+
     def test_budget_controls_persist_correctly(self, api_client, db_manager):
         """Test that budget control updates persist to database."""
         scenario = create_full_stack_test_scenario(db_manager)
@@ -304,9 +319,10 @@ class TestHITLSafetyFlow:
         assert result['status_code'] == 201
         assert result['db_state_valid']
 
-
 class TestWorkflowExecutionFlow:
     """Test workflow execution API → Database → Celery flow."""
+
+    @pytest.mark.real_data
 
     def test_workflow_execution_creates_database_records(self, api_client, db_manager):
         """Test that workflow execution creates proper database records."""
@@ -343,9 +359,10 @@ class TestWorkflowExecutionFlow:
             if execution_id:
                 db_manager.track_test_record('workflow_states', execution_id)
 
-
 class TestDataConsistencyAndIntegrity:
     """Test data consistency across the full stack."""
+
+    @pytest.mark.mock_data
 
     def test_no_orphaned_records_after_project_deletion(self, api_client, db_manager):
         """Test that deleting a project properly cleans up related records."""
@@ -389,6 +406,8 @@ class TestDataConsistencyAndIntegrity:
 
         assert db_state_valid
 
+    @pytest.mark.mock_data
+
     def test_enum_fields_work_correctly_end_to_end(self, api_client, db_manager):
         """Test that enum fields work correctly through the full API → DB flow."""
         scenario = create_full_stack_test_scenario(db_manager)
@@ -414,6 +433,8 @@ class TestDataConsistencyAndIntegrity:
                 }
             ])
             assert db_state_valid
+
+    @pytest.mark.mock_data
 
     def test_boolean_fields_work_correctly_end_to_end(self, api_client, db_manager):
         """Test that boolean fields work correctly through the full API → DB flow."""
@@ -462,11 +483,12 @@ class TestDataConsistencyAndIntegrity:
         ])
         assert db_state_valid
 
-
 class TestCeleryIntegration:
     """Test Celery task integration with database persistence."""
 
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_celery_tasks_are_tracked_in_database(self, api_client, db_manager):
         """Test that Celery tasks are properly tracked in the database."""
         scenario = create_full_stack_test_scenario(db_manager)

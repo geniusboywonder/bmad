@@ -17,7 +17,6 @@ from sqlalchemy.pool import StaticPool
 from app.database.connection import get_engine, Base
 from app.database.models import *
 
-
 class DatabaseTestManager:
     """Manages database test setup with real connections and proper cleanup."""
 
@@ -165,6 +164,7 @@ class DatabaseTestManager:
             'tasks': TaskDB,
             'context_artifacts': ContextArtifactDB,
             'hitl_requests': HitlRequestDB,
+            'hitl_agent_approvals': HitlAgentApprovalDB,
             'agent_budget_controls': AgentBudgetControlDB,
             'emergency_stops': EmergencyStopDB,
             'response_approvals': ResponseApprovalDB,
@@ -174,7 +174,6 @@ class DatabaseTestManager:
         }
         return model_mapping.get(table_name)
 
-
 @pytest.fixture
 def db_test_manager():
     """Pytest fixture for database test manager."""
@@ -183,7 +182,6 @@ def db_test_manager():
     yield manager
     manager.cleanup_test_database()
 
-
 @pytest.fixture
 def memory_db_test_manager():
     """Pytest fixture for in-memory database testing."""
@@ -191,7 +189,6 @@ def memory_db_test_manager():
     manager.setup_test_database()
     yield manager
     manager.cleanup_test_database()
-
 
 class APITestClient:
     """Test client that verifies API → Database flow."""
@@ -230,7 +227,6 @@ class APITestClient:
             'json': response.json() if response.headers.get('content-type', '').startswith('application/json') else None
         }
 
-
 def assert_no_mocks_in_call_stack():
     """Assert that no mocks are present in the current call stack."""
     import inspect
@@ -242,14 +238,12 @@ def assert_no_mocks_in_call_stack():
             if isinstance(var_value, (Mock, MagicMock)):
                 raise AssertionError(f"Mock object found in call stack: {var_name} = {var_value}")
 
-
 def verify_celery_task_in_database(task_id: str, db_manager: DatabaseTestManager) -> bool:
     """Verify that a Celery task was properly persisted to the database."""
     with db_manager.get_session() as session:
         # Check if task exists in tasks table
         task = session.query(TaskDB).filter(TaskDB.id == task_id).first()
         return task is not None
-
 
 def create_full_stack_test_scenario(db_manager: DatabaseTestManager) -> Dict[str, Any]:
     """Create a complete test scenario with project, tasks, and HITL setup."""

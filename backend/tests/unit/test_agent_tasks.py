@@ -11,7 +11,6 @@ from app.models.agent import AgentType
 from app.database.models import TaskDB
 from uuid import UUID
 
-
 class TestAgentTaskProcessing:
     """Test cases for agent task processing with real execution."""
 
@@ -44,6 +43,7 @@ class TestAgentTaskProcessing:
             "context_ids": []
         }
 
+    @pytest.mark.mock_data
     def test_validate_task_data_uuid_conversion(self, task_data):
         """Test that UUID strings are properly converted to UUID objects."""
         result = validate_task_data(task_data)
@@ -59,6 +59,7 @@ class TestAgentTaskProcessing:
         assert result["expected_outputs"] == ["task_result"]
         assert result["priority"] == 1
 
+    @pytest.mark.mock_data
     def test_validate_task_data_custom_values_uuid_conversion(self):
         """Test UUID conversion with custom values."""
         context_id = str(uuid4())
@@ -86,10 +87,16 @@ class TestAgentTaskProcessing:
         assert result["expected_outputs"] == ["custom_output"]
         assert result["priority"] == 5
 
+    # ❌ DEPRECATED: This test uses inappropriate database mocking
+    # ✅ USE INSTEAD: test_process_agent_task_failure_real_db in test_agent_tasks_real_db.py
+    @pytest.mark.skip(reason="DEPRECATED: Uses inappropriate database mocking. Use test_process_agent_task_failure_real_db instead.")
+    @pytest.mark.mock_data
     @patch('app.database.connection.get_session')
     @patch('app.tasks.agent_tasks.websocket_manager')
     @patch('app.tasks.agent_tasks.AutoGenService')
     @patch('app.tasks.agent_tasks.ContextStoreService')
+    @pytest.mark.mock_data
+
     def test_process_agent_task_failure(self, mock_context_store, mock_autogen_service,
                                        mock_websocket_manager, mock_get_db, mock_db_session, task_data):
         """Test agent task processing failure handling."""
@@ -125,10 +132,16 @@ class TestAgentTaskProcessing:
         # Verify WebSocket events were sent (started + failed)
         assert mock_websocket_manager.broadcast_event.call_count == 2
 
+    # ❌ DEPRECATED: This test uses inappropriate database mocking
+    # ✅ USE INSTEAD: test_process_agent_task_with_context_real_db in test_agent_tasks_real_db.py
+    @pytest.mark.skip(reason="DEPRECATED: Uses inappropriate database mocking. Use test_process_agent_task_with_context_real_db instead.")
+    @pytest.mark.mock_data
     @patch('app.database.connection.get_session')
     @patch('app.tasks.agent_tasks.websocket_manager')
     @patch('app.tasks.agent_tasks.AutoGenService')
     @patch('app.tasks.agent_tasks.ContextStoreService')
+    @pytest.mark.mock_data
+
     def test_process_agent_task_with_context(self, mock_context_store, mock_autogen_service,
                                            mock_websocket_manager, mock_get_db, mock_db_session, task_data):
         """Test agent task processing with context artifacts."""
@@ -176,10 +189,16 @@ class TestAgentTaskProcessing:
         assert result.get("success") == True
         assert context_id in result.get("context_used", [])
 
+    # ❌ DEPRECATED: This test uses inappropriate database mocking
+    # ✅ USE INSTEAD: Real database constraint testing in test_agent_tasks_real_db.py
+    @pytest.mark.skip(reason="DEPRECATED: Uses inappropriate database mocking. Use real database constraint tests instead.")
+    @pytest.mark.mock_data
     @patch('app.database.connection.get_session')
     @patch('app.tasks.agent_tasks.websocket_manager')
     @patch('app.tasks.agent_tasks.AutoGenService')
     @patch('app.tasks.agent_tasks.ContextStoreService')
+    @pytest.mark.real_data
+
     def test_process_agent_task_database_error(self, mock_context_store, mock_autogen_service,
                                              mock_websocket_manager, mock_get_db, task_data):
         """Test handling of database errors during task processing."""
@@ -216,6 +235,7 @@ class TestAgentTaskProcessing:
         # Verify WebSocket events were still sent
         mock_websocket_manager.broadcast_event.assert_called()
 
+    @pytest.mark.mock_data
     def test_validate_task_data_success(self, task_data):
         """Test successful task data validation."""
         result = validate_task_data(task_data)
@@ -229,6 +249,7 @@ class TestAgentTaskProcessing:
         assert result["expected_outputs"] == ["task_result"]
         assert result["priority"] == 1
 
+    @pytest.mark.mock_data
     def test_validate_task_data_missing_required_fields(self):
         """Test validation fails with missing required fields."""
         invalid_data = {"task_id": str(uuid4())}  # Missing other required fields
@@ -238,6 +259,7 @@ class TestAgentTaskProcessing:
 
         assert "Missing required field" in str(exc_info.value)
 
+    @pytest.mark.mock_data
     def test_validate_task_data_invalid_uuid(self):
         """Test validation fails with invalid UUID format."""
         invalid_data = {
@@ -252,6 +274,7 @@ class TestAgentTaskProcessing:
 
         assert "Invalid task_id format" in str(exc_info.value)
 
+    @pytest.mark.mock_data
     def test_validate_task_data_with_context_ids(self):
         """Test validation with context IDs."""
         context_id = str(uuid4())
@@ -267,6 +290,7 @@ class TestAgentTaskProcessing:
         assert len(result["context_ids"]) == 1
         assert str(result["context_ids"][0]) == context_id
 
+    @pytest.mark.mock_data
     def test_validate_task_data_invalid_context_id(self):
         """Test validation fails with invalid context ID."""
         task_data = {
@@ -282,6 +306,7 @@ class TestAgentTaskProcessing:
 
         assert "Invalid context_id format" in str(exc_info.value)
 
+    @pytest.mark.mock_data
     def test_validate_task_data_custom_values(self):
         """Test validation with custom from_agent, expected_outputs, and priority."""
         task_data = {
@@ -299,10 +324,16 @@ class TestAgentTaskProcessing:
         assert result["expected_outputs"] == ["custom_output"]
         assert result["priority"] == 5
 
+    # ❌ DEPRECATED: This test uses inappropriate database mocking
+    # ✅ USE INSTEAD: Real artifact persistence testing in test_agent_tasks_real_db.py
+    @pytest.mark.skip(reason="DEPRECATED: Uses inappropriate database mocking. Use real artifact persistence tests instead.")
+    @pytest.mark.mock_data
     @patch('app.database.connection.get_session')
     @patch('app.tasks.agent_tasks.websocket_manager')
     @patch('app.tasks.agent_tasks.AutoGenService')
     @patch('app.tasks.agent_tasks.ContextStoreService')
+    @pytest.mark.mock_data
+
     def test_process_agent_task_artifact_creation(self, mock_context_store, mock_autogen_service,
                                                 mock_websocket_manager, mock_get_db, mock_db_session, task_data):
         """Test that artifacts are properly created on task completion."""

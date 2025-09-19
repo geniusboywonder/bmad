@@ -15,7 +15,6 @@ from app.services.hitl_service import HitlService, OversightLevel, HitlTriggerCo
 from app.models.hitl import HitlStatus, HitlAction
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestHitlServiceBasic:
     """Basic tests for HITL service functionality."""
 
@@ -82,6 +81,8 @@ class TestHitlServiceBasic:
         level = hitl_service.get_oversight_level(uuid4())
         assert level == OversightLevel.MEDIUM
 
+    @pytest.mark.mock_data
+
     def test_generate_hitl_question_phase_completion(self, hitl_service):
         """Test HITL question generation for phase completion."""
         trigger_context = {"trigger_type": "phase_completion", "phase": "design"}
@@ -91,6 +92,8 @@ class TestHitlServiceBasic:
         assert "design" in question.lower()
         assert "review" in question.lower()
 
+    @pytest.mark.mock_data
+
     def test_generate_hitl_question_quality_threshold(self, hitl_service):
         """Test HITL question generation for quality threshold."""
         trigger_context = {"trigger_type": "quality_threshold", "confidence": 0.5}
@@ -98,6 +101,8 @@ class TestHitlServiceBasic:
         question = hitl_service._generate_hitl_question(trigger_context)
 
         assert "confidence" in question.lower() or "threshold" in question.lower()
+
+    @pytest.mark.mock_data
 
     def test_get_hitl_options_base(self, hitl_service):
         """Test getting base HITL options."""
@@ -108,6 +113,8 @@ class TestHitlServiceBasic:
         assert "Reject" in options
         assert "Amend" in options
 
+    @pytest.mark.mock_data
+
     def test_get_hitl_options_conflict(self, hitl_service):
         """Test getting HITL options for conflict detection."""
         trigger_context = {"trigger_type": "conflict"}
@@ -116,6 +123,8 @@ class TestHitlServiceBasic:
         assert "Accept first option" in options
         assert "Accept second option" in options
         assert "Provide alternative" in options
+
+    @pytest.mark.mock_data
 
     def test_validate_hitl_response_approve(self, hitl_service):
         """Test HITL response validation for approve action."""
@@ -126,6 +135,8 @@ class TestHitlServiceBasic:
             "Approved by user"
         )
 
+    @pytest.mark.mock_data
+
     def test_validate_hitl_response_amend_without_content(self, hitl_service):
         """Test HITL response validation for amend without content."""
         with pytest.raises(ValueError, match="Response content is required"):
@@ -134,6 +145,8 @@ class TestHitlServiceBasic:
                 None,
                 "Comment without content"
             )
+
+    @pytest.mark.mock_data
 
     def test_validate_hitl_response_without_comment(self, hitl_service):
         """Test HITL response validation without comment."""
@@ -144,6 +157,8 @@ class TestHitlServiceBasic:
                 ""
             )
 
+    @pytest.mark.mock_data
+
     def test_get_hitl_response_message(self, hitl_service):
         """Test HITL response message generation."""
         message = hitl_service._get_hitl_response_message(HitlAction.APPROVE, True)
@@ -153,6 +168,8 @@ class TestHitlServiceBasic:
         message = hitl_service._get_hitl_response_message(HitlAction.REJECT, False)
         assert "rejected" in message.lower()
         assert "unknown" in message.lower()
+
+    @pytest.mark.mock_data
 
     def test_bulk_approval_validation(self, hitl_service):
         """Test bulk approval request validation."""
@@ -165,6 +182,8 @@ class TestHitlServiceBasic:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_cleanup_expired_requests(self, db_manager):
         """Test cleanup of expired HITL requests with real database."""
         with db_manager.get_session() as session:
@@ -179,6 +198,8 @@ class TestHitlServiceBasic:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_get_hitl_statistics_empty(self, db_manager):
         """Test HITL statistics with empty database."""
         with db_manager.get_session() as session:

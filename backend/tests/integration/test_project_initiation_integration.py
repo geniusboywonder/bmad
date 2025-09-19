@@ -19,7 +19,6 @@ from app.models.task import TaskStatus
 from app.models.agent import AgentType
 from tests.conftest import assert_project_matches_data, assert_task_matches_data
 
-
 class TestProjectCreationAPI:
     """Test scenario 1.1-INT-001: Project creation via API endpoint (P0)"""
     
@@ -75,7 +74,6 @@ class TestProjectCreationAPI:
         
         assert response.status_code == status.HTTP_201_CREATED
         assert "application/json" in response.headers.get("content-type", "")
-
 
 class TestDatabaseProjectCreation:
     """Test scenario 1.1-INT-002: Database project record creation (P0)"""
@@ -148,7 +146,6 @@ class TestDatabaseProjectCreation:
         assert db_project.created_at is not None
         assert db_project.updated_at is not None
         assert db_project.created_at == db_project.updated_at  # Should be same on creation
-
 
 class TestInitialTaskCreation:
     """Test scenario 1.1-INT-003: Initial task creation for new project (P0)"""
@@ -231,7 +228,6 @@ class TestInitialTaskCreation:
         assert db_task is not None
         assert db_task.project_id == project.id
         assert db_task.agent_type == AgentType.ANALYST.value
-
 
 class TestProjectStatusRetrieval:
     """Test scenario 1.1-INT-004: Project status retrieval (P1)"""
@@ -322,7 +318,6 @@ class TestProjectStatusRetrieval:
         assert "created_at" in task_data
         assert "updated_at" in task_data
         assert task_data["status"] == TaskStatus.WORKING.value
-
 
 class TestProjectCreationErrorHandling:
     """Test scenario 1.1-INT-005: Project creation with invalid data (P2)"""

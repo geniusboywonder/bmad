@@ -4,17 +4,19 @@
 import asyncio
 import sys
 import os
+import pytest
 from typing import Dict, Any
 from uuid import uuid4
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
 
-from app.agents.adk_analyst import ADKAnalystAgent
+from app.agents.analyst import AnalystAgent
 from app.models.task import Task
-from app.models.context import ContextArtifact
+from app.models.context import ContextArtifact, ArtifactType
 from app.models.agent import AgentType
 
+@pytest.mark.external_service
 async def test_adk_analyst_agent():
     """Test the ADK Analyst agent integration."""
 
@@ -30,7 +32,7 @@ async def test_adk_analyst_agent():
             "max_tokens": 4096
         }
 
-        agent = ADKAnalystAgent(
+        agent = AnalystAgent(
             agent_type=AgentType.ANALYST,
             llm_config=llm_config
         )
@@ -44,9 +46,9 @@ async def test_adk_analyst_agent():
         task = Task(
             task_id=uuid4(),
             project_id=uuid4(),
+            agent_type=AgentType.ANALYST.value,
             instructions="Analyze requirements for a simple task management system. Create user personas, functional requirements, and success criteria.",
-            status="pending",
-            priority=1
+            status="pending"
         )
         print(f"✅ Test task created: {task.task_id}")
 
@@ -55,8 +57,9 @@ async def test_adk_analyst_agent():
         context_artifacts = [
             ContextArtifact(
                 context_id=uuid4(),
-                source_agent="user",
-                artifact_type="requirements_input",
+                project_id=task.project_id,
+                source_agent=AgentType.ORCHESTRATOR,
+                artifact_type=ArtifactType.USER_INPUT,
                 content={
                     "project_description": "Build a task management system for small teams",
                     "target_users": "Project managers and team members",
@@ -77,13 +80,13 @@ async def test_adk_analyst_agent():
         # Step 5: Test basic functionality (without full execution to avoid API calls)
         print("\n5. Testing basic functionality...")
 
-        # Test context message preparation
-        context_message = agent.prepare_context_message(context_artifacts, agent.create_handoff(AgentType.ARCHITECT, task, context_artifacts))
-        print(f"✅ Context message prepared ({len(context_message)} characters)")
-
         # Test handoff creation
         handoff = await agent.create_handoff(AgentType.ARCHITECT, task, context_artifacts)
         print(f"✅ Handoff created to {handoff.to_agent}")
+
+        # Test context message preparation
+        context_message = agent.prepare_context_message(context_artifacts, handoff)
+        print(f"✅ Context message prepared ({len(context_message)} characters)")
         print(f"   - Phase: {handoff.phase}")
         print(f"   - Framework: {handoff.metadata.get('framework', 'unknown')}")
 
@@ -108,12 +111,13 @@ async def test_adk_analyst_agent():
         traceback.print_exc()
         return False
 
+@pytest.mark.external_service
 async def test_fallback_functionality():
     """Test fallback functionality when ADK fails."""
     print("\n🔄 Testing Fallback Functionality...")
 
     try:
-        agent = ADKAnalystAgent(
+        agent = AnalystAgent(
             agent_type=AgentType.ANALYST,
             llm_config={"model": "gemini-2.0-flash"}
         )

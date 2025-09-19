@@ -4,6 +4,7 @@
 import asyncio
 import sys
 import os
+import pytest
 from typing import Dict, Any
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from app.agents.adk_tools import (
     get_adk_tools_for_agent, register_custom_bmad_function, register_openapi_integration
 )
 
+@pytest.mark.external_service
 async def test_tool_registry():
     """Test the BMAD tool registry functionality."""
     print("🧰 Testing BMAD Tool Registry")
@@ -67,6 +69,7 @@ async def test_tool_registry():
         traceback.print_exc()
         return False
 
+@pytest.mark.external_service
 async def test_tool_execution():
     """Test tool execution with safety controls."""
     print("\n🔒 Testing Tool Execution with Safety Controls")
@@ -119,6 +122,7 @@ async def test_tool_execution():
         traceback.print_exc()
         return False
 
+@pytest.mark.external_service
 async def test_openapi_registration():
     """Test OpenAPI specification registration."""
     print("\n🌐 Testing OpenAPI Integration")
@@ -165,6 +169,7 @@ async def test_openapi_registration():
         traceback.print_exc()
         return False
 
+@pytest.mark.external_service
 async def test_tool_integration_with_agent():
     """Test tool integration with ADK Analyst agent."""
     print("\n🤖 Testing Tool Integration with ADK Agent")

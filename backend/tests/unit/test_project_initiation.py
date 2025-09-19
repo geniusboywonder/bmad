@@ -19,7 +19,6 @@ from app.models.task import Task, TaskStatus
 from app.models.agent import AgentType
 from app.database.models import ProjectDB, TaskDB
 
-
 class TestProjectModelValidation:
     """Test scenario 1.1-UNIT-001: Project model validation (P0)"""
     
@@ -83,7 +82,6 @@ class TestProjectModelValidation:
         special_name = "Project-2024 (Test) [v1.0] & More!"
         project = ProjectDB(name=special_name)
         assert project.name == special_name
-
 
 class TestTaskModelValidation:
     """Test scenario 1.1-UNIT-002: Task model validation (P0)"""
@@ -185,7 +183,6 @@ class TestTaskModelValidation:
         assert task.output == output_data
         assert task.error_message == error_message
 
-
 class TestProjectCreationRequestValidation:
     """Test scenario 1.1-UNIT-003: Project creation request validation (P0)"""
     
@@ -241,7 +238,6 @@ class TestProjectCreationRequestValidation:
         null_description = {"name": "Project", "description": None}
         assert null_description["description"] is None
 
-
 class TestTaskStatusEnumValidation:
     """Test scenario 1.1-UNIT-004: Task status enumeration validation (P1)"""
     
@@ -289,7 +285,6 @@ class TestTaskStatusEnumValidation:
         # Test string comparison
         assert TaskStatus.PENDING.value == "pending"
         assert TaskStatus.WORKING.value != "pending"
-
 
 class TestProjectNameValidationRules:
     """Test scenario 1.1-UNIT-005: Project name validation rules (P1)"""
@@ -356,7 +351,6 @@ class TestProjectNameValidationRules:
         for edge_case in edge_cases:
             project = ProjectDB(name=edge_case)
             assert project.name == edge_case
-
 
 class TestUUIDGeneration:
     """Test scenario 1.1-UNIT-006: UUID generation for project/task IDs (P2)"""

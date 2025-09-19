@@ -22,7 +22,6 @@ from app.services.llm_monitoring import (
     LLMUsageTracker, UsageMetrics, CostBreakdown, LLMProvider
 )
 
-
 class TestLLMResponseValidator:
     """Test suite for LLM response validation and sanitization."""
     
@@ -32,6 +31,8 @@ class TestLLMResponseValidator:
         return LLMResponseValidator(max_response_size=1000)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_validate_valid_json_response(self, validator):
         """Test validation of valid JSON response."""
         response = '{"status": "completed", "data": {"result": "success"}}'
@@ -45,6 +46,8 @@ class TestLLMResponseValidator:
         assert len(result.errors) == 0
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_validate_invalid_json_response(self, validator):
         """Test validation of invalid JSON response."""
         response = '{"status": "completed", "data": invalid_json}'
@@ -57,6 +60,8 @@ class TestLLMResponseValidator:
         assert result.errors[0].recoverable
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_validate_oversized_response(self, validator):
         """Test validation of response exceeding size limit."""
         response = "x" * 2000  # Exceeds 1000 character limit
@@ -69,6 +74,8 @@ class TestLLMResponseValidator:
         assert not result.errors[0].recoverable
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_malicious_content(self, validator):
         """Test detection of potentially malicious content."""
         malicious_responses = [
@@ -86,6 +93,8 @@ class TestLLMResponseValidator:
             assert any(e.error_type == ValidationErrorType.MALICIOUS_CONTENT for e in result.errors)
     
     @pytest.mark.asyncio 
+    @pytest.mark.mock_data
+ 
     async def test_sanitize_content_dict(self, validator):
         """Test sanitization of dictionary content."""
         content = {
@@ -112,6 +121,8 @@ class TestLLMResponseValidator:
         assert "eval(" not in sanitized["list_content"][2]["nested_bad"]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_handle_validation_failure_json_recovery(self, validator):
         """Test recovery from JSON validation failure."""
         response = 'Some text before {"valid": "json", "number": 123} some text after'
@@ -125,6 +136,8 @@ class TestLLMResponseValidator:
         assert recovered_data["number"] == 123
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_handle_validation_failure_malicious_recovery(self, validator):
         """Test recovery from malicious content."""
         response = 'Safe text <script>alert("bad")</script> more safe text'
@@ -138,6 +151,8 @@ class TestLLMResponseValidator:
         assert "Safe text" in recovered_data["content"]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_auto_format_detection(self, validator):
         """Test automatic format detection."""
         # JSON-like response
@@ -151,7 +166,6 @@ class TestLLMResponseValidator:
         result = await validator.validate_response(text_response, "auto")
         assert result.is_valid
         assert result.sanitized_content["type"] == "text"
-
 
 class TestLLMRetryHandler:
     """Test suite for LLM retry logic with exponential backoff."""
@@ -172,6 +186,8 @@ class TestLLMRetryHandler:
         return LLMRetryHandler(retry_config)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_successful_call_no_retry(self, retry_handler):
         """Test successful call that doesn't need retry."""
         mock_result = "success"
@@ -187,6 +203,8 @@ class TestLLMRetryHandler:
         assert len(result.attempts) == 0  # No retry attempts
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_retry_on_timeout_error(self, retry_handler):
         """Test retry behavior on timeout errors."""
         call_count = 0
@@ -209,6 +227,8 @@ class TestLLMRetryHandler:
         assert elapsed >= 0.3  # Should have waited (0.1 + 0.2 seconds)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_permanent_failure_after_max_retries(self, retry_handler):
         """Test permanent failure after exhausting retries."""
         
@@ -223,6 +243,8 @@ class TestLLMRetryHandler:
         assert isinstance(result.final_error, ConnectionError)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_non_retryable_error_immediate_failure(self, retry_handler):
         """Test immediate failure for non-retryable errors."""
         
@@ -237,6 +259,8 @@ class TestLLMRetryHandler:
         assert result.total_attempts == 1  # No retries
         assert len(result.attempts) == 1
     
+    @pytest.mark.mock_data
+
     def test_calculate_backoff_delay(self, retry_handler):
         """Test exponential backoff delay calculation."""
         # Test exponential progression: 0.1, 0.2, 0.4, 0.8, 1.0 (capped)
@@ -249,6 +273,8 @@ class TestLLMRetryHandler:
         assert delays[4] == 1.0  # Capped at max_delay
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_should_retry_classification(self, retry_handler):
         """Test error classification for retry decisions."""
         # Retryable errors
@@ -266,6 +292,8 @@ class TestLLMRetryHandler:
         should_retry = await retry_handler.should_retry(TimeoutError("timeout"), 3, 3)
         assert not should_retry
     
+    @pytest.mark.mock_data
+
     def test_retry_stats_tracking(self, retry_handler):
         """Test retry statistics tracking."""
         # Initial stats should be empty
@@ -277,7 +305,6 @@ class TestLLMRetryHandler:
         # Stats are updated by execute_with_retry in real usage
         # This test would need to be integration-style to test the full flow
 
-
 class TestLLMUsageTracker:
     """Test suite for LLM usage tracking and cost monitoring."""
     
@@ -287,6 +314,8 @@ class TestLLMUsageTracker:
         return LLMUsageTracker(enable_tracking=True)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_track_successful_request(self, usage_tracker):
         """Test tracking of successful LLM request."""
         await usage_tracker.track_request(
@@ -307,6 +336,8 @@ class TestLLMUsageTracker:
         assert stats['error_rate'] == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_track_failed_request(self, usage_tracker):
         """Test tracking of failed LLM request."""
         await usage_tracker.track_request(
@@ -326,6 +357,8 @@ class TestLLMUsageTracker:
         assert stats['total_cost'] == 0.0
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_calculate_openai_costs(self, usage_tracker):
         """Test OpenAI cost calculation."""
         # Test gpt-4o-mini pricing
@@ -341,6 +374,8 @@ class TestLLMUsageTracker:
         assert abs(cost - expected_cost) < 0.000001
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_calculate_costs_unknown_model(self, usage_tracker):
         """Test cost calculation with unknown model falls back to default."""
         cost = await usage_tracker.calculate_costs(
@@ -354,6 +389,8 @@ class TestLLMUsageTracker:
         expected_cost = (100/1000 * 0.03) + (50/1000 * 0.06)
         assert abs(cost - expected_cost) < 0.000001
     
+    @pytest.mark.mock_data
+
     def test_estimate_tokens(self, usage_tracker):
         """Test token estimation from text."""
         # Simple text
@@ -364,6 +401,8 @@ class TestLLMUsageTracker:
         expected_tokens = max(1, len(text) // 4)
         assert abs(tokens - expected_tokens) <= 2  # Allow small variance
     
+    @pytest.mark.mock_data
+
     def test_estimate_tokens_code(self, usage_tracker):
         """Test token estimation for code content."""
         code = """
@@ -378,6 +417,8 @@ class TestLLMUsageTracker:
         assert abs(tokens - expected_tokens) <= 3
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_generate_usage_report_empty_data(self, usage_tracker):
         """Test usage report generation with no data."""
         from uuid import uuid4
@@ -392,6 +433,8 @@ class TestLLMUsageTracker:
         assert "No usage data" in report.recommendations[0]
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_usage_anomalies_cost_spike(self, usage_tracker):
         """Test detection of cost spike anomalies."""
         # Add some normal usage
@@ -422,6 +465,8 @@ class TestLLMUsageTracker:
         assert cost_spikes[0]["cost"] == 0.1
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_detect_usage_anomalies_high_error_rate(self, usage_tracker):
         """Test detection of high error rate anomalies."""
         # Add requests with high error rate (60% failures)
@@ -444,6 +489,8 @@ class TestLLMUsageTracker:
         assert error_anomalies[0]["error_rate"] == 0.6
         assert error_anomalies[0]["severity"] == "high"
     
+    @pytest.mark.mock_data
+
     def test_session_stats_calculation(self, usage_tracker):
         """Test session statistics calculation."""
         # Manually update stats to test calculation
@@ -459,7 +506,6 @@ class TestLLMUsageTracker:
         assert stats['error_rate'] == 0.2  # 2/10
         assert stats['average_cost_per_request'] == 0.005  # 0.05/10
         assert stats['average_tokens_per_request'] == 150  # 1500/10
-
 
 class TestIntegrationScenarios:
     """Integration tests for combined LLM reliability features."""
@@ -478,6 +524,8 @@ class TestIntegrationScenarios:
         return LLMUsageTracker(enable_tracking=True)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_complete_reliability_workflow(self, validator, retry_handler, usage_tracker):
         """Test complete workflow with all reliability features."""
         # Simulate an LLM call that succeeds after one retry
@@ -519,6 +567,8 @@ class TestIntegrationScenarios:
         assert stats['error_rate'] == 0.0  # Success despite initial failure
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_complete_failure_scenario(self, validator, retry_handler, usage_tracker):
         """Test complete failure scenario with all components."""
         # Simulate permanent failure
@@ -549,7 +599,6 @@ class TestIntegrationScenarios:
         assert stats['error_rate'] == 1.0
         assert stats['total_cost'] == 0.0
 
-
 # Test fixtures and utilities for mocking AutoGen components
 @pytest.fixture
 def mock_autogen_response():
@@ -559,7 +608,6 @@ def mock_autogen_response():
     mock_message.content = '{"task_completed": true, "output": "Test response"}'
     mock_response.messages = [mock_message]
     return mock_response
-
 
 @pytest.fixture
 def mock_task():
@@ -573,6 +621,5 @@ def mock_task():
     task.project_id = uuid4()
     task.agent_type = "test_agent"
     return task
-
 
 # Run tests with: python -m pytest tests/unit/test_llm_reliability.py -v

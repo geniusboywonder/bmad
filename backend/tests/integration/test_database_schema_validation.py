@@ -20,14 +20,17 @@ from app.database.models import (
     WebSocketNotificationDB, RecoverySessionDB
 )
 
-
 class TestDatabaseSchemaValidation:
     """Test that database schema matches model definitions."""
+
+    @pytest.mark.real_data
 
     def test_database_is_postgresql(self):
         """Ensure tests run against PostgreSQL, not SQLite."""
         engine = get_engine()
         assert 'postgresql' in str(engine.url), "Tests must run against PostgreSQL"
+
+    @pytest.mark.mock_data
 
     def test_enum_vs_boolean_consistency(self):
         """Test that boolean fields in models match boolean columns in database."""
@@ -53,6 +56,8 @@ class TestDatabaseSchemaValidation:
                     f"{table_name}.{field_name} should be BOOLEAN, got {column_type}"
                 )
 
+    @pytest.mark.mock_data
+
     def test_enum_fields_are_actually_enums(self):
         """Test that enum fields in models match enum columns in database."""
         engine = get_engine()
@@ -75,9 +80,10 @@ class TestDatabaseSchemaValidation:
                     f"{table_name}.{field_name} should be {expected_enum_name} enum, got {column_type}"
                 )
 
-
 class TestModelDatabaseOperations:
     """Test that models work correctly with real database operations."""
+
+    @pytest.mark.mock_data
 
     def test_websocket_notification_boolean_operations(self):
         """Test WebSocketNotificationDB with boolean fields."""
@@ -113,6 +119,8 @@ class TestModelDatabaseOperations:
                 next(session_gen)
             except StopIteration:
                 pass
+
+    @pytest.mark.mock_data
 
     def test_emergency_stop_boolean_operations(self):
         """Test EmergencyStopDB with boolean active field."""
@@ -153,6 +161,8 @@ class TestModelDatabaseOperations:
                 next(session_gen)
             except StopIteration:
                 pass
+
+    @pytest.mark.mock_data
 
     def test_agent_budget_control_boolean_operations(self):
         """Test AgentBudgetControlDB with boolean emergency_stop_enabled."""
@@ -196,6 +206,8 @@ class TestModelDatabaseOperations:
                 next(session_gen)
             except StopIteration:
                 pass
+
+    @pytest.mark.mock_data
 
     def test_task_enum_operations(self):
         """Test TaskDB with enum status field."""
@@ -245,6 +257,8 @@ class TestModelDatabaseOperations:
             except StopIteration:
                 pass
 
+    @pytest.mark.mock_data
+
     def test_invalid_enum_values_fail(self):
         """Test that invalid enum values are rejected by database."""
         session_gen = get_session()
@@ -281,9 +295,10 @@ class TestModelDatabaseOperations:
             except StopIteration:
                 pass
 
-
 class TestSchemaMigrationValidation:
     """Test that migrations create correct schema."""
+
+    @pytest.mark.mock_data
 
     def test_all_required_tables_exist(self):
         """Test that all model tables exist in database."""
@@ -299,6 +314,8 @@ class TestSchemaMigrationValidation:
 
         for table_name in expected_tables:
             assert table_name in table_names, f"Table {table_name} should exist"
+
+    @pytest.mark.mock_data
 
     def test_foreign_key_constraints_exist(self):
         """Test that foreign key constraints are properly defined."""
@@ -328,6 +345,8 @@ class TestSchemaMigrationValidation:
             assert fk_found, (
                 f"Foreign key {table_name}.{column_name} -> {referenced_table} not found"
             )
+
+    @pytest.mark.mock_data
 
     def test_indexes_exist(self):
         """Test that performance indexes exist."""

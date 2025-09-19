@@ -24,7 +24,6 @@ from app.models.hitl import HitlStatus
 
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestProjectLifecycleManagerReal:
     """Test ProjectLifecycleManager with real database operations."""
 
@@ -55,79 +54,55 @@ class TestProjectLifecycleManagerReal:
             assert result == 1
 
     @pytest.mark.real_data
-    @pytest.mark.asyncio
-    async def test_create_project_real_db(self, db_manager):
+    def test_create_project_real_db(self, project_manager, db_manager):
         """Test project creation with real database persistence."""
-        with db_manager.get_session() as session:
-            manager = ProjectLifecycleManager(session)
+        project_name = 'Real Test Project'
+        project_description = 'Testing with real database'
 
-            project_data = {
-                'name': 'Real Test Project',
-                'description': 'Testing with real database',
-                'requirements': ['requirement 1', 'requirement 2']
-            }
+        project_id = project_manager.create_project(project_name, project_description)
 
-            project = await manager.create_project(project_data)
+        assert project_id is not None
 
-            # Verify project was actually created in database
-            assert project is not None
-            assert project.name == 'Real Test Project'
+        # Verify database persistence
+        with db_manager.get_session() as verify_session:
+            from app.database.models import ProjectDB
+            db_project = verify_session.query(ProjectDB).filter_by(id=project_id).first()
 
-            # Verify database persistence
-            with db_manager.get_session() as verify_session:
-                from app.database.models import ProjectDB
-                db_project = verify_session.query(ProjectDB).filter_by(
-                    name='Real Test Project'
-                ).first()
+            assert db_project is not None
+            assert db_project.name == project_name
+            assert db_project.description == project_description
 
-                assert db_project is not None
-                assert db_project.description == 'Testing with real database'
-
-            db_manager.track_test_record('projects', str(project.id))
+        db_manager.track_test_record('projects', str(project_id))
 
     @pytest.mark.real_data
-    @pytest.mark.asyncio
-    async def test_advance_project_phase_real_db(self, db_manager):
+    def test_transition_to_next_phase_real_db(self, project_manager, db_manager):
         """Test project phase advancement with real database."""
-        # Create project
-        project = db_manager.create_test_project(name='Phase Test Project')
+        project_id = project_manager.create_project("Phase Transition Test")
+        project_manager.set_current_phase(project_id, "discovery")
 
-        with db_manager.get_session() as session:
-            manager = ProjectLifecycleManager(session)
+        # Create tasks to satisfy completion criteria for 'discovery'
+        db_manager.create_test_task(project_id=project_id, agent_type="analyst", status=TaskStatus.COMPLETED, instructions="analyzed")
+        db_manager.create_test_task(project_id=project_id, agent_type="analyst", status=TaskStatus.COMPLETED, instructions="requirements")
 
-            # Test phase advancement
-            success = await manager.advance_project_phase(
-                project.id,
-                from_phase='analysis',
-                to_phase='architecture'
-            )
+        # Test phase advancement
+        result = project_manager.transition_to_next_phase(project_id)
 
-            assert success is True
+        assert result["success"] is True
+        assert result["current_phase"] == "plan"
 
-            # Verify phase change was persisted
-            with db_manager.get_session() as verify_session:
-                from app.database.models import ProjectDB
-                updated_project = verify_session.query(ProjectDB).filter_by(
-                    id=project.id
-                ).first()
-
-                # Check if phase tracking exists in database
-                assert updated_project is not None
+        # Verify phase change was persisted
+        new_phase = project_manager.get_current_phase(project_id)
+        assert new_phase == "plan"
 
     @pytest.mark.real_data
-    def test_get_current_phase_real_db(self, db_manager):
+    def test_get_current_phase_real_db(self, project_manager, db_manager):
         """Test getting current project phase from real database."""
-        project = db_manager.create_test_project(name='Current Phase Test')
+        project_id = project_manager.create_project("Get Phase Test")
+        project_manager.set_current_phase(project_id, "design")
 
-        with db_manager.get_session() as session:
-            manager = ProjectLifecycleManager(session)
+        current_phase = project_manager.get_current_phase(project_id)
 
-            current_phase = manager.get_current_phase(project.id)
-
-            # Should return actual phase from database
-            assert current_phase is not None
-            assert current_phase in SDLC_PHASES
-
+        assert current_phase == "design"
 
 class TestAgentCoordinatorReal:
     """Test AgentCoordinator with real database operations."""
@@ -142,6 +117,8 @@ class TestAgentCoordinatorReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_assign_agent_to_task_real_db(self, db_manager):
         """Test agent assignment with real database persistence."""
         # Create test scenario
@@ -173,6 +150,8 @@ class TestAgentCoordinatorReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_get_available_agents_real_db(self, db_manager):
         """Test getting available agents from real database."""
         with db_manager.get_session() as session:
@@ -220,7 +199,6 @@ class TestAgentCoordinatorReal:
                 assert agent_status.status == AgentStatus.WORKING
                 db_manager.track_test_record('agent_status', str(agent_status.id))
 
-
 class TestWorkflowIntegratorReal:
     """Test WorkflowIntegrator with real database operations."""
 
@@ -234,6 +212,8 @@ class TestWorkflowIntegratorReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_execute_workflow_step_real_db(self, db_manager):
         """Test workflow step execution with real database."""
         # Create test scenario
@@ -261,6 +241,8 @@ class TestWorkflowIntegratorReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_get_workflow_state_real_db(self, db_manager):
         """Test workflow state retrieval from real database."""
         project = db_manager.create_test_project()
@@ -273,7 +255,6 @@ class TestWorkflowIntegratorReal:
 
             # Should return actual state from database
             assert state is not None
-
 
 class TestHandoffManagerReal:
     """Test HandoffManager with real database operations."""
@@ -288,6 +269,8 @@ class TestHandoffManagerReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_create_handoff_real_db(self, db_manager):
         """Test handoff creation with real database persistence."""
         # Create test scenario
@@ -332,7 +315,6 @@ class TestHandoffManagerReal:
 
             # Should return actual validation result
             assert isinstance(is_valid, bool)
-
 
 class TestStatusTrackerReal:
     """Test StatusTracker with real database operations."""
@@ -388,7 +370,6 @@ class TestStatusTrackerReal:
             # Should return actual status from database
             assert status is not None
 
-
 class TestContextManagerReal:
     """Test ContextManager with real database operations."""
 
@@ -402,6 +383,8 @@ class TestContextManagerReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_store_context_real_db(self, db_manager):
         """Test context storage with real database persistence."""
         project = db_manager.create_test_project()
@@ -434,6 +417,8 @@ class TestContextManagerReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_retrieve_context_real_db(self, db_manager):
         """Test context retrieval from real database."""
         project = db_manager.create_test_project()

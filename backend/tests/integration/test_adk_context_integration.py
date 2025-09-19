@@ -8,7 +8,6 @@ from app.models.agent import AgentType
 from app.services.context_store import ContextStoreService
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 @pytest.mark.asyncio
 class TestADKContextIntegration:
     @pytest.fixture
@@ -35,6 +34,8 @@ class TestADKContextIntegration:
             context_store=context_store
         )
         return wrapper
+
+    @pytest.mark.mock_data
 
     async def test_context_reading_and_creation(self, db_manager, context_store, adk_wrapper):
         """Test context reading and creation with real database."""

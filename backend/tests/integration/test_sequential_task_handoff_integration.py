@@ -23,7 +23,6 @@ from app.services.orchestrator import OrchestratorService
 from app.services.context_store import ContextStoreService
 from tests.conftest import assert_performance_threshold
 
-
 class TestOrchestratorTaskCreationFromHandoff:
     """Test scenario 2.1-INT-001: Orchestrator creates tasks from handoff (P0)"""
     
@@ -141,7 +140,6 @@ class TestOrchestratorTaskCreationFromHandoff:
         # Verify priority is preserved (may be stored in metadata)
         assert task is not None
         # Priority handling would be implementation-specific
-
 
 class TestTaskStatusUpdatesDuringHandoff:
     """Test scenario 2.1-INT-002: Task status updates during handoff (P0)"""
@@ -277,7 +275,6 @@ class TestTaskStatusUpdatesDuringHandoff:
         assert status_counts[TaskStatus.WORKING] == 1  
         assert status_counts[TaskStatus.PENDING] == 1
 
-
 class TestContextArtifactPassingBetweenPhases:
     """Test scenario 2.1-INT-003: Context artifact passing between phases (P1)"""
     
@@ -411,7 +408,6 @@ class TestContextArtifactPassingBetweenPhases:
         assert len(relevant_artifacts) == 1
         assert relevant_artifacts[0].id == relevant_artifact.id
 
-
 class TestAgentStatusUpdatesDuringWorkflow:
     """Test scenario 2.1-INT-004: Agent status updates during workflow (P1)"""
     
@@ -514,7 +510,6 @@ class TestAgentStatusUpdatesDuringWorkflow:
         status_count = db_session.query(AgentStatusDB).count()
         assert status_count == 3
 
-
 class TestWebSocketEventsForHandoffOperations:
     """Test scenario 2.1-INT-005: WebSocket events for handoff operations (P2)"""
     
@@ -522,6 +517,8 @@ class TestWebSocketEventsForHandoffOperations:
     @pytest.mark.p2
     @pytest.mark.handoff
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_websocket_events_during_handoff_creation(
         self, db_session: Session, orchestrator_service: OrchestratorService,
         project_factory, mock_websocket_manager
@@ -558,6 +555,8 @@ class TestWebSocketEventsForHandoffOperations:
     @pytest.mark.p2
     @pytest.mark.handoff
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_real_time_handoff_notifications(
         self, db_session: Session, orchestrator_service: OrchestratorService,
         project_factory, mock_websocket_manager, performance_timer

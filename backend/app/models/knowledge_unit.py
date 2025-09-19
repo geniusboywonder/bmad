@@ -7,7 +7,7 @@ extracted from context artifacts in the mixed-granularity system.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class KnowledgeUnit(BaseModel):
@@ -26,9 +26,7 @@ class KnowledgeUnit(BaseModel):
     usage_count: int = Field(default=0, description="Number of times this unit has been used")
     last_accessed: Optional[str] = Field(default=None, description="Last access timestamp")
 
-    class Config:
-        """Pydantic configuration."""
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def track_usage(self) -> None:
         """Track usage of this knowledge unit."""

@@ -7,7 +7,7 @@ in the mixed-granularity context store system.
 
 from typing import Dict, Any, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class ContextArtifact(BaseModel):
@@ -25,9 +25,7 @@ class ContextArtifact(BaseModel):
     granularity: str = Field(default="atomic", description="Granularity level (atomic, sectioned, conceptual)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
-    class Config:
-        """Pydantic configuration."""
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     def dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""

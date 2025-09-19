@@ -8,10 +8,10 @@ and basic conversation patterns for Phase 1 validation.
 import pytest
 from unittest.mock import Mock, patch
 
-
 class TestAutoGenLibraryAvailability:
     """Test cases for basic AutoGen library imports."""
 
+    @pytest.mark.external_service
     def test_autogen_agentchat_import(self):
         """Test that AutoGen agentchat library can be imported."""
         try:
@@ -20,6 +20,7 @@ class TestAutoGenLibraryAvailability:
         except ImportError as e:
             pytest.fail(f"AutoGen agentchat import failed: {e}")
 
+    @pytest.mark.external_service
     def test_autogen_ext_import(self):
         """Test that AutoGen extensions library can be imported."""
         try:
@@ -28,6 +29,7 @@ class TestAutoGenLibraryAvailability:
         except ImportError as e:
             pytest.fail(f"AutoGen ext import failed: {e}")
 
+    @pytest.mark.external_service
     def test_autogen_core_availability(self):
         """Test that AutoGen core components are available."""
         try:
@@ -36,10 +38,10 @@ class TestAutoGenLibraryAvailability:
         except ImportError as e:
             pytest.fail(f"AutoGen AssistantAgent import failed: {e}")
 
-
 class TestPhase1AutoGenRequirements:
     """Test cases specifically for Phase 1 AutoGen requirements."""
 
+    @pytest.mark.external_service
     def test_autogen_libraries_installed(self):
         """Test that all required AutoGen libraries are installed."""
         # Phase 1 requirement: AutoGen conversation patterns working
@@ -54,6 +56,7 @@ class TestPhase1AutoGenRequirements:
 
         assert len(missing_modules) == 0, f"Missing AutoGen modules: {missing_modules}"
 
+    @pytest.mark.external_service
     def test_assistant_agent_creation(self):
         """Test that AssistantAgent can be created."""
         try:
@@ -69,6 +72,7 @@ class TestPhase1AutoGenRequirements:
         except Exception as e:
             pytest.fail(f"AssistantAgent creation failed: {e}")
 
+    @pytest.mark.external_service
     def test_basic_conversation_pattern_readiness(self):
         """Test that basic conversation patterns can be set up."""
         # This test validates that the AutoGen infrastructure is ready
@@ -115,10 +119,10 @@ class TestPhase1AutoGenRequirements:
         failed_checks = [check for check, passed in validation_checklist.items() if not passed]
         assert len(failed_checks) == 0, f"Failed AutoGen readiness checks: {failed_checks}"
 
-
 class TestAutogenConversationPatternGaps:
     """Test to identify what AutoGen conversation patterns are NOT yet implemented."""
 
+    @pytest.mark.mock_data
     def test_identify_missing_autogen_components(self):
         """Identify which AutoGen conversation pattern components need to be implemented."""
 
@@ -141,7 +145,6 @@ class TestAutogenConversationPatternGaps:
         # This test is expected to fail in Phase 1 - it documents what needs to be implemented
         if len(missing_components) > 0:
             pytest.skip(f"AutoGen conversation patterns not yet implemented. Missing: {missing_components}")
-
 
 if __name__ == "__main__":
     # Run the tests

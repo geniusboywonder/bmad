@@ -7,12 +7,10 @@ from typing import Dict, Any
 from app.services.adk_orchestration_service import ADKOrchestrationService
 from app.agents.bmad_adk_wrapper import BMADADKWrapper
 
-
 @pytest.fixture
 def orchestration_service():
     """Create a fresh ADK Orchestration Service for testing."""
     return ADKOrchestrationService()
-
 
 @pytest.fixture
 def mock_adk_wrapper():
@@ -24,15 +22,18 @@ def mock_adk_wrapper():
     wrapper.adk_agent = Mock()
     return wrapper
 
-
 class TestADKOrchestrationService:
     """Test ADK Orchestration Service functionality."""
+
+    @pytest.mark.mock_data
 
     def test_service_initialization(self, orchestration_service):
         """Test that orchestration service initializes correctly."""
         assert orchestration_service.session_service is not None
         assert isinstance(orchestration_service.active_workflows, dict)
         assert orchestration_service.orchestration_count == 0
+
+    @pytest.mark.mock_data
 
     def test_create_multi_agent_workflow(self, orchestration_service, mock_adk_wrapper):
         """Test creating multi-agent workflow."""
@@ -52,6 +53,8 @@ class TestADKOrchestrationService:
         assert metadata["project_id"] == "test_project"
         assert metadata["status"] == "created"
 
+    @pytest.mark.mock_data
+
     def test_create_workflow_with_no_agents_fails(self, orchestration_service):
         """Test that creating workflow with no agents fails."""
         with pytest.raises(ValueError, match="At least one agent required"):
@@ -60,6 +63,8 @@ class TestADKOrchestrationService:
                 workflow_type="test",
                 project_id="test"
             )
+
+    @pytest.mark.mock_data
 
     def test_create_workflow_with_uninitialized_agent_fails(self, orchestration_service):
         """Test that creating workflow with uninitialized agent fails."""
@@ -73,10 +78,14 @@ class TestADKOrchestrationService:
                 project_id="test"
             )
 
+    @pytest.mark.mock_data
+
     def test_get_workflow_status_for_unknown_workflow(self, orchestration_service):
         """Test getting status for unknown workflow."""
         result = orchestration_service.get_workflow_status("unknown_workflow")
         assert result is None
+
+    @pytest.mark.mock_data
 
     def test_get_workflow_status_for_existing_workflow(self, orchestration_service, mock_adk_wrapper):
         """Test getting status for existing workflow."""
@@ -91,6 +100,8 @@ class TestADKOrchestrationService:
         assert status["workflow_id"] == workflow_id
         assert status["status"] == "created"
 
+    @pytest.mark.mock_data
+
     def test_list_active_workflows(self, orchestration_service):
         """Test listing active workflows."""
         # Initially empty
@@ -101,6 +112,8 @@ class TestADKOrchestrationService:
             "project_id": "test_project"
         }
         assert "test_workflow" in orchestration_service.list_active_workflows()
+
+    @pytest.mark.mock_data
 
     def test_list_active_workflows_with_project_filter(self, orchestration_service, mock_adk_wrapper):
         """Test listing active workflows with project filter."""
@@ -122,6 +135,8 @@ class TestADKOrchestrationService:
         assert wf1 in project_a_workflows
         assert wf2 not in project_a_workflows
 
+    @pytest.mark.mock_data
+
     def test_terminate_workflow(self, orchestration_service, mock_adk_wrapper):
         """Test terminating a workflow."""
         workflow_id = orchestration_service.create_multi_agent_workflow(
@@ -139,10 +154,14 @@ class TestADKOrchestrationService:
         assert status["status"] == "terminated"
         assert "terminated_at" in status
 
+    @pytest.mark.mock_data
+
     def test_terminate_unknown_workflow(self, orchestration_service):
         """Test terminating unknown workflow."""
         result = orchestration_service.terminate_workflow("unknown_workflow")
         assert result is False
+
+    @pytest.mark.mock_data
 
     def test_get_workflow_config_defaults(self, orchestration_service):
         """Test workflow configuration generation."""
@@ -153,6 +172,8 @@ class TestADKOrchestrationService:
         assert config["allow_agent_delegation"] is True
         assert config["timeout_minutes"] == 30
 
+    @pytest.mark.mock_data
+
     def test_get_workflow_config_requirements_analysis(self, orchestration_service):
         """Test workflow config for requirements analysis."""
         config = orchestration_service._get_workflow_config("requirements_analysis", {})
@@ -160,6 +181,8 @@ class TestADKOrchestrationService:
         assert config["coordination_strategy"] == "collaborative"
         assert config["max_iterations"] == 8
         assert config["focus_areas"] == ["functional", "non_functional", "constraints"]
+
+    @pytest.mark.mock_data
 
     def test_get_workflow_config_system_design(self, orchestration_service):
         """Test workflow config for system design."""
@@ -169,6 +192,8 @@ class TestADKOrchestrationService:
         assert config["max_iterations"] == 12
         assert config["design_phases"] == ["architecture", "components", "interfaces"]
 
+    @pytest.mark.mock_data
+
     def test_get_workflow_config_with_overrides(self, orchestration_service):
         """Test workflow config with custom overrides."""
         custom_config = {"max_iterations": 20, "custom_setting": "test"}
@@ -177,6 +202,8 @@ class TestADKOrchestrationService:
         assert config["max_iterations"] == 20  # Override applied
         assert config["custom_setting"] == "test"  # Custom setting added
         assert config["coordination_strategy"] == "hierarchical"  # Default preserved
+
+    @pytest.mark.mock_data
 
     def test_enhance_prompt_with_context(self, orchestration_service):
         """Test prompt enhancement with context data."""
@@ -197,12 +224,16 @@ class TestADKOrchestrationService:
         assert "Must be scalable" in enhanced
         assert "Budget limited" in enhanced
 
+    @pytest.mark.mock_data
+
     def test_enhance_prompt_without_context(self, orchestration_service):
         """Test prompt enhancement without context data."""
         prompt = "Simple request"
         enhanced = orchestration_service._enhance_prompt_with_context(prompt, None)
 
         assert enhanced == prompt
+
+    @pytest.mark.mock_data
 
     def test_cleanup_completed_workflows(self, orchestration_service):
         """Test cleanup of completed workflows."""
@@ -223,6 +254,8 @@ class TestADKOrchestrationService:
         assert len(orchestration_service.active_workflows) <= initial_count
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_execute_collaborative_analysis_success(self, orchestration_service, mock_adk_wrapper):
         """Test successful collaborative analysis execution."""
         workflow_id = orchestration_service.create_multi_agent_workflow(
@@ -248,6 +281,8 @@ class TestADKOrchestrationService:
         assert "completed_at" in metadata
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_execute_collaborative_analysis_unknown_workflow(self, orchestration_service):
         """Test collaborative analysis with unknown workflow."""
         result = await orchestration_service.execute_collaborative_analysis(
@@ -259,9 +294,10 @@ class TestADKOrchestrationService:
         assert "error" in result
         assert "not found" in result["error"]
 
-
 class TestADKOrchestrationIntegration:
     """Integration tests for ADK Orchestration Service."""
+
+    @pytest.mark.mock_data
 
     def test_workflow_creation_and_listing_integration(self, orchestration_service, mock_adk_wrapper):
         """Test workflow creation and listing integration."""
@@ -279,6 +315,8 @@ class TestADKOrchestrationIntegration:
         assert len(workflows) == initial_count + 1
         assert workflow_id in workflows
 
+    @pytest.mark.mock_data
+
     def test_configuration_methods_exist(self, orchestration_service):
         """Test that all expected methods exist."""
         assert hasattr(orchestration_service, 'create_multi_agent_workflow')
@@ -289,6 +327,8 @@ class TestADKOrchestrationIntegration:
         assert hasattr(orchestration_service, '_get_workflow_config')
         assert hasattr(orchestration_service, '_enhance_prompt_with_context')
         assert hasattr(orchestration_service, 'cleanup_completed_workflows')
+
+    @pytest.mark.mock_data
 
     def test_workflow_lifecycle(self, orchestration_service, mock_adk_wrapper):
         """Test complete workflow lifecycle."""

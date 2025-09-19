@@ -20,11 +20,12 @@ except ImportError:
     BMAD_SERVICES_AVAILABLE = False
     BMADADKWrapper = None
 
-
 class TestADKIntegration:
     """Test suite for ADK integration."""
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_minimal_adk_agent(self):
         """Test minimal ADK agent functionality."""
         agent = MinimalADKAgent("test_minimal")
@@ -40,6 +41,8 @@ class TestADKIntegration:
         assert "agent_name" in result
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_adk_agent_with_tools(self):
         """Test ADK agent with tools."""
         agent = ADKAgentWithTools("test_tools")
@@ -55,6 +58,8 @@ class TestADKIntegration:
         assert "agent_name" in result
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_bmad_adk_wrapper_basic(self):
         """Test basic BMAD-ADK wrapper functionality."""
         wrapper = BMADADKWrapper(
@@ -80,6 +85,8 @@ class TestADKIntegration:
         assert result["execution_id"].startswith("test_wrapper")
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_bmad_adk_wrapper_enterprise_features(self):
         """Test BMAD-ADK wrapper enterprise features."""
         wrapper = BMADADKWrapper(
@@ -104,6 +111,8 @@ class TestADKIntegration:
         assert result["agent_name"] == "enterprise_test"
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_error_handling(self):
         """Test error handling scenarios."""
         wrapper = BMADADKWrapper(
@@ -126,6 +135,8 @@ class TestADKIntegration:
         assert "error" in result
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_token_and_cost_estimation(self):
         """Test token and cost estimation methods."""
         wrapper = BMADADKWrapper(
@@ -151,6 +162,8 @@ class TestADKIntegration:
         assert risk == "low"
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_hitl_approval_request(self):
         """Test HITL approval request functionality."""
         wrapper = BMADADKWrapper(
@@ -171,6 +184,8 @@ class TestADKIntegration:
                 assert result["approval_id"] == "test_approval_id"
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_audit_trail_integration(self):
         """Test audit trail integration."""
         wrapper = BMADADKWrapper(
@@ -201,6 +216,8 @@ class TestADKIntegration:
                         assert result["success"] is False
                         assert "execution_id" in result
 
+    @pytest.mark.mock_data
+
     def test_wrapper_initialization(self):
         """Test wrapper initialization parameters."""
         wrapper = BMADADKWrapper(
@@ -218,7 +235,6 @@ class TestADKIntegration:
         assert wrapper.tools == []
         assert wrapper.is_initialized is False
         assert wrapper.execution_count == 0
-
 
 async def run_integration_tests():
     """Run all integration tests manually."""
@@ -256,7 +272,6 @@ async def run_integration_tests():
     print(f"\n📊 Summary: {passed}/{total} tests passed")
 
     return passed == total
-
 
 if __name__ == "__main__":
     asyncio.run(run_integration_tests())

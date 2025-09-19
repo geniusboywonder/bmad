@@ -10,10 +10,10 @@ import yaml
 from pathlib import Path
 import tempfile
 
-
 class TestYAMLLibraryAvailability:
     """Test cases for basic YAML library functionality."""
 
+    @pytest.mark.mock_data
     def test_yaml_library_import(self):
         """Test that PyYAML library can be imported."""
         try:
@@ -22,6 +22,7 @@ class TestYAMLLibraryAvailability:
         except ImportError as e:
             pytest.fail(f"YAML library import failed: {e}")
 
+    @pytest.mark.mock_data
     def test_yaml_parsing_functionality(self):
         """Test basic YAML parsing functionality."""
         yaml_content = """
@@ -48,6 +49,7 @@ variables:
         except Exception as e:
             pytest.fail(f"YAML parsing failed: {e}")
 
+    @pytest.mark.mock_data
     def test_yaml_file_loading(self):
         """Test loading YAML from file."""
         # Create temporary YAML file
@@ -77,10 +79,10 @@ variables:
         except Exception as e:
             pytest.fail(f"YAML file loading failed: {e}")
 
-
 class TestPhase1TemplateRequirements:
     """Test cases specifically for Phase 1 template loading requirements."""
 
+    @pytest.mark.mock_data
     def test_yaml_parsing_library_available(self):
         """Test that YAML parsing capability is available."""
         # Phase 1 requirement: BMAD Core template loading working
@@ -117,6 +119,7 @@ class TestPhase1TemplateRequirements:
         missing_capabilities = [cap for cap, available in required_capabilities.items() if not available]
         assert len(missing_capabilities) == 0, f"Missing template loading capabilities: {missing_capabilities}"
 
+    @pytest.mark.mock_data
     def test_template_directory_accessibility(self):
         """Test that template directories can be accessed."""
         # Check if templates directory structure exists or can be created
@@ -146,6 +149,7 @@ sections:
         except Exception as e:
             pytest.fail(f"Template directory operations failed: {e}")
 
+    @pytest.mark.mock_data
     def test_jinja2_template_engine_availability(self):
         """Test that Jinja2 template engine is available."""
         try:
@@ -163,10 +167,10 @@ sections:
         except Exception as e:
             pytest.fail(f"Jinja2 template rendering failed: {e}")
 
-
 class TestTemplateLoadingGaps:
     """Test to identify what template loading components are NOT yet implemented."""
 
+    @pytest.mark.mock_data
     def test_identify_missing_template_components(self):
         """Identify which template loading components need to be implemented."""
 
@@ -189,7 +193,6 @@ class TestTemplateLoadingGaps:
         # This test is expected to fail in Phase 1 - it documents what needs to be implemented
         if len(missing_components) > 0:
             pytest.skip(f"Template loading system not yet implemented. Missing: {missing_components}")
-
 
 if __name__ == "__main__":
     # Run the tests

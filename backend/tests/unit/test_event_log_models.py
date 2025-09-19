@@ -13,10 +13,11 @@ from app.models.event_log import (
     EventLogFilter
 )
 
-
 class TestEventTypeEnum:
     """Test EventType enum values and functionality."""
     
+    @pytest.mark.mock_data
+
     def test_event_type_values(self):
         """Test all event type enum values are properly defined."""
         expected_types = [
@@ -33,12 +34,16 @@ class TestEventTypeEnum:
             enum_value = getattr(EventType, event_type.upper())
             assert enum_value.value == event_type
     
+    @pytest.mark.mock_data
+
     def test_event_type_string_representation(self):
         """Test EventType string representation."""
         assert EventType.TASK_CREATED.value == "task_created"
         assert EventType.HITL_RESPONSE.value == "hitl_response"
         assert EventType.SYSTEM_ERROR.value == "system_error"
     
+    @pytest.mark.mock_data
+
     def test_event_type_comparison(self):
         """Test EventType comparison operations."""
         assert EventType.TASK_CREATED == EventType.TASK_CREATED
@@ -46,10 +51,11 @@ class TestEventTypeEnum:
         assert EventType.TASK_CREATED == "task_created"
         assert EventType.TASK_CREATED != "task_completed"
 
-
 class TestEventSourceEnum:
     """Test EventSource enum values and functionality."""
     
+    @pytest.mark.mock_data
+
     def test_event_source_values(self):
         """Test all event source enum values are properly defined."""
         expected_sources = ["agent", "user", "system", "webhook", "scheduler"]
@@ -59,6 +65,8 @@ class TestEventSourceEnum:
             enum_value = getattr(EventSource, source.upper())
             assert enum_value.value == source
     
+    @pytest.mark.mock_data
+
     def test_event_source_string_representation(self):
         """Test EventSource string representation."""
         assert EventSource.AGENT.value == "agent"
@@ -67,10 +75,11 @@ class TestEventSourceEnum:
         assert EventSource.WEBHOOK.value == "webhook"
         assert EventSource.SCHEDULER.value == "scheduler"
 
-
 class TestEventLogCreate:
     """Test EventLogCreate Pydantic model."""
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_minimal_valid(self):
         """Test EventLogCreate with minimal required fields."""
         event_log = EventLogCreate(
@@ -87,6 +96,8 @@ class TestEventLogCreate:
         assert event_log.hitl_request_id is None
         assert event_log.metadata == {}
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_full_fields(self):
         """Test EventLogCreate with all fields populated."""
         project_id = uuid4()
@@ -125,6 +136,8 @@ class TestEventLogCreate:
         assert event_log.event_data == event_data
         assert event_log.metadata == metadata
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_invalid_event_type(self):
         """Test EventLogCreate with invalid event type."""
         with pytest.raises(ValidationError) as exc_info:
@@ -137,6 +150,8 @@ class TestEventLogCreate:
         error = exc_info.value
         assert "event_type" in str(error)
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_invalid_event_source(self):
         """Test EventLogCreate with invalid event source."""
         with pytest.raises(ValidationError) as exc_info:
@@ -149,6 +164,8 @@ class TestEventLogCreate:
         error = exc_info.value
         assert "event_source" in str(error)
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_missing_required_fields(self):
         """Test EventLogCreate with missing required fields."""
         # Missing event_type
@@ -175,6 +192,8 @@ class TestEventLogCreate:
             )
         assert "event_data" in str(exc_info.value)
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_empty_event_data(self):
         """Test EventLogCreate with empty event_data."""
         event_log = EventLogCreate(
@@ -185,6 +204,8 @@ class TestEventLogCreate:
         
         assert event_log.event_data == {}
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_complex_event_data(self):
         """Test EventLogCreate with complex nested event_data."""
         complex_data = {
@@ -215,10 +236,11 @@ class TestEventLogCreate:
         assert event_log.event_data["workflow"]["current_step"] == 2
         assert len(event_log.event_data["agents"]) == 2
 
-
 class TestEventLogResponse:
     """Test EventLogResponse Pydantic model."""
     
+    @pytest.mark.mock_data
+
     def test_event_log_response_complete(self):
         """Test EventLogResponse with all fields."""
         event_id = uuid4()
@@ -252,6 +274,8 @@ class TestEventLogResponse:
         assert response.event_metadata == metadata
         assert response.created_at == created_at
     
+    @pytest.mark.mock_data
+
     def test_event_log_response_optional_fields_none(self):
         """Test EventLogResponse with optional fields as None."""
         event_id = uuid4()
@@ -275,6 +299,8 @@ class TestEventLogResponse:
         assert response.hitl_request_id is None
         assert response.event_metadata == {}
     
+    @pytest.mark.mock_data
+
     def test_event_log_response_json_serialization(self):
         """Test EventLogResponse JSON serialization."""
         event_id = uuid4()
@@ -303,10 +329,11 @@ class TestEventLogResponse:
         assert json_data["event_source"] == "user"
         assert json_data["event_data"]["project_name"] == "Test Project"
 
-
 class TestEventLogFilter:
     """Test EventLogFilter Pydantic model."""
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_defaults(self):
         """Test EventLogFilter default values."""
         filter_obj = EventLogFilter()
@@ -321,6 +348,8 @@ class TestEventLogFilter:
         assert filter_obj.limit == 100
         assert filter_obj.offset == 0
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_with_parameters(self):
         """Test EventLogFilter with custom parameters."""
         project_id = uuid4()
@@ -348,6 +377,8 @@ class TestEventLogFilter:
         assert filter_obj.limit == 50
         assert filter_obj.offset == 25
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_limit_validation(self):
         """Test EventLogFilter limit validation."""
         # Valid limit
@@ -377,6 +408,8 @@ class TestEventLogFilter:
         # error = exc_info.value
         # assert "limit" in str(error)
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_offset_validation(self):
         """Test EventLogFilter offset validation."""
         # Valid offset
@@ -394,6 +427,8 @@ class TestEventLogFilter:
         error = exc_info.value
         assert "offset" in str(error)
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_date_validation(self):
         """Test EventLogFilter date field validation."""
         base_date = datetime.now(timezone.utc)
@@ -416,6 +451,8 @@ class TestEventLogFilter:
         assert filter_obj.start_date is None
         assert filter_obj.end_date == base_date
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_enum_validation(self):
         """Test EventLogFilter enum field validation."""
         # Valid enum values
@@ -441,6 +478,8 @@ class TestEventLogFilter:
         error = exc_info.value
         assert "event_source" in str(error)
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_comprehensive_filtering(self):
         """Test EventLogFilter with comprehensive filtering parameters."""
         project_id = uuid4()

@@ -36,7 +36,6 @@ from app.services.recovery_procedure_manager import RecoveryProcedureManager, Re
 from app.websocket.manager import NotificationPriority
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestAgent(BaseAgent):
     """Concrete implementation of BaseAgent for testing."""
 
@@ -48,7 +47,6 @@ class TestAgent(BaseAgent):
 
     def execute_task(self, task, context):
         return {"status": "completed", "result": "test"}
-
 
 class TestHITLSafetyService:
     """Test cases for HITL Safety Service."""
@@ -78,6 +76,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_create_approval_request_success(self, db_manager):
         """Test successful approval request creation with real database."""
         # Create real project and task
@@ -110,7 +109,7 @@ class TestHITLSafetyService:
                 db_checks = [
                     {
                         'table': 'hitl_agent_approvals',
-                        'conditions': {'project_id': str(project.id), 'task_id': str(task.id)},
+                        'conditions': {'project_id': project.id, 'task_id': task.id},
                         'count': 1
                     }
                 ]
@@ -118,6 +117,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_budget_limit_check_success(self, db_manager):
         """Test successful budget limit check with real database."""
         # Create real project
@@ -148,6 +148,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_budget_limit_check_exceeded(self, db_manager):
         """Test budget limit exceeded with real database."""
         # Create real project
@@ -179,6 +180,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.external_service
+
     async def test_emergency_stop_trigger(self, db_manager):
         """Test emergency stop triggering with real database."""
         # Create real project
@@ -201,7 +203,7 @@ class TestHITLSafetyService:
                 db_checks = [
                     {
                         'table': 'emergency_stops',
-                        'conditions': {'project_id': str(project.id), 'agent_type': 'analyst'},
+                        'conditions': {'project_id': project.id, 'agent_type': 'analyst'},
                         'count': 1
                     }
                 ]
@@ -210,6 +212,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_emergency_stop_deactivation(self, db_manager):
         """Test emergency stop deactivation with real database."""
         # Create real project and emergency stop
@@ -240,6 +243,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_wait_for_approval_timeout(self, db_manager):
         """Test approval timeout handling with real database."""
         # Create real project and approval request
@@ -271,6 +275,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_wait_for_approval_approved(self, db_manager):
         """Test successful approval with real database."""
         # Create real project and approval request
@@ -305,6 +310,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+
     async def test_budget_usage_update(self, db_manager):
         """Test budget usage update with real database."""
         # Create real project and budget
@@ -338,6 +344,7 @@ class TestHITLSafetyService:
 
     @pytest.mark.asyncio
     @pytest.mark.external_service
+
     async def test_calculate_cost(self, db_manager):
         """Test cost calculation with mocked external usage tracker."""
         with db_manager.get_session() as session:
@@ -352,7 +359,6 @@ class TestHITLSafetyService:
                 assert cost == Decimal('0.002')
                 mock_calc.assert_called_once()
 
-
 class TestBaseAgentHITLControls:
     """Test cases for BaseAgent HITL controls."""
 
@@ -366,6 +372,7 @@ class TestBaseAgentHITLControls:
 
     @pytest.mark.asyncio
     @pytest.mark.external_service
+
     async def test_execute_with_hitl_control_success(self, db_manager):
         """Test successful execution with HITL controls using real database."""
         # Create real project and task

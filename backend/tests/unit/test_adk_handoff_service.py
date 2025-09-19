@@ -9,12 +9,10 @@ from app.services.adk_handoff_service import ADKHandoffService
 from app.agents.bmad_adk_wrapper import BMADADKWrapper
 from app.models.handoff import HandoffSchema
 
-
 @pytest.fixture
 def handoff_service(db_session):
     """Create a fresh ADK Handoff Service for testing."""
     return ADKHandoffService(db_session)
-
 
 @pytest.fixture
 def mock_adk_wrapper():
@@ -26,7 +24,6 @@ def mock_adk_wrapper():
     wrapper.adk_agent = Mock()
     return wrapper
 
-
 @pytest.fixture
 def mock_adk_wrapper_to():
     """Create a mock BMADADKWrapper for the receiving agent."""
@@ -37,9 +34,10 @@ def mock_adk_wrapper_to():
     wrapper.adk_agent = Mock()
     return wrapper
 
-
 class TestADKHandoffService:
     """Test ADK Handoff Service functionality."""
+
+    @pytest.mark.mock_data
 
     def test_service_initialization(self, handoff_service):
         """Test that handoff service initializes correctly."""
@@ -47,6 +45,8 @@ class TestADKHandoffService:
         assert handoff_service.handoff_count == 0
 
     @patch('app.services.adk_handoff_service.datetime')
+    @pytest.mark.mock_data
+
     async def test_create_structured_handoff(self, mock_datetime, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test creating a structured handoff."""
         mock_datetime.now.return_value = datetime(2025, 9, 15, 15, 0, 0)
@@ -88,6 +88,8 @@ class TestADKHandoffService:
             assert schema.expected_outputs == ["technical_feedback", "feasibility_assessment"]
             assert schema.priority == 1  # "high" priority maps to 1
 
+    @pytest.mark.mock_data
+
     async def test_create_handoff_with_invalid_data_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test that creating handoff with invalid data fails."""
         invalid_handoff_data = {
@@ -102,6 +104,8 @@ class TestADKHandoffService:
                 handoff_data=invalid_handoff_data,
                 project_id="test_project"
             )
+
+    @pytest.mark.mock_data
 
     async def test_create_handoff_with_empty_instructions_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test that creating handoff with empty instructions fails."""
@@ -118,6 +122,8 @@ class TestADKHandoffService:
                 project_id="test_project"
             )
 
+    @pytest.mark.mock_data
+
     async def test_create_handoff_with_invalid_priority_fails(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test that creating handoff with invalid priority fails."""
         invalid_handoff_data = {
@@ -133,6 +139,8 @@ class TestADKHandoffService:
                 handoff_data=invalid_handoff_data,
                 project_id="test_project"
             )
+
+    @pytest.mark.mock_data
 
     async def test_get_handoff_status_for_active_handoff(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test getting status for an active handoff."""
@@ -163,10 +171,14 @@ class TestADKHandoffService:
         assert "created_at" in status
         assert status["expected_outputs"] == []
 
+    @pytest.mark.mock_data
+
     async def test_get_handoff_status_for_unknown_handoff(self, handoff_service):
         """Test getting status for unknown handoff returns None."""
         status = await handoff_service.get_handoff_status("unknown_handoff")
         assert status is None
+
+    @pytest.mark.mock_data
 
     async def test_list_active_handoffs(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test listing active handoffs."""
@@ -191,6 +203,8 @@ class TestADKHandoffService:
         active_handoffs = handoff_service.list_active_handoffs()
         assert len(active_handoffs) == 1
         assert handoff_id in active_handoffs
+
+    @pytest.mark.mock_data
 
     async def test_list_active_handoffs_with_project_filter(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test listing active handoffs with project filter."""
@@ -232,6 +246,8 @@ class TestADKHandoffService:
         assert handoff_id_2 in project_2_handoffs
         assert handoff_id_1 not in project_2_handoffs
 
+    @pytest.mark.mock_data
+
     async def test_cancel_handoff(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test cancelling an active handoff."""
         # Create a handoff
@@ -256,10 +272,14 @@ class TestADKHandoffService:
             assert result is True
             assert handoff_id not in handoff_service.active_handoffs
 
+    @pytest.mark.mock_data
+
     async def test_cancel_unknown_handoff(self, handoff_service):
         """Test cancelling unknown handoff returns False."""
         result = await handoff_service.cancel_handoff("unknown_handoff")
         assert result is False
+
+    @pytest.mark.mock_data
 
     def test_build_handoff_instructions(self, handoff_service):
         """Test building comprehensive handoff instructions."""
@@ -278,6 +298,8 @@ class TestADKHandoffService:
         assert "HIGH" in instructions
         assert "Extra context information" in instructions
 
+    @pytest.mark.mock_data
+
     def test_build_handoff_instructions_minimal(self, handoff_service):
         """Test building handoff instructions with minimal data."""
         handoff_data = {
@@ -288,6 +310,8 @@ class TestADKHandoffService:
 
         assert "Minimal instructions" in instructions
         assert "⚠️" not in instructions  # No high priority warning
+
+    @pytest.mark.mock_data
 
     def test_create_handoff_prompt(self, handoff_service):
         """Test creating handoff execution prompt."""
@@ -320,6 +344,8 @@ class TestADKHandoffService:
         assert "PRD document" in prompt
         assert "Requirements spec" in prompt
 
+    @pytest.mark.mock_data
+
     def test_create_handoff_prompt_minimal_context(self, handoff_service):
         """Test creating handoff prompt with minimal context."""
         from uuid import uuid4
@@ -342,6 +368,8 @@ class TestADKHandoffService:
         assert "Test instructions" in prompt
         assert "PROJECT CONTEXT:" not in prompt  # No project context provided
 
+    @pytest.mark.mock_data
+
     def test_validate_handoff_data_success(self, handoff_service):
         """Test successful handoff data validation."""
         valid_data = {
@@ -353,6 +381,8 @@ class TestADKHandoffService:
         # Should not raise any exception
         handoff_service._validate_handoff_data(valid_data)
 
+    @pytest.mark.mock_data
+
     def test_validate_handoff_data_missing_fields(self, handoff_service):
         """Test handoff data validation with missing required fields."""
         invalid_data = {
@@ -362,6 +392,8 @@ class TestADKHandoffService:
 
         with pytest.raises(ValueError, match="Missing required handoff field: instructions"):
             handoff_service._validate_handoff_data(invalid_data)
+
+    @pytest.mark.mock_data
 
     def test_validate_handoff_data_invalid_priority(self, handoff_service):
         """Test handoff data validation with invalid priority."""
@@ -374,6 +406,8 @@ class TestADKHandoffService:
         with pytest.raises(ValueError, match="Invalid priority"):
             handoff_service._validate_handoff_data(invalid_data)
 
+    @pytest.mark.mock_data
+
     async def test_cleanup_completed_handoffs(self, handoff_service):
         """Test cleanup of completed handoffs."""
         # This test would need timestamp mocking for proper testing
@@ -381,9 +415,10 @@ class TestADKHandoffService:
         assert isinstance(result, int)
         assert result >= 0
 
-
 class TestADKHandoffExecution:
     """Test handoff execution functionality."""
+
+    @pytest.mark.mock_data
 
     def test_execute_handoff_unknown_workflow(self, handoff_service):
         """Test executing handoff for unknown workflow."""
@@ -397,6 +432,8 @@ class TestADKHandoffExecution:
 
         import asyncio
         asyncio.run(run_test())
+
+    @pytest.mark.mock_data
 
     def test_execute_handoff_with_orchestration_error(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test handoff execution with orchestration service error."""
@@ -428,9 +465,10 @@ class TestADKHandoffExecution:
         import asyncio
         asyncio.run(run_test())
 
-
 class TestADKHandoffIntegration:
     """Integration tests for ADK Handoff Service."""
+
+    @pytest.mark.mock_data
 
     async def test_full_handoff_lifecycle(self, handoff_service, mock_adk_wrapper, mock_adk_wrapper_to):
         """Test complete handoff lifecycle from creation to completion."""

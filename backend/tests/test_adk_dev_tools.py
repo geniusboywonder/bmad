@@ -5,6 +5,7 @@ import asyncio
 import sys
 import os
 from typing import Dict, Any
+import pytest
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
@@ -14,6 +15,7 @@ from app.agents.adk_dev_tools import (
     run_performance_benchmark, simulate_hitl_workflow, get_dev_dashboard
 )
 
+@pytest.mark.mock_data
 async def test_dev_ui_initialization():
     """Test ADK development UI initialization."""
     print("🖥️  Testing ADK Development UI Initialization")
@@ -39,6 +41,8 @@ async def test_dev_ui_initialization():
         import traceback
         traceback.print_exc()
         return False
+
+@pytest.mark.mock_data
 
 async def test_test_scenarios():
     """Test test scenario loading and management."""
@@ -71,6 +75,8 @@ async def test_test_scenarios():
         import traceback
         traceback.print_exc()
         return False
+
+@pytest.mark.mock_data
 
 async def test_benchmarking_tools():
     """Test performance benchmarking tools."""
@@ -114,6 +120,8 @@ async def test_benchmarking_tools():
         traceback.print_exc()
         return False
 
+@pytest.mark.mock_data
+
 async def test_development_dashboard():
     """Test development dashboard functionality."""
     print("\n📈 Testing Development Dashboard")
@@ -152,6 +160,8 @@ async def test_development_dashboard():
         import traceback
         traceback.print_exc()
         return False
+
+@pytest.mark.mock_data
 
 async def test_agent_integration_simulation():
     """Test agent integration simulation (without actual agent execution)."""
@@ -197,6 +207,8 @@ async def test_agent_integration_simulation():
         import traceback
         traceback.print_exc()
         return False
+
+@pytest.mark.mock_data
 
 async def test_hitl_simulation():
     """Test HITL workflow simulation."""

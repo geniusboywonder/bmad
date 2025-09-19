@@ -14,7 +14,6 @@ from app.models.event_log import EventType, EventSource, EventLogCreate, EventLo
 from app.database.models import EventLogDB
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestAuditService:
     """Test cases for AuditService."""
     
@@ -34,6 +33,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_log_event_success(self, db_manager):
         """Test successful event logging with real database."""
         # Create real project and task
@@ -76,6 +77,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.real_data
+
     async def test_log_event_database_error(self, db_manager):
         """Test event logging with database error using real database."""
         # Create real project
@@ -97,6 +100,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_log_task_event(self, db_manager):
         """Test task event logging convenience method with real database."""
         # Create real project and task
@@ -135,6 +140,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_log_hitl_event(self, db_manager):
         """Test HITL event logging convenience method with real database."""
         # Create real project
@@ -173,6 +180,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_get_events_with_filters(self, db_manager):
         """Test retrieving events with filters using real database."""
         # Create real project and task
@@ -209,6 +218,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_get_event_by_id_found(self, db_manager):
         """Test retrieving specific event by ID when found using real database."""
         # Create real project and task
@@ -238,6 +249,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_get_event_by_id_not_found(self, db_manager):
         """Test retrieving specific event by ID when not found using real database."""
         # Use a random UUID that doesn't exist in the database
@@ -254,6 +267,8 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.real_data
+
     async def test_get_events_database_error(self, db_manager):
         """Test handling database error when retrieving events using real database."""
         filter_params = EventLogFilter(limit=10, offset=0)
@@ -267,10 +282,11 @@ class TestAuditService:
             with pytest.raises(Exception):
                 await audit_service.get_events(filter_params)
 
-
 class TestAuditEventTypes:
     """Test event type and source enums."""
     
+    @pytest.mark.mock_data
+
     def test_event_types_complete(self):
         """Test that all required event types are defined."""
         required_types = [
@@ -284,6 +300,8 @@ class TestAuditEventTypes:
         for event_type in required_types:
             assert hasattr(EventType, event_type)
     
+    @pytest.mark.mock_data
+
     def test_event_sources_complete(self):
         """Test that all required event sources are defined."""
         required_sources = ["AGENT", "USER", "SYSTEM", "WEBHOOK", "SCHEDULER"]
@@ -291,10 +309,11 @@ class TestAuditEventTypes:
         for event_source in required_sources:
             assert hasattr(EventSource, event_source)
 
-
 class TestEventLogModels:
     """Test event log Pydantic models."""
     
+    @pytest.mark.mock_data
+
     def test_event_log_create_valid(self):
         """Test EventLogCreate model validation."""
         # Arrange & Act
@@ -316,6 +335,8 @@ class TestEventLogModels:
         assert event_log.event_data == event_data
         assert event_log.metadata == {}
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_defaults(self):
         """Test EventLogFilter default values."""
         # Arrange & Act
@@ -327,6 +348,8 @@ class TestEventLogModels:
         assert filter_params.project_id is None
         assert filter_params.event_type is None
     
+    @pytest.mark.mock_data
+
     def test_event_log_filter_validation(self):
         """Test EventLogFilter validation."""
         # Test limit validation

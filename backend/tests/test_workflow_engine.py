@@ -35,7 +35,6 @@ from app.database.models import WorkflowStateDB
 from app.services.context_store import ContextStoreService
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestWorkflowExecutionEngine:
     """Test cases for the Workflow Execution Engine."""
 
@@ -48,11 +47,10 @@ class TestWorkflowExecutionEngine:
         manager.cleanup_test_database()
 
     @pytest.fixture
-    def workflow_service(self, db_manager):
-        """Real workflow service with database session."""
-        with db_manager.get_session() as session:
-            from app.services.workflow_service import WorkflowService
-            return WorkflowService(session)
+    def workflow_service(self):
+        """Real workflow service."""
+        from app.services.workflow_service import WorkflowService
+        return WorkflowService()
 
     @pytest.fixture
     def sample_workflow_definition(self):
@@ -130,6 +128,8 @@ class TestWorkflowExecutionEngine:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_execute_workflow_step(self, db_manager, sample_workflow_definition):
         """Test executing a workflow step with real database operations."""
         # Create real project and workflow execution
@@ -183,6 +183,8 @@ class TestWorkflowExecutionEngine:
         assert execution.steps[0].status == ExecutionStateEnum.COMPLETED
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_parallel_step_execution(self, workflow_engine):
         """Test executing multiple steps in parallel."""
         execution_id = "test-execution-id"
@@ -248,6 +250,8 @@ class TestWorkflowExecutionEngine:
         assert result["failure_count"] == 0
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_workflow_pause_resume(self, workflow_engine):
         """Test pausing and resuming workflow execution."""
         execution_id = "test-execution-id"
@@ -278,6 +282,8 @@ class TestWorkflowExecutionEngine:
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_workflow_recovery(self, db_manager):
         """Test workflow execution recovery from real database."""
         # Create real project and workflow state
@@ -345,6 +351,8 @@ class TestWorkflowExecutionEngine:
                 ]
                 assert db_manager.verify_database_state(db_checks)
 
+    @pytest.mark.mock_data
+
     def test_workflow_status_tracking(self, workflow_engine):
         """Test workflow execution status tracking."""
         execution_id = "test-execution-id"
@@ -384,7 +392,6 @@ class TestWorkflowExecutionEngine:
         assert status["pending_steps"] == 1  # Only step 2 is pending, step 1 is running
         assert status["failed_steps"] == 0
         assert status["can_resume"] is True
-
 
 class TestOrchestratorWorkflowIntegration:
     """Integration tests for orchestrator with workflow engine."""
@@ -607,7 +614,6 @@ class TestOrchestratorWorkflowIntegration:
             ]
             assert db_manager.verify_database_state(db_checks)
 
-
 class TestCompleteSDLCWorkflow:
     """End-to-end tests for complete SDLC workflow execution."""
 
@@ -625,10 +631,10 @@ class TestCompleteSDLCWorkflow:
         with db_manager.get_session() as session:
             return OrchestratorService(session)
 
-
-
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_workflow_with_hitl_interaction(self, db_manager):
         """
         Test workflow execution with HITL interaction using real database.
@@ -693,6 +699,8 @@ class TestCompleteSDLCWorkflow:
             assert mock_execute.call_count == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_workflow_error_handling(self, orchestrator_service):
         """
         Test workflow error handling and recovery.
@@ -745,6 +753,8 @@ class TestCompleteSDLCWorkflow:
             mock_start.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_hitl_workflow_integration(self, orchestrator_service):
         """
         Test complete HITL-workflow integration.
@@ -885,6 +895,8 @@ class TestCompleteSDLCWorkflow:
                 assert mock_commit.call_count >= 2  # HITL update + task update
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_hitl_workflow_rejection_handling(self, orchestrator_service):
         """
         Test HITL rejection handling in workflows.
@@ -953,6 +965,8 @@ class TestCompleteSDLCWorkflow:
             mock_resume.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_hitl_workflow_amendment_handling(self, orchestrator_service):
         """
         Test HITL amendment handling in workflows.

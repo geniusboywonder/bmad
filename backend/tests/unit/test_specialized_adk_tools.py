@@ -15,9 +15,10 @@ from app.tools.specialized_adk_tools import (
     specialized_registry
 )
 
-
 class TestCodeAnalysisTool:
     """Test code analysis tool functionality."""
+
+    @pytest.mark.mock_data
 
     def test_analyze_code_quality_simple(self):
         """Test code quality analysis with simple code."""
@@ -35,6 +36,8 @@ class TestCodeAnalysisTool:
         assert "recommendations" in result
         assert isinstance(result["recommendations"], list)
         assert result["quality_score"] > 0
+
+    @pytest.mark.mock_data
 
     def test_analyze_code_quality_complex(self):
         """Test code quality analysis with more complex code."""
@@ -98,6 +101,8 @@ def complex_function(data):
         assert result["complexity_score"] == 5.1  # 51 lines / 10 = 5.1 (>5 triggers recommendation)
         assert any("maintainability" in rec.lower() for rec in result["recommendations"])
 
+    @pytest.mark.mock_data
+
     def test_analyze_code_quality_empty(self):
         """Test code quality analysis with empty code."""
         result = analyze_code_quality("")
@@ -107,6 +112,8 @@ def complex_function(data):
         assert result["quality_score"] == 66.33333333333333  # Calculated quality score
         assert "Add more comments" in result["recommendations"][0]
 
+    @pytest.mark.mock_data
+
     def test_analyze_code_quality_with_language(self):
         """Test code quality analysis with language specification."""
         python_code = "def test(): pass"
@@ -114,6 +121,8 @@ def complex_function(data):
 
         assert result["total_lines"] == 1
         assert result["code_lines"] == 1
+
+    @pytest.mark.mock_data
 
     def test_analyze_code_quality_error_handling(self):
         """Test code quality analysis error handling."""
@@ -124,11 +133,12 @@ def complex_function(data):
         assert result["total_lines"] == 0
         assert result["quality_score"] == 0.0
 
-
 class TestAPIHealthCheckTool:
     """Test API health check tool functionality."""
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_api_health_success(self):
         """Test successful API health check."""
         with patch('httpx.AsyncClient') as mock_client_class:
@@ -152,6 +162,8 @@ class TestAPIHealthCheckTool:
             assert "response_time_ms" in result
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_api_health_timeout(self):
         """Test API health check with timeout."""
         from httpx import TimeoutException
@@ -168,6 +180,8 @@ class TestAPIHealthCheckTool:
             assert result["response_time_ms"] == 5000  # 5 seconds in ms
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_api_health_connection_error(self):
         """Test API health check with connection error."""
         from httpx import ConnectError
@@ -183,6 +197,8 @@ class TestAPIHealthCheckTool:
             assert "connect" in result["error"].lower()
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_api_health_unhealthy_response(self):
         """Test API health check with unhealthy response."""
         with patch('httpx.AsyncClient') as mock_client_class:
@@ -204,6 +220,8 @@ class TestAPIHealthCheckTool:
             assert result["status"] == "unhealthy"
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_api_health_with_method(self):
         """Test API health check with different HTTP methods."""
         with patch('httpx.AsyncClient') as mock_client_class:
@@ -225,6 +243,8 @@ class TestAPIHealthCheckTool:
             assert result["status_code"] == 200
 
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_check_api_health_health_indicators(self):
         """Test API health check with health indicators."""
         with patch('httpx.AsyncClient') as mock_client_class:
@@ -245,9 +265,10 @@ class TestAPIHealthCheckTool:
             assert result["health_indicators"]["has_healthy_content"] is True
             assert result["health_indicators"]["has_status_field"] is False
 
-
 class TestProjectMetricsTool:
     """Test project metrics query tool functionality."""
+
+    @pytest.mark.mock_data
 
     def test_query_project_metrics_basic(self):
         """Test basic project metrics query."""
@@ -266,6 +287,8 @@ class TestProjectMetricsTool:
         assert overview["completed_tasks"] == 12
         assert overview["success_rate"] == 0.8
 
+    @pytest.mark.mock_data
+
     def test_query_project_metrics_with_filters(self):
         """Test project metrics query with metric type filters."""
         result = query_project_metrics("project_123", metric_types=["project_overview", "quality_metrics"])
@@ -276,6 +299,8 @@ class TestProjectMetricsTool:
         assert "agent_performance" not in result  # Should be filtered out
         assert "timeline" not in result  # Should be filtered out
 
+    @pytest.mark.mock_data
+
     def test_query_project_metrics_empty_filters(self):
         """Test project metrics query with empty filters."""
         result = query_project_metrics("project_123", metric_types=[])
@@ -285,6 +310,8 @@ class TestProjectMetricsTool:
         assert "agent_performance" in result
         assert "quality_metrics" in result
         assert "timeline" in result
+
+    @pytest.mark.mock_data
 
     def test_query_project_metrics_agent_performance(self):
         """Test agent performance metrics structure."""
@@ -298,6 +325,8 @@ class TestProjectMetricsTool:
             assert "tasks" in agent_perf[agent]
             assert "completed" in agent_perf[agent]
             assert "avg_time" in agent_perf[agent]
+
+    @pytest.mark.mock_data
 
     def test_query_project_metrics_quality_metrics(self):
         """Test quality metrics structure."""
@@ -313,6 +342,8 @@ class TestProjectMetricsTool:
         assert 0 <= quality["code_quality_score"] <= 100
         assert 0 <= quality["test_coverage"] <= 100
 
+    @pytest.mark.mock_data
+
     def test_query_project_metrics_timeline(self):
         """Test timeline metrics structure."""
         result = query_project_metrics("project_123")
@@ -324,9 +355,10 @@ class TestProjectMetricsTool:
         assert "days_elapsed" in timeline
         assert "days_remaining" in timeline
 
-
 class TestSystemArchitectureTool:
     """Test system architecture analysis tool functionality."""
+
+    @pytest.mark.mock_data
 
     def test_analyze_system_architecture_comprehensive(self):
         """Test comprehensive system architecture analysis."""
@@ -356,6 +388,8 @@ class TestSystemArchitectureTool:
         assert len(result["key_findings"]) > 0
         assert len(result["recommendations"]) > 0
 
+    @pytest.mark.mock_data
+
     def test_analyze_system_architecture_security(self):
         """Test security-focused architecture analysis."""
         architecture_doc = """
@@ -370,6 +404,8 @@ class TestSystemArchitectureTool:
         assert "encryption" in " ".join(result["key_findings"]).lower()
         assert result["score"] > 0
 
+    @pytest.mark.mock_data
+
     def test_analyze_system_architecture_performance(self):
         """Test performance-focused architecture analysis."""
         architecture_doc = """
@@ -382,6 +418,8 @@ class TestSystemArchitectureTool:
         assert result["analysis_type"] == "performance"
         assert "caching" in " ".join(result["key_findings"]).lower()
         assert result["score"] > 0
+
+    @pytest.mark.mock_data
 
     def test_analyze_system_architecture_scalability(self):
         """Test scalability-focused architecture analysis."""
@@ -396,6 +434,8 @@ class TestSystemArchitectureTool:
         assert "horizontal scaling" in " ".join(result["key_findings"]).lower()
         assert result["score"] > 0
 
+    @pytest.mark.mock_data
+
     def test_analyze_system_architecture_empty_doc(self):
         """Test architecture analysis with empty document."""
         result = analyze_system_architecture("", "comprehensive")
@@ -404,6 +444,8 @@ class TestSystemArchitectureTool:
         assert result["document_length"] == 0
         assert result["score"] == 0.0
         assert len(result["sections_identified"]) == 0
+
+    @pytest.mark.mock_data
 
     def test_analyze_system_architecture_risk_assessment(self):
         """Test risk assessment in architecture analysis."""
@@ -418,9 +460,10 @@ class TestSystemArchitectureTool:
         assert "low_risk_items" in risk
         assert "overall_risk_level" in risk
 
-
 class TestDeploymentReadinessTool:
     """Test deployment readiness check tool functionality."""
+
+    @pytest.mark.mock_data
 
     def test_check_deployment_readiness_production(self):
         """Test deployment readiness check for production environment."""
@@ -441,6 +484,8 @@ class TestDeploymentReadinessTool:
         assert "documentation" in checklist
         assert "security" in checklist
 
+    @pytest.mark.mock_data
+
     def test_check_deployment_readiness_staging(self):
         """Test deployment readiness check for staging environment."""
         result = check_deployment_readiness("project_456", "staging")
@@ -449,6 +494,8 @@ class TestDeploymentReadinessTool:
         assert result["environment"] == "staging"
         assert isinstance(result["readiness_score"], float)
         assert 0 <= result["readiness_score"] <= 100
+
+    @pytest.mark.mock_data
 
     def test_check_deployment_readiness_high_readiness(self):
         """Test deployment readiness with high readiness score."""
@@ -459,6 +506,8 @@ class TestDeploymentReadinessTool:
         assert result["overall_ready"] is True
         assert len(result["blocking_issues"]) == 0
 
+    @pytest.mark.mock_data
+
     def test_check_deployment_readiness_low_readiness(self):
         """Test deployment readiness with low readiness score."""
         # This would require mocking the checklist items to fail
@@ -467,6 +516,8 @@ class TestDeploymentReadinessTool:
 
         assert isinstance(result["readiness_score"], float)
         assert "overall_ready" in result
+
+    @pytest.mark.mock_data
 
     def test_check_deployment_readiness_checklist_structure(self):
         """Test deployment readiness checklist structure."""
@@ -488,6 +539,8 @@ class TestDeploymentReadinessTool:
         assert "secrets_configured" in infrastructure
         assert "monitoring_setup" in infrastructure
 
+    @pytest.mark.mock_data
+
     def test_check_deployment_readiness_warnings_and_issues(self):
         """Test deployment readiness warnings and blocking issues."""
         result = check_deployment_readiness("project_warnings", "production")
@@ -501,9 +554,10 @@ class TestDeploymentReadinessTool:
         assert len(result["warnings"]) >= 0
         assert len(result["blocking_issues"]) >= 0
 
-
 class TestSpecializedToolsIntegration:
     """Test specialized tools integration and registration."""
+
+    @pytest.mark.mock_data
 
     def test_register_specialized_tools(self):
         """Test registration of specialized tools."""
@@ -522,6 +576,8 @@ class TestSpecializedToolsIntegration:
 
         for tool_name in expected_tools:
             assert tool_name in function_tools
+
+    @pytest.mark.mock_data
 
     def test_get_specialized_tools_for_agent(self):
         """Test getting specialized tools for different agents."""
@@ -546,6 +602,8 @@ class TestSpecializedToolsIntegration:
         # Test unknown agent
         unknown_tools = get_specialized_tools_for_agent("unknown")
         assert unknown_tools == []
+
+    @pytest.mark.mock_data
 
     def test_get_tool_capabilities(self):
         """Test getting tool capabilities information."""

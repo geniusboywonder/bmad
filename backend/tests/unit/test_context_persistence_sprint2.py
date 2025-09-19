@@ -19,7 +19,6 @@ from app.models.context import ArtifactType, ContextArtifact
 from app.models.agent import AgentType
 from app.database.models import ContextArtifactDB
 
-
 class TestContextArtifactModelValidation:
     """Test scenario 2.2-UNIT-001: ContextArtifact model validation (P0)"""
     
@@ -151,7 +150,6 @@ class TestContextArtifactModelValidation:
         assert artifact.project_id == original_project_id
         assert artifact.context_id == original_context_id
 
-
 class TestArtifactTypeEnumerationValidation:
     """Test scenario 2.2-UNIT-002: Artifact type enumeration validation (P0)"""
     
@@ -254,7 +252,6 @@ class TestArtifactTypeEnumerationValidation:
             
             for artifact_type in types:
                 assert isinstance(artifact_type, ArtifactType)
-
 
 class TestArtifactMetadataStructureValidation:
     """Test scenario 2.2-UNIT-003: Artifact metadata structure validation (P1)"""
@@ -382,7 +379,6 @@ class TestArtifactMetadataStructureValidation:
         
         # Would be limited in real implementation
         assert deep_nested["level1"]["level2"]["level3"]["level4"] is not None
-
 
 class TestContentSerializationDeserialization:
     """Test scenario 2.2-UNIT-004: Content serialization/deserialization (P1)"""
@@ -525,7 +521,6 @@ class TestContentSerializationDeserialization:
         
         with pytest.raises((ValueError, TypeError)):
             json.dumps(obj1)
-
 
 class TestArtifactSearchFilterLogic:
     """Test scenario 2.2-UNIT-005: Artifact search/filter logic (P2)"""

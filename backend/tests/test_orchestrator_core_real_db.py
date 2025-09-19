@@ -17,7 +17,6 @@ from app.database.models import ProjectDB, TaskDB
 
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestOrchestratorCoreReal:
     """Test OrchestratorCore with real database operations."""
 
@@ -216,7 +215,6 @@ class TestOrchestratorCoreReal:
                 assert len(db_tasks) == 5
                 db_task_ids = {task.id for task in db_tasks}
                 assert db_task_ids == task_ids
-
 
 class TestOrchestratorDatabaseIntegration:
     """Test orchestrator database integration patterns."""

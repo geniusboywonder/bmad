@@ -25,7 +25,6 @@ from app.database.models import WorkflowStateDB, TaskDB, ProjectDB
 
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestWorkflowExecutionEngineReal:
     """Test WorkflowExecutionEngine with real database operations."""
 
@@ -39,6 +38,8 @@ class TestWorkflowExecutionEngineReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_workflow_state_persistence_real_db(self, db_manager):
         """Test workflow state persistence with real database."""
         project = db_manager.create_test_project(name='Workflow Test Project')
@@ -82,6 +83,8 @@ class TestWorkflowExecutionEngineReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_workflow_recovery_real_db(self, db_manager):
         """Test workflow recovery from real database state."""
         project = db_manager.create_test_project(name='Recovery Test Project')
@@ -135,6 +138,8 @@ class TestWorkflowExecutionEngineReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_workflow_step_task_integration_real_db(self, db_manager):
         """Test workflow step to task creation with real database."""
         project = db_manager.create_test_project(name='Step Integration Test')
@@ -198,7 +203,6 @@ class TestWorkflowExecutionEngineReal:
                 assert linked_task.agent_type == AgentType.ANALYST
                 assert linked_task.status == TaskStatus.PENDING
 
-
 class TestOrchestratorWorkflowIntegrationReal:
     """Test OrchestratorService workflow integration with real database."""
 
@@ -212,6 +216,8 @@ class TestOrchestratorWorkflowIntegrationReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_project_creation_real_db(self, db_manager):
         """Test project creation with real database persistence."""
         with db_manager.get_session() as session:
@@ -238,6 +244,8 @@ class TestOrchestratorWorkflowIntegrationReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_task_creation_and_status_updates_real_db(self, db_manager):
         """Test task creation and status updates with real database."""
         project = db_manager.create_test_project(name='Task Test Project')
@@ -284,6 +292,8 @@ class TestOrchestratorWorkflowIntegrationReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_hitl_request_lifecycle_real_db(self, db_manager):
         """Test HITL request creation and processing with real database."""
         project = db_manager.create_test_project(name='HITL Test Project')
@@ -348,7 +358,6 @@ class TestOrchestratorWorkflowIntegrationReal:
                     assert agent_status.current_task_id == task_id
                     db_manager.track_test_record('agent_status', str(agent_status.id))
 
-
 class TestWorkflowErrorHandlingReal:
     """Test workflow error handling with real database constraints."""
 
@@ -362,6 +371,8 @@ class TestWorkflowErrorHandlingReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_workflow_state_constraint_validation_real_db(self, db_manager):
         """Test workflow state database constraints."""
         project = db_manager.create_test_project(name='Constraint Test Project')
@@ -406,6 +417,8 @@ class TestWorkflowErrorHandlingReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_invalid_project_reference_real_db(self, db_manager):
         """Test workflow creation with invalid project reference."""
         with db_manager.get_session() as session:
@@ -457,7 +470,6 @@ class TestWorkflowErrorHandlingReal:
                 # Verify status was set correctly
                 assert workflow_state.status == status
 
-
 class TestWorkflowPerformanceReal:
     """Test workflow engine performance with real database operations."""
 
@@ -471,6 +483,8 @@ class TestWorkflowPerformanceReal:
 
     @pytest.mark.real_data
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_multiple_workflow_states_real_db(self, db_manager):
         """Test creating multiple workflow states efficiently."""
         project = db_manager.create_test_project(name='Performance Test Project')

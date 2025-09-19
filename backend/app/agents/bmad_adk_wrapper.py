@@ -17,7 +17,7 @@ try:
     from app.services.llm_monitoring import LLMUsageTracker
     from app.services.audit_trail_service import AuditTrailService
     from app.services.context_store import ContextStoreService
-    from app.config import settings
+    from app.settings import settings
     BMAD_SERVICES_AVAILABLE = True
 except ImportError:
     # Mock services for testing when full BMAD environment is not available

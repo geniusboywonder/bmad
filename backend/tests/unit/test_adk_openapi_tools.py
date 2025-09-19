@@ -6,7 +6,6 @@ import json
 
 from app.tools.adk_openapi_tools import BMADOpenAPITool
 
-
 @pytest.fixture
 def sample_openapi_spec():
     """Sample OpenAPI specification for testing."""
@@ -81,15 +80,16 @@ def sample_openapi_spec():
         }
     }
 
-
 @pytest.fixture
 def openapi_tool(sample_openapi_spec):
     """Create a BMAD OpenAPI tool instance for testing."""
     return BMADOpenAPITool(sample_openapi_spec, "test_api_tool")
 
-
+@pytest.mark.mock_data
 class TestBMADOpenAPITool:
     """Test BMAD OpenAPI Tool functionality."""
+
+    @pytest.mark.mock_data
 
     def test_tool_initialization(self, openapi_tool, sample_openapi_spec):
         """Test tool initialization with OpenAPI spec."""
@@ -98,6 +98,8 @@ class TestBMADOpenAPITool:
         assert openapi_tool.base_url == "https://api.test.com/v1"
         assert len(openapi_tool.endpoints) == 3  # GET /users, POST /users, GET /users/{id}
         assert "bearerAuth" in openapi_tool.security_schemes
+
+    @pytest.mark.mock_data
 
     async def test_tool_initialization_invalid_spec(self):
         """Test tool initialization with invalid OpenAPI spec."""
@@ -110,10 +112,14 @@ class TestBMADOpenAPITool:
         result = await tool.initialize()
         assert result is False
 
+    @pytest.mark.mock_data
+
     def test_validate_openapi_spec_valid(self, openapi_tool):
         """Test validation of valid OpenAPI spec."""
         result = openapi_tool._validate_openapi_spec()
         assert result is True
+
+    @pytest.mark.mock_data
 
     def test_validate_openapi_spec_missing_openapi(self):
         """Test validation with missing openapi field."""
@@ -126,6 +132,8 @@ class TestBMADOpenAPITool:
         result = tool._validate_openapi_spec()
         assert result is False
 
+    @pytest.mark.mock_data
+
     def test_validate_openapi_spec_missing_info(self):
         """Test validation with missing info field."""
         invalid_spec = {
@@ -136,6 +144,8 @@ class TestBMADOpenAPITool:
         tool = BMADOpenAPITool(invalid_spec, "invalid_tool")
         result = tool._validate_openapi_spec()
         assert result is False
+
+    @pytest.mark.mock_data
 
     def test_validate_openapi_spec_missing_paths(self):
         """Test validation with missing paths field."""
@@ -148,10 +158,14 @@ class TestBMADOpenAPITool:
         result = tool._validate_openapi_spec()
         assert result is False
 
+    @pytest.mark.mock_data
+
     def test_extract_base_url_with_servers(self, sample_openapi_spec):
         """Test base URL extraction when servers are defined."""
         tool = BMADOpenAPITool(sample_openapi_spec, "test_tool")
         assert tool.base_url == "https://api.test.com/v1"
+
+    @pytest.mark.mock_data
 
     def test_extract_base_url_without_servers(self):
         """Test base URL extraction when servers are not defined."""
@@ -163,6 +177,8 @@ class TestBMADOpenAPITool:
 
         tool = BMADOpenAPITool(spec_without_servers, "test_tool")
         assert tool.base_url == "https://test-api.example.com"
+
+    @pytest.mark.mock_data
 
     def test_extract_endpoints(self, sample_openapi_spec):
         """Test endpoint extraction from OpenAPI spec."""
@@ -176,11 +192,15 @@ class TestBMADOpenAPITool:
         assert endpoints["GET /users"]["summary"] == "Get users"
         assert endpoints["POST /users"]["summary"] == "Create user"
 
+    @pytest.mark.mock_data
+
     def test_extract_security_schemes(self, sample_openapi_spec):
         """Test security schemes extraction."""
         tool = BMADOpenAPITool(sample_openapi_spec, "test_tool")
         assert "bearerAuth" in tool.security_schemes
         assert tool.security_schemes["bearerAuth"]["type"] == "http"
+
+    @pytest.mark.mock_data
 
     def test_build_headers_default(self, openapi_tool):
         """Test building default headers."""
@@ -189,6 +209,8 @@ class TestBMADOpenAPITool:
 
         assert headers["Content-Type"] == "application/json"
         assert headers["User-Agent"] == "BMAD-ADK-Tool/test_api_tool"
+
+    @pytest.mark.mock_data
 
     def test_build_headers_with_custom(self, openapi_tool):
         """Test building headers with custom headers."""
@@ -204,6 +226,8 @@ class TestBMADOpenAPITool:
         assert headers["X-Custom"] == "value"
         assert headers["Content-Type"] == "application/json"  # Still includes default
 
+    @pytest.mark.mock_data
+
     def test_generate_tool_description(self, openapi_tool):
         """Test tool description generation."""
         description = openapi_tool._generate_tool_description()
@@ -214,6 +238,8 @@ class TestBMADOpenAPITool:
         assert "GET /users: Get users" in description
         assert "POST /users: Create user" in description
         assert "enterprise safety controls" in description
+
+    @pytest.mark.mock_data
 
     def test_get_tool_info(self, openapi_tool):
         """Test getting tool information."""
@@ -226,6 +252,8 @@ class TestBMADOpenAPITool:
         assert "bearerAuth" in info["security_schemes"]
         assert info["adk_tool_available"] is False  # Not initialized
 
+    @pytest.mark.mock_data
+
     def test_assess_api_risk_low(self, openapi_tool):
         """Test risk assessment for low-risk operations."""
         # GET request
@@ -236,11 +264,15 @@ class TestBMADOpenAPITool:
         risk = openapi_tool._assess_api_risk("/health", "HEAD", {})
         assert risk == "low"
 
+    @pytest.mark.mock_data
+
     def test_assess_api_risk_medium(self, openapi_tool):
         """Test risk assessment for medium-risk operations."""
         # PATCH request is now classified as high risk (write operation)
         risk = openapi_tool._assess_api_risk("/users/123", "PATCH", {})
         assert risk == "high"
+
+    @pytest.mark.mock_data
 
     def test_assess_api_risk_high_write_operations(self, openapi_tool):
         """Test risk assessment for high-risk write operations."""
@@ -256,6 +288,8 @@ class TestBMADOpenAPITool:
         risk = openapi_tool._assess_api_risk("/users/123", "DELETE", {})
         assert risk == "high"
 
+    @pytest.mark.mock_data
+
     def test_assess_api_risk_high_admin_endpoints(self, openapi_tool):
         """Test risk assessment for high-risk admin endpoints."""
         risk = openapi_tool._assess_api_risk("/admin/users", "GET", {})
@@ -267,6 +301,8 @@ class TestBMADOpenAPITool:
         risk = openapi_tool._assess_api_risk("/system/delete", "POST", {})
         assert risk == "high"
 
+    @pytest.mark.mock_data
+
     def test_assess_api_risk_high_sensitive_data(self, openapi_tool):
         """Test risk assessment for high-risk sensitive data operations."""
         parameters = {
@@ -275,6 +311,8 @@ class TestBMADOpenAPITool:
         }
         risk = openapi_tool._assess_api_risk("/users", "POST", parameters)
         assert risk == "high"
+
+    @pytest.mark.mock_data
 
     def test_sanitize_parameters_for_approval(self, openapi_tool):
         """Test parameter sanitization for HITL approval."""
@@ -295,6 +333,8 @@ class TestBMADOpenAPITool:
         assert sanitized["long_description"].endswith("...")  # Truncated
         assert len(sanitized["long_description"]) < 150
 
+    @pytest.mark.mock_data
+
     def test_estimate_tokens(self, openapi_tool):
         """Test token estimation for usage tracking."""
         parameters = {"key": "value", "number": 123}
@@ -304,6 +344,8 @@ class TestBMADOpenAPITool:
         assert tokens > 0
         assert isinstance(tokens, int)
 
+    @pytest.mark.mock_data
+
     def test_estimate_response_tokens(self, openapi_tool):
         """Test response token estimation."""
         result = {"success": True, "data": {"items": [1, 2, 3]}}
@@ -311,7 +353,7 @@ class TestBMADOpenAPITool:
         assert tokens > 0
         assert isinstance(tokens, int)
 
-
+@pytest.mark.external_service
 class TestBMADOpenAPIToolExecution:
     """Test OpenAPI tool execution with enterprise controls."""
 
@@ -328,6 +370,8 @@ class TestBMADOpenAPIToolExecution:
         return tool
 
     @patch('httpx.AsyncClient')
+    @pytest.mark.mock_data
+
     async def test_execute_api_call_success(self, mock_client_class, initialized_tool):
         """Test successful API call execution."""
         # Mock HTTP client
@@ -349,6 +393,8 @@ class TestBMADOpenAPIToolExecution:
         assert result["url"] == "https://api.test.com/v1/users"
 
     @patch('httpx.AsyncClient')
+    @pytest.mark.mock_data
+
     async def test_execute_api_call_with_body(self, mock_client_class, initialized_tool):
         """Test API call execution with request body."""
         mock_client = AsyncMock()
@@ -371,6 +417,8 @@ class TestBMADOpenAPIToolExecution:
         assert call_args[1]["json"] == {"name": "new_user", "email": "user@test.com"}
 
     @patch('httpx.AsyncClient')
+    @pytest.mark.mock_data
+
     async def test_execute_api_call_timeout(self, mock_client_class, initialized_tool):
         """Test API call execution with timeout."""
         from httpx import TimeoutException
@@ -386,6 +434,8 @@ class TestBMADOpenAPIToolExecution:
         assert result["status_code"] == 408
 
     @patch('httpx.AsyncClient')
+    @pytest.mark.mock_data
+
     async def test_execute_api_call_connection_error(self, mock_client_class, initialized_tool):
         """Test API call execution with connection error."""
         from httpx import ConnectError
@@ -400,6 +450,8 @@ class TestBMADOpenAPIToolExecution:
         assert result["error"] == "Connection failed"
         assert result["status_code"] == 503
 
+    @pytest.mark.mock_data
+
     async def test_execute_with_enterprise_controls_not_initialized(self, openapi_tool):
         """Test execution with enterprise controls when tool is not initialized."""
         result = await openapi_tool.execute_with_enterprise_controls(
@@ -408,6 +460,8 @@ class TestBMADOpenAPIToolExecution:
 
         assert result["success"] is False
         assert result["error"] == "Tool not initialized"
+
+    @pytest.mark.mock_data
 
     async def test_execute_with_enterprise_controls_low_risk(self, initialized_tool):
         """Test execution with enterprise controls for low-risk operation."""
@@ -427,6 +481,8 @@ class TestBMADOpenAPIToolExecution:
                 assert result["risk_level"] == "low"
                 assert "execution_id" in result
                 mock_execute.assert_called_once()
+
+    @pytest.mark.mock_data
 
     async def test_execute_with_enterprise_controls_high_risk_approved(self, initialized_tool):
         """Test execution with enterprise controls for high-risk operation with approval."""
@@ -456,6 +512,8 @@ class TestBMADOpenAPIToolExecution:
                         mock_approval.assert_called_once()
                         mock_wait.assert_called_once()
 
+    @pytest.mark.mock_data
+
     async def test_execute_with_enterprise_controls_high_risk_denied(self, initialized_tool):
         """Test execution with enterprise controls for high-risk operation denied."""
         with patch.object(initialized_tool.hitl_service, 'create_approval_request') as mock_approval:
@@ -473,6 +531,8 @@ class TestBMADOpenAPIToolExecution:
                 assert result["success"] is False
                 assert "denied by human oversight" in result["error"]
                 assert result["risk_level"] == "high"
+
+    @pytest.mark.mock_data
 
     async def test_execute_with_enterprise_controls_execution_error(self, initialized_tool):
         """Test execution with enterprise controls when API call fails."""

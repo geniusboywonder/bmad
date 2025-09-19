@@ -1,13 +1,12 @@
 """Database connection and session management."""
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import StaticPool, QueuePool
 from typing import Generator
 import os
 
-from app.config import settings
+from app.settings import settings
 
 # Global variables for lazy initialization
 _engine = None

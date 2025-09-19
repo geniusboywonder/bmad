@@ -13,7 +13,6 @@ from app.services.project_completion_service import ProjectCompletionService, pr
 from app.models.task import TaskStatus
 from tests.utils.database_test_utils import DatabaseTestManager
 
-
 class TestProjectCompletionServiceInitialization:
     """Test ProjectCompletionService initialization."""
     
@@ -28,7 +27,6 @@ class TestProjectCompletionServiceInitialization:
         """Test that global service instance exists."""
         assert project_completion_service is not None
         assert isinstance(project_completion_service, ProjectCompletionService)
-
 
 class TestCompletionDetectionLogic:
     """Test completion detection algorithm - S3-UNIT-007."""
@@ -47,6 +45,8 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_completion_detection_all_tasks_completed(self, service, db_manager):
         """Test completion detection when all tasks are completed with real database."""
         # Create real project
@@ -75,6 +75,8 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_completion_detection_mixed_task_states(self, service, db_manager):
         """Test completion detection with mixed task states using real database."""
         # Create real project
@@ -109,6 +111,8 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_completion_detection_no_tasks(self, service, db_manager):
         """Test completion detection with no tasks using real database."""
         # Create real project with no tasks
@@ -125,6 +129,8 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_completion_detection_project_not_found(self, service, db_manager):
         """Test completion detection with non-existent project using real database."""
         non_existent_project_id = uuid4()
@@ -134,7 +140,6 @@ class TestCompletionDetectionLogic:
             
             # Should return False for non-existent project
             assert result is False
-
 
 class TestCompletionIndicators:
     """Test completion indicators evaluation - S3-UNIT-008."""
@@ -177,9 +182,6 @@ class TestCompletionIndicators:
         
         result = service._has_completion_indicators(tasks)
         assert result is True
-    
-
-
 
 class TestEdgeCaseHandling:
     """Test edge case handling - S3-UNIT-009."""
@@ -198,6 +200,8 @@ class TestEdgeCaseHandling:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
+    @pytest.mark.mock_data
+
     async def test_completion_with_failed_tasks(self, service, db_manager):
         """Test completion detection with failed tasks using real database."""
         # Create real project and tasks
@@ -226,6 +230,8 @@ class TestEdgeCaseHandling:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.real_data
+
     async def test_completion_detection_database_error(self, service, db_manager):
         """Test graceful handling of database errors."""
         # Create real project
@@ -242,6 +248,8 @@ class TestEdgeCaseHandling:
             assert result is False
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_completion_with_completion_indicators_overrides_incomplete_tasks(self, service):
         """Test that completion indicators can override incomplete task status."""
         mock_db = Mock()
@@ -275,7 +283,6 @@ class TestEdgeCaseHandling:
             assert result is True
             mock_handle.assert_called_once_with(project_id, mock_db)
 
-
 class TestProjectCompletionHandling:
     """Test project completion handling logic."""
     
@@ -284,6 +291,8 @@ class TestProjectCompletionHandling:
         return ProjectCompletionService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_handle_project_completion_updates_status(self, service):
         """Test that completion handling updates project status."""
         mock_db = Mock()
@@ -311,6 +320,8 @@ class TestProjectCompletionHandling:
             mock_generate.assert_called_once_with(project_id, mock_db)
     
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_handle_project_completion_database_error(self, service):
         """Test graceful handling of database errors during completion."""
         mock_db = Mock()
@@ -328,7 +339,6 @@ class TestProjectCompletionHandling:
             # Database rollback should be called
             mock_db.rollback.assert_called_once()
 
-
 class TestWebSocketEventEmission:
     """Test WebSocket event emission."""
     
@@ -338,6 +348,8 @@ class TestWebSocketEventEmission:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_emit_project_completion_event(self, service):
         """Test project completion event emission."""
         project_id = uuid4()
@@ -359,6 +371,8 @@ class TestWebSocketEventEmission:
     
     @pytest.mark.asyncio
     @pytest.mark.external_service
+    @pytest.mark.mock_data
+
     async def test_emit_project_completion_event_websocket_error(self, service):
         """Test graceful handling of WebSocket errors."""
         project_id = uuid4()
@@ -372,7 +386,6 @@ class TestWebSocketEventEmission:
             # WebSocket broadcast should have been attempted
             mock_ws.broadcast_to_project.assert_called_once()
 
-
 class TestAutoArtifactGeneration:
     """Test automatic artifact generation."""
     
@@ -381,6 +394,8 @@ class TestAutoArtifactGeneration:
         return ProjectCompletionService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_auto_generate_artifacts_success(self, service):
         """Test successful automatic artifact generation."""
         project_id = uuid4()
@@ -401,6 +416,8 @@ class TestAutoArtifactGeneration:
             mock_artifact_service.notify_artifacts_ready.assert_called_once_with(project_id)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_auto_generate_artifacts_no_artifacts(self, service):
         """Test artifact generation with no artifacts generated."""
         project_id = uuid4()
@@ -417,6 +434,8 @@ class TestAutoArtifactGeneration:
             mock_artifact_service.notify_artifacts_ready.assert_not_called()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_auto_generate_artifacts_error_handling(self, service):
         """Test error handling in artifact generation."""
         project_id = uuid4()
@@ -434,7 +453,6 @@ class TestAutoArtifactGeneration:
             # Should have attempted artifact generation
             mock_artifact_service.generate_project_artifacts.assert_called_once_with(project_id, mock_db)
 
-
 class TestForceCompletion:
     """Test force completion functionality."""
     
@@ -443,6 +461,8 @@ class TestForceCompletion:
         return ProjectCompletionService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_force_project_completion_success(self, service):
         """Test successful force completion."""
         project_id = uuid4()
@@ -461,6 +481,8 @@ class TestForceCompletion:
             mock_handle.assert_called_once_with(project_id, mock_db)
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_force_project_completion_project_not_found(self, service):
         """Test force completion with non-existent project."""
         project_id = uuid4()
@@ -474,6 +496,8 @@ class TestForceCompletion:
         assert result is False
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_force_project_completion_error(self, service):
         """Test force completion with error."""
         project_id = uuid4()
@@ -486,7 +510,6 @@ class TestForceCompletion:
         
         assert result is False
 
-
 class TestCompletionStatusMetrics:
     """Test completion status metrics."""
     
@@ -495,6 +518,8 @@ class TestCompletionStatusMetrics:
         return ProjectCompletionService()
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_get_project_completion_status_detailed_metrics(self, service):
         """Test detailed completion status metrics."""
         project_id = uuid4()
@@ -559,6 +584,8 @@ class TestCompletionStatusMetrics:
         assert status["is_complete"] is False
     
     @pytest.mark.asyncio
+    @pytest.mark.mock_data
+
     async def test_get_project_completion_status_project_not_found(self, service):
         """Test completion status with non-existent project."""
         project_id = uuid4()
@@ -573,6 +600,8 @@ class TestCompletionStatusMetrics:
         assert status["error"] == "Project not found"
     
     @pytest.mark.asyncio
+    @pytest.mark.real_data
+
     async def test_get_project_completion_status_database_error(self, service):
         """Test completion status with database error."""
         project_id = uuid4()

@@ -19,9 +19,21 @@ import structlog
 # BMAD enterprise services
 from app.services.hitl_safety_service import HITLSafetyService
 from app.services.llm_monitoring import LLMUsageTracker
-from app.config import settings
+from app.settings import settings
 
 logger = structlog.get_logger(__name__)
+
+# Export all public classes and functions
+__all__ = [
+    'AgentBenchmarkResult',
+    'TestScenario', 
+    'ADKDevUI',
+    'launch_adk_dev_ui',
+    'run_agent_test',
+    'run_performance_benchmark',
+    'simulate_hitl_workflow',
+    'get_dev_dashboard'
+]
 
 
 @dataclass
