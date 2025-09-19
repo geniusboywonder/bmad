@@ -46,7 +46,7 @@ export PYTHONPATH="${BACKEND_DIR}:$PYTHONPATH"
 python -c "
 try:
     from sqlalchemy import create_engine, text
-    from app.config import settings
+    from app.settings import settings
     engine = create_engine(settings.database_url)
     with engine.connect() as conn:
         conn.execute(text('SELECT 1'))
@@ -84,7 +84,7 @@ python -c "
 import time
 try:
     import redis
-    from app.config import settings
+    from app.settings import settings
     r = redis.from_url(settings.redis_url)
     r.ping()
     print('   ✅ Redis connection successful')

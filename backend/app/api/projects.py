@@ -36,7 +36,30 @@ class TaskCreateRequest(BaseModel):
     estimated_tokens: int = 100
 
 
-@router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/",
+             response_model=ProjectResponse,
+             status_code=status.HTTP_201_CREATED,
+             summary="🏗️ Create New Multi-Agent Project",
+             description="""
+             **Initialize a new multi-agent project with SDLC orchestration**
+
+             Creates a new project that will be managed by the multi-agent system through various SDLC phases. Each project gets its own workflow context, agent assignments, and human oversight configuration.
+
+             **Project Lifecycle:**
+             1. **Discovery** - Requirements analysis and project scoping
+             2. **Planning** - Architecture design and task breakdown
+             3. **Implementation** - Code development and integration
+             4. **Testing** - Quality assurance and validation
+             5. **Deployment** - Release preparation and deployment
+             6. **Maintenance** - Ongoing support and updates
+
+             **Automatic Setup:**
+             - Project workspace initialization
+             - Agent team assignment
+             - HITL oversight configuration
+             - Workflow template selection
+             """,
+             response_description="Created project with assigned ID and initial configuration")
 async def create_project(
     request: ProjectCreateRequest,
     orchestrator: OrchestratorService = Depends(get_orchestrator_service)

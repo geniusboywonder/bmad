@@ -309,7 +309,7 @@ def get_adk_handoff_service() -> ADKHandoffService:
     return ADKHandoffService()
 
 # ADK Agent Management Endpoints
-@router.post("/agents/create", response_model=ADKAgentResponse)
+@router.post("/agents/create", response_model=ADKAgentResponse, tags=["adk"])
 async def create_adk_agent(
     request: ADKAgentCreateRequest,
     agent_factory: ADKAgentFactory = Depends(get_adk_agent_factory)
@@ -328,7 +328,7 @@ async def create_adk_agent(
         logger.error("Failed to create ADK agent", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to create agent: {str(e)}")
 
-@router.get("/agents/{agent_id}", response_model=ADKAgentResponse)
+@router.get("/agents/{agent_id}", response_model=ADKAgentResponse, tags=["adk"])
 async def get_adk_agent(
     agent_id: str = Path(..., description="Agent ID"),
     agent_factory: ADKAgentFactory = Depends(get_adk_agent_factory)
@@ -345,7 +345,7 @@ async def get_adk_agent(
         logger.error("Failed to get ADK agent", agent_id=agent_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get agent: {str(e)}")
 
-@router.delete("/agents/{agent_id}", response_model=ADKAgentDeleteResponse)
+@router.delete("/agents/{agent_id}", response_model=ADKAgentDeleteResponse, tags=["adk"])
 async def delete_adk_agent(
     agent_id: str = Path(..., description="Agent ID"),
     agent_factory: ADKAgentFactory = Depends(get_adk_agent_factory)
@@ -358,7 +358,7 @@ async def delete_adk_agent(
         logger.error("Failed to delete ADK agent", agent_id=agent_id, error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to delete agent: {str(e)}")
 
-@router.get("/agents", response_model=List[ADKAgentResponse])
+@router.get("/agents", response_model=List[ADKAgentResponse], tags=["adk"])
 async def list_adk_agents(
     agent_type: Optional[str] = Query(None, description="Filter by agent type"),
     status: Optional[str] = Query(None, description="Filter by status"),
@@ -376,7 +376,7 @@ async def list_adk_agents(
         raise HTTPException(status_code=500, detail=f"Failed to list agents: {str(e)}")
 
 # ADK Rollout Configuration Endpoints
-@router.get("/rollout/config", response_model=ADKRolloutConfigResponse)
+@router.get("/rollout/config", response_model=ADKRolloutConfigResponse, tags=["adk"])
 async def get_adk_rollout_config(
     agent_factory: ADKAgentFactory = Depends(get_adk_agent_factory)
 ):
@@ -388,7 +388,7 @@ async def get_adk_rollout_config(
         logger.error("Failed to get ADK rollout config", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get rollout config: {str(e)}")
 
-@router.post("/rollout/config", response_model=ADKRolloutConfigResponse)
+@router.post("/rollout/config", response_model=ADKRolloutConfigResponse, tags=["adk"])
 async def update_adk_rollout_config(
     request: ADKRolloutConfigUpdateRequest,
     agent_factory: ADKAgentFactory = Depends(get_adk_agent_factory)
@@ -754,7 +754,7 @@ async def search_adk_tools(
         raise HTTPException(status_code=500, detail=f"Failed to search tools: {str(e)}")
 
 # ADK System Monitoring Endpoints
-@router.get("/health", response_model=ADKHealthResponse)
+@router.get("/health", response_model=ADKHealthResponse, tags=["adk"])
 async def get_adk_system_health():
     """Get comprehensive health status of the ADK system including agents, tools, and orchestration services."""
     try:
@@ -796,7 +796,7 @@ async def get_adk_system_health():
         logger.error("Failed to get ADK system health", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to get health status: {str(e)}")
 
-@router.get("/metrics", response_model=ADKMetricsResponse)
+@router.get("/metrics", response_model=ADKMetricsResponse, tags=["adk"])
 async def get_adk_metrics(
     time_range: str = Query("24h", description="Time range for metrics")
 ):

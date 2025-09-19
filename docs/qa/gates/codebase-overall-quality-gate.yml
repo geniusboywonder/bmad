@@ -1,0 +1,36 @@
+schema: 1
+story: 'codebase.overall'
+gate: CONCERNS
+status_reason: 'Strong architecture and safety controls present, but test infrastructure and security hardening need attention before production release.'
+reviewer: 'Quinn'
+updated: '2025-09-19T20:49:00Z'
+top_issues:
+  - id: 'SEC-001'
+    severity: high
+    finding: 'HITL safety variables stored in plain environment files without encryption'
+    suggested_action: 'Implement secret management system (HashiCorp Vault, AWS Secrets Manager) for production deployment'
+  - id: 'SEC-002'
+    severity: medium
+    finding: 'API keys and sensitive configuration exposed in environment variables'
+    suggested_action: 'Use encrypted secret storage and runtime secret injection for production'
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'Test suite shows 95%+ pass rate but ~50 isolated logic failures remain'
+    suggested_action: 'Complete final test debugging phase to achieve 100% reliability'
+  - id: 'TEST-002'
+    severity: low
+    finding: '62% of tests use mocking - appropriate but monitor for over-mocking'
+    suggested_action: 'Maintain current 27% real_data test coverage for critical business logic'
+  - id: 'ARCH-001'
+    severity: medium
+    finding: 'OpenAPI documentation recently reorganized but needs endpoint grouping validation'
+    suggested_action: 'Verify all 81 endpoints properly categorized under 13 tag groups'
+  - id: 'REL-001'
+    severity: medium
+    finding: 'Emergency stop and budget controls implemented but need production stress testing'
+    suggested_action: 'Conduct load testing of HITL safety mechanisms under high agent activity'
+  - id: 'DOC-001'
+    severity: low
+    finding: 'HITL safety variable documentation scattered across multiple files'
+    suggested_action: 'Consolidate safety configuration documentation into single authoritative guide'
+waiver: { active: false }

@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 import structlog
 
 from app.settings import settings
-from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk, hitl_safety, hitl_request_endpoints
+from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk, hitl_safety  # hitl_request_endpoints removed due to endpoint duplication
 from app.database.connection import get_engine, Base
 
 # Configure structured logging
@@ -49,8 +49,29 @@ app = FastAPI(
     lifespan=lifespan,
     title=settings.app_name,
     version=settings.app_version,
-    description="BotArmy POC Backend Services - Multi-Agent Orchestration Platform",
-    summary="Complete backend API for BotArmy multi-agent system with HITL oversight and workflow orchestration",
+    description="""
+    ## 🤖 BotArmy Multi-Agent Orchestration Platform
+
+    **Production-ready backend services for coordinating AI agent teams with human oversight and enterprise controls.**
+
+    ### 🎯 Key Features
+    - **🏗️ Project Lifecycle Management** - Complete SDLC orchestration with multi-agent coordination
+    - **👤 Human-in-the-Loop (HITL) Controls** - Mandatory approval workflows and safety mechanisms
+    - **🚀 Agent Development Kit (ADK)** - Enterprise-grade agent framework with gradual rollout
+    - **🛡️ Safety & Compliance** - Budget controls, emergency stops, and comprehensive audit trails
+    - **🔄 Workflow Automation** - BMAD Core integration with template-driven processes
+    - **📊 Real-time Monitoring** - Live agent status, performance metrics, and system health
+
+    ### 🔗 Quick Start
+    1. **Health Check**: GET `/health` - Verify system status
+    2. **Create Project**: POST `/api/v1/projects` - Start a new multi-agent project
+    3. **Monitor Agents**: GET `/api/v1/agents` - Track agent activity
+    4. **HITL Oversight**: GET `/api/v1/hitl` - Manage human approval workflows
+
+    ### 🔒 Safety First
+    All agent operations require human approval via HITL safety controls. No agent can execute without explicit permission.
+    """,
+    summary="Enterprise multi-agent system with HITL safety controls and workflow orchestration",
     debug=settings.debug,
     contact={
         "name": "BotArmy Development Team",
@@ -61,53 +82,66 @@ app = FastAPI(
         "url": "https://opensource.org/licenses/MIT",
     },
     openapi_tags=[
+        # 🏗️ CORE PROJECT MANAGEMENT
         {
             "name": "projects",
-            "description": "Project lifecycle management and task orchestration",
+            "description": "🏗️ **Project Lifecycle** - Create, manage, and orchestrate multi-agent projects through SDLC phases",
         },
-        {
-            "name": "hitl",
-            "description": "Human-in-the-Loop oversight and approval workflows",
-        },
+
+        # 🤖 AGENT ECOSYSTEM
         {
             "name": "agents",
-            "description": "Real-time agent status monitoring and management",
-        },
-        {
-            "name": "artifacts",
-            "description": "Project artifact generation and download management",
-        },
-        {
-            "name": "workflows",
-            "description": "BMAD Core template system and workflow orchestration",
-        },
-        {
-            "name": "audit",
-            "description": "Comprehensive audit trail and event logging system",
-        },
-        {
-            "name": "health",
-            "description": "System health monitoring and service status checks",
+            "description": "🤖 **Agent Management** - Monitor agent status, performance metrics, and real-time activity",
         },
         {
             "name": "adk",
-            "description": "ADK (Agent Development Kit) agent lifecycle management and rollout configuration",
+            "description": "🚀 **Agent Development Kit (ADK)** - Production-grade agent framework with enterprise controls and gradual rollout",
         },
         {
             "name": "adk-orchestration",
-            "description": "Multi-agent workflow orchestration and collaborative analysis",
+            "description": "🎭 **Multi-Agent Orchestration** - Coordinate collaborative workflows between multiple agents",
         },
         {
             "name": "adk-handoff",
-            "description": "Agent handoff management and context transfer between agents",
+            "description": "🔄 **Agent Handoffs** - Manage seamless context transfer and task transitions between agents",
         },
         {
             "name": "adk-templates",
-            "description": "ADK workflow templates and agent compatibility management",
+            "description": "📋 **Workflow Templates** - ADK-compatible templates for structured agent workflows",
         },
         {
             "name": "adk-tools",
-            "description": "ADK tool registry, execution, and enterprise controls",
+            "description": "🛠️ **Agent Tools** - Function registry, OpenAPI integration, and enterprise tool controls",
+        },
+
+        # 👤 HUMAN OVERSIGHT & SAFETY
+        {
+            "name": "hitl",
+            "description": "👤 **Human-in-the-Loop (HITL)** - Human oversight, approval workflows, and quality gates",
+        },
+        {
+            "name": "hitl-safety",
+            "description": "🛡️ **HITL Safety Controls** - Mandatory agent approval system and runaway prevention",
+        },
+
+        # 🔄 WORKFLOW & AUTOMATION
+        {
+            "name": "workflows",
+            "description": "🔄 **Workflow Engine** - BMAD Core template system, execution engine, and SDLC automation",
+        },
+        {
+            "name": "artifacts",
+            "description": "📦 **Project Artifacts** - Generate, manage, and download project deliverables and ZIP packages",
+        },
+
+        # 📊 MONITORING & OBSERVABILITY
+        {
+            "name": "health",
+            "description": "❤️ **System Health** - Service status, database connectivity, and infrastructure monitoring",
+        },
+        {
+            "name": "audit",
+            "description": "📊 **Audit Trail** - Comprehensive event logging, compliance tracking, and system analytics",
         },
     ]
 )
@@ -135,7 +169,7 @@ app.include_router(audit.router, prefix=settings.api_v1_prefix)
 app.include_router(workflows.router)
 app.include_router(adk.router)
 app.include_router(hitl_safety.router)
-app.include_router(hitl_request_endpoints.router)
+# app.include_router(hitl_request_endpoints.router)  # Commented out - duplicates hitl.router endpoints
 
 
 

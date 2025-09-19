@@ -92,7 +92,25 @@ class EmergencyStopResponse(BaseModel):
     deactivated_at: Optional[str]
 
 
-@router.post("/request-agent-execution", response_model=dict)
+@router.post("/request-agent-execution",
+             response_model=dict,
+             summary="🚨 Request Agent Execution Approval",
+             description="""
+             **Mandatory agent execution approval system - All agent operations must go through this endpoint**
+
+             This endpoint enforces human oversight for all agent operations by requiring pre-approval before any agent can execute tasks. This is part of the HITL safety architecture that prevents agent runaway scenarios.
+
+             **Process Flow:**
+             1. Submit agent execution request with project context
+             2. Human reviewer approves/rejects via approval workflow
+             3. Agent execution proceeds only after explicit approval
+
+             **Safety Controls:**
+             - Budget validation against daily/session limits
+             - Risk assessment based on operation type
+             - Mandatory human approval for high-risk operations
+             """,
+             response_description="Agent execution request submitted for approval")
 async def request_agent_execution(
     request: AgentExecutionRequest,
     db: Session = Depends(get_session)
@@ -230,7 +248,28 @@ async def approve_agent_execution(
         )
 
 
-@router.post("/emergency-stop", response_model=dict)
+@router.post("/emergency-stop",
+             response_model=dict,
+             summary="🛑 Emergency Stop - Halt All Agent Operations",
+             description="""
+             **Immediate emergency stop system for critical agent control**
+
+             Instantly halts all agent operations system-wide or for specific projects. This is the nuclear option for stopping runaway agents or terminating problematic workflows.
+
+             **Emergency Stop Triggers:**
+             - Budget thresholds exceeded
+             - Repetitive/looping agent behavior detected
+             - User-initiated emergency halt
+             - System error conditions
+             - Security concerns
+
+             **Impact:**
+             - Immediately terminates all active agent tasks
+             - Blocks new agent execution requests
+             - Broadcasts emergency notifications via WebSocket
+             - Creates audit trail for compliance
+             """,
+             response_description="Emergency stop activated successfully")
 async def trigger_emergency_stop(
     stop_request: EmergencyStopRequest,
     db: Session = Depends(get_session)
@@ -372,7 +411,22 @@ async def get_project_hitl_approvals(
     ]
 
 
-@router.get("/budget/{project_id}/{agent_type}", response_model=BudgetControlResponse)
+@router.get("/budget/{project_id}/{agent_type}",
+            response_model=BudgetControlResponse,
+            summary="💰 Get Agent Budget Limits",
+            description="""
+            **Retrieve current budget controls and spending limits for specific agent types**
+
+            Monitor token consumption and cost controls for individual agents within projects. Essential for preventing cost overruns and maintaining budget compliance.
+
+            **Budget Tracking:**
+            - Daily token consumption limits
+            - Session-based spending caps
+            - Real-time usage monitoring
+            - Cost estimation and projections
+            - Automatic cutoffs when limits exceeded
+            """,
+            response_description="Current budget status and spending limits")
 async def get_budget_control(
     project_id: UUID,
     agent_type: str,

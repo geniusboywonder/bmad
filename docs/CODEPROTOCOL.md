@@ -56,6 +56,46 @@
 - Document performance considerations.
 - Build accessibility in from the start.
 
+### Service Architecture Standards
+
+**Service Constructor Patterns**
+- **String Paths Only**: Services must accept string paths, not dict configurations
+  ```python
+  # CORRECT
+  service = MyService("config/path")
+
+  # INCORRECT
+  service = MyService({"path": "config/path"})
+  ```
+
+**SOLID Architecture Enforcement**
+- **Maximum Service Size**: 600 LOC per service file
+- **Single Responsibility**: Each service handles one domain concern
+- **Interface Segregation**: All services must implement focused interfaces
+- **Dependency Injection**: All services must use proper DI patterns for testability
+- **Backward Compatibility**: Maintain service aliases during refactoring
+
+**Configuration Management Standards**
+- **Array vs String**: Configuration arrays use plural naming: `"items": ["name"]`
+- **ID Validation**: All ID fields must use proper format validation (UUID, etc.)
+- **Required Fields**: All schema objects must include all required fields
+- **Type Consistency**: Maintain consistent data types across related configurations
+
+### Database Integration Patterns
+
+**Database Standards**
+- **Real Database Required**: No mock-heavy database testing in integration tests
+- **Session Management**: Use proper session managers for cleanup and isolation
+- **Migration Validation**: All schema changes require migration testing
+- **Connection Patterns**: Use connection pooling and proper session lifecycle management
+
+### Import and Module Standards
+
+**Import Path Standards**
+- **Relative Imports**: Use proper relative imports within project structure
+- **Module Resolution**: Validate import paths during development
+- **Dependency Management**: Clearly separate internal vs external dependencies
+
 ## Testing Strategy
 
 - Frontend: Vitest (unit tests), React Testing Library, global setup in `vitest.setup.ts`.
@@ -170,6 +210,22 @@
    - Update documentation and progress.
    - Commit with clear messages.
    - Report untested code clearly.
+
+## Production Readiness Criteria
+
+### Code Quality Gates
+- **Test Suite Health**: Minimum 95% test success rate required
+- **Performance Standards**: API response times <200ms, real-time events <100ms
+- **Architecture Compliance**: All services follow SOLID principles
+- **Database Integration**: Real database testing for critical business logic
+- **Error Handling**: Comprehensive error scenarios tested and documented
+
+### Service Migration Standards
+- **SOLID Refactoring**: Large services must be decomposed following SOLID principles
+- **Interface First**: Create interfaces before implementing decomposed services
+- **Backward Compatibility**: Maintain service aliases during migration periods
+- **Test Coverage**: Maintain test coverage during service decomposition
+- **Documentation**: Update architecture docs during major refactoring
 
 ## Enforcement
 

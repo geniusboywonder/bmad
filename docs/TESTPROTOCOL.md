@@ -102,7 +102,14 @@ pytest -m "not external_service"
 
 ### Database Testing Standards
 
-Use `DatabaseTestManager` for real database operations:
+**Real Database Integration Requirements**
+- **Mandatory Real DB**: All integration tests must use real database connections
+- **Database Test Manager**: Use proper database testing utilities for session management
+- **No Mock Databases**: Mocking database calls is prohibited for integration tests
+- **Session Cleanup**: All tests must properly clean up database sessions and test data
+- **Schema Validation**: Database schema changes must be tested with real migrations
+
+Use database testing utilities for real database operations:
 
 ```python
 @pytest.fixture
@@ -178,6 +185,21 @@ tests/e2e/         # Critical user flow tests
 - **Database state verification for data operations** (real_data tests must verify actual DB state)
 - **Prefer `real_data + external_service` pattern** for integration tests
 
+### Production Readiness Testing Standards
+- **Test Suite Health**: Minimum 95% test success rate required across all environments
+- **Performance Testing**: API response times <200ms, real-time features <100ms
+- **Integration Coverage**: Minimum 40% real database integration test coverage
+- **Service Constructor Testing**: All services tested with proper dependency injection
+- **Schema Validation**: All data models tested with proper validation patterns
+- **Error Recovery Testing**: Comprehensive error handling and recovery validation
+
+### Service Testing Patterns
+- **Constructor Validation**: Service constructors tested with proper parameter patterns
+- **Interface Compliance**: Services tested against declared interfaces
+- **Configuration Testing**: All configuration objects tested with required fields
+- **Import Path Validation**: Module imports validated during test setup
+- **Framework Integration**: Framework-specific patterns (team configs, handoffs) properly tested
+
 **Mock Analysis Tools**:
 ```bash
 # Identify inappropriate mocking
@@ -200,7 +222,14 @@ python scripts/compare_mock_vs_real_tests.py
 - **Missing test classification markers** (every test needs at least one)
 - **Conflicting marker combinations** (cannot use mock_data + real_data)
 - **Single-marker integration tests** (prefer real_data + external_service)
-- **CHANGING CODE IF THERE IS A DISCREPRENCY BETWEEN THE TEST AND THE CODE.**
+- **CHANGING CODE IF THERE IS A DISCREPANCY BETWEEN THE TEST AND THE CODE.**
+
+### Test Infrastructure Anti-Patterns
+- **Service Constructor Mocking**: Never mock service constructors or initialization
+- **Configuration Object Mocking**: Avoid mocking configuration validation
+- **Framework Integration Mocking**: Don't mock framework-specific integration patterns
+- **Schema Validation Bypass**: Never skip data validation in tests
+- **Import Path Errors**: Validate module import paths during test development
 
 ## Service Testing Patterns
 
@@ -254,4 +283,48 @@ def test_with_service_mock(mock_service):
 @patch('app.database.get_session')
 def test_with_db_mock(mock_session):
     # This hides schema and constraint issues
+
+# DON'T: Pass dict configs to string-path services
+def test_service_with_wrong_config():
+    service = MyService({"path": "config"})  # Should be string path
+
+# DON'T: Skip required fields in test configurations
+def test_incomplete_config():
+    config = {"workflows": "single_item"}  # Should be array
+    # Missing required fields like 'id', 'project_id', etc.
+```
+
+### Configuration Testing Patterns
+
+**✅ Proper Configuration Testing**
+```python
+def test_service_constructor_patterns():
+    # CORRECT: String path constructors
+    service = TemplateService("templates/path")
+    assert service.template_path == "templates/path"
+
+def test_configuration_validation():
+    # CORRECT: Array configurations with proper naming
+    config = {
+        "workflows": ["workflow1", "workflow2"],  # Plural array
+        "id": "12345678-1234-5678-9abc-123456789abc",  # Proper UUID
+        "project_id": "87654321-4321-8765-4321-987654321098",
+        "required_field": "value"  # All required fields present
+    }
+    validator = ConfigValidator(config)
+    assert validator.is_valid()
+
+def test_framework_integration():
+    # CORRECT: Test with all required agent types
+    team_config = {
+        "agents": [
+            {"type": "orchestrator"},  # Don't miss required types
+            {"type": "analyst"},
+            {"type": "architect"},
+            {"type": "coder"}
+        ],
+        "workflows": ["sdlc_workflow"]  # Plural array format
+    }
+    team = AgentTeam(team_config)
+    assert len(team.agents) == 4
 ```
