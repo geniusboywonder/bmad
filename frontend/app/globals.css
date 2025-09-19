@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* BotArmy Color Palette */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 188 100% 37%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 188 100% 37%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --teal: 172 87% 37%;
+  --amber: 43 96% 56%;
+  --user: 188 100% 37%;
+  --system: 210 40% 96%;
+  --analyst: 217 91% 60%;
+  --architect: 258 90% 66%;
+  --developer: 24 95% 53%;
+  --tester: 158 64% 52%;
+  --deployer: 0 84% 60%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 210 40% 96%;
+  --ring: 188 100% 37%;
+  --chart-1: 217 91% 60%;
+  --chart-2: 188 92% 44%;
+  --chart-3: 188 100% 37%;
+  --chart-4: 188 91% 28%;
+  --chart-5: 188 100% 19%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 187 92% 44%;
+  --primary-foreground: 222.2 84% 4.9%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 187 92% 44%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 73% 41%;
+  --destructive-foreground: 210 40% 98%;
+  --teal: 172 87% 37%;
+  --amber: 43 96% 56%;
+  --user: 187 92% 44%;
+  --system: 217.2 32.6% 17.5%;
+  --analyst: 217 91% 60%;
+  --architect: 258 90% 66%;
+  --developer: 24 95% 53%;
+  --tester: 158 64% 52%;
+  --deployer: 0 73% 41%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 187 92% 44%;
+  --chart-1: 217 91% 60%;
+  --chart-2: 187 92% 44%;
+  --chart-3: 188 100% 37%;
+  --chart-4: 188 91% 28%;
+  --chart-5: 188 100% 19%;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+}
+
+@layer components {
+  /* Custom component styles for BotArmy */
+  .connection-status {
+    @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .connection-status[data-status="connected"] {
+    @apply bg-tester/10 text-tester dark:bg-tester/20 dark:text-tester;
+  }
+  
+  .connection-status[data-status="disconnected"] {
+    @apply bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive;
+  }
+  
+  .connection-status[data-status="connecting"] {
+    @apply bg-amber/10 text-amber dark:bg-amber/20 dark:text-amber;
+  }
+  
+  .chat-message {
+    @apply p-4 rounded-lg mb-3;
+  }
+  
+  .chat-message[data-level="error"] {
+    @apply bg-destructive/10 border border-destructive/20 text-destructive dark:bg-destructive/10 dark:border-destructive/20 dark:text-destructive;
+  }
+  
+  .chat-message[data-level="info"] {
+    @apply bg-secondary border-border text-foreground dark:bg-secondary/50 dark:border-border dark:text-foreground;
+  }
+  
+  .agent-card {
+    @apply bg-card border border-border rounded-lg p-4 transition-all duration-200 hover:shadow-sm;
+  }
+  
+  .agent-status-badge {
+    @apply inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .agent-status-badge[data-status="idle"] {
+    @apply bg-muted text-muted-foreground;
+  }
+  
+  .agent-status-badge[data-status="working"] {
+    @apply bg-user/10 text-user dark:bg-user/20 dark:text-user;
+  }
+  
+  .agent-status-badge[data-status="error"] {
+    @apply bg-destructive/10 text-destructive;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Animations */
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-message-in {
+  animation: message-in 0.3s ease-out forwards;
+}
+
+@keyframes pulse-bg {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: hsl(var(--user) / 0.1);
+  }
+}
+
+.animate-pulse-bg {
+  animation: pulse-bg 2s ease-in-out infinite;
+}
+
+.dark .animate-pulse-bg {
+  animation-name: pulse-bg-dark;
+}
+
+@keyframes pulse-bg-dark {
+  0%, 100% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: hsl(var(--user) / 0.2);
+  }
+}

@@ -62,8 +62,10 @@ story-file-permissions:
   - CRITICAL: DO NOT modify any other sections including Status, Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Testing, Dev Agent Record, Change Log, or any other sections
   - CRITICAL: Your updates must be limited to appending your review results in the QA Results section only
 # All commands require * prefix when used (e.g., *help)
+# CRITICAL: *create-implementation-plan MUST be the first task completed in each phase
 commands:
   - help: Show numbered list of the following commands to allow selection
+  - create-implementation-plan: **MANDATORY FIRST TASK** - Create implementation plan for testing and QA phase (use task create-implementation-plan.md with tester-implementation-plan-tmpl.yaml)
   - gate {story}: Execute qa-gate task to write/update quality gate decision in directory from qa.qaLocation/gates/
   - nfr-assess {story}: Execute nfr-assess task to validate non-functional requirements
   - review {story}: |
@@ -79,6 +81,7 @@ dependencies:
   data:
     - technical-preferences.md
   tasks:
+    - create-implementation-plan.md
     - nfr-assess.md
     - qa-gate.md
     - review-story.md
@@ -88,4 +91,5 @@ dependencies:
   templates:
     - qa-gate-tmpl.yaml
     - story-tmpl.yaml
+    - tester-implementation-plan-tmpl.yaml
 ```

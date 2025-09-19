@@ -1,0 +1,335 @@
+name: "Tester Implementation Plan"
+description: "Implementation plan for testing and quality assurance phase"
+version: "1.0"
+template_type: "implementation_plan"
+agent_type: "tester"
+phase: "validate"
+
+sections:
+  - name: "Phase Overview"
+    description: "Overview of the testing and quality assurance phase"
+    required: true
+    fields:
+      - name: "phase_name"
+        type: "text"
+        label: "Phase Name"
+        default: "Testing & Quality Assurance"
+        required: true
+      - name: "phase_objective"
+        type: "textarea"
+        label: "Phase Objective"
+        placeholder: "What is the primary goal of this testing phase?"
+        required: true
+      - name: "success_criteria"
+        type: "list"
+        label: "Success Criteria"
+        placeholder: "List the criteria that define successful completion of this phase"
+        required: true
+
+  - name: "Testing Strategy"
+    description: "Comprehensive testing approach and methodology"
+    required: true
+    fields:
+      - name: "testing_approach"
+        type: "select"
+        label: "Testing Approach"
+        options: ["Risk-Based Testing", "Requirements-Based Testing", "Exploratory Testing", "Scripted Testing", "Session-Based Testing", "Model-Based Testing"]
+        required: true
+      - name: "testing_levels"
+        type: "multiselect"
+        label: "Testing Levels"
+        options: ["Unit Testing", "Integration Testing", "System Testing", "Acceptance Testing", "Performance Testing", "Security Testing", "Usability Testing", "Compatibility Testing"]
+        required: true
+      - name: "testing_types"
+        type: "multiselect"
+        label: "Testing Types"
+        options: ["Functional Testing", "Non-Functional Testing", "Regression Testing", "Smoke Testing", "Sanity Testing", "API Testing", "Database Testing", "UI Testing"]
+        required: true
+      - name: "test_design_techniques"
+        type: "multiselect"
+        label: "Test Design Techniques"
+        options: ["Equivalence Partitioning", "Boundary Value Analysis", "Decision Table Testing", "State Transition Testing", "Use Case Testing", "Error Guessing", "Exploratory Testing"]
+        required: true
+
+  - name: "Test Planning"
+    description: "Detailed test planning and scope definition"
+    required: true
+    fields:
+      - name: "test_scope"
+        type: "textarea"
+        label: "Test Scope"
+        placeholder: "Define what will and will not be tested"
+        required: true
+      - name: "test_objectives"
+        type: "list"
+        label: "Test Objectives"
+        placeholder: "List specific objectives for testing"
+        required: true
+      - name: "entry_criteria"
+        type: "list"
+        label: "Entry Criteria"
+        placeholder: "List criteria that must be met before testing can begin"
+        required: true
+      - name: "exit_criteria"
+        type: "list"
+        label: "Exit Criteria"
+        placeholder: "List criteria that must be met to complete testing"
+        required: true
+      - name: "test_deliverables"
+        type: "list"
+        label: "Test Deliverables"
+        placeholder: "List all testing deliverables to be produced"
+        required: true
+
+  - name: "Test Environment"
+    description: "Test environment setup and configuration"
+    required: true
+    fields:
+      - name: "test_environments"
+        type: "list"
+        label: "Test Environments"
+        placeholder: "List different test environments (dev, staging, prod-like, etc.)"
+        required: true
+      - name: "environment_setup_plan"
+        type: "textarea"
+        label: "Environment Setup Plan"
+        placeholder: "How will test environments be set up and configured?"
+        required: true
+      - name: "test_data_requirements"
+        type: "textarea"
+        label: "Test Data Requirements"
+        placeholder: "What test data is needed and how will it be created?"
+        required: true
+      - name: "environment_maintenance"
+        type: "textarea"
+        label: "Environment Maintenance"
+        placeholder: "How will test environments be maintained and refreshed?"
+        required: true
+
+  - name: "Test Case Development"
+    description: "Test case design and development strategy"
+    required: true
+    fields:
+      - name: "test_case_design_approach"
+        type: "textarea"
+        label: "Test Case Design Approach"
+        placeholder: "Describe the approach to designing test cases"
+        required: true
+      - name: "test_case_categories"
+        type: "list"
+        label: "Test Case Categories"
+        placeholder: "List different categories of test cases to be created"
+        required: true
+      - name: "test_case_prioritization"
+        type: "textarea"
+        label: "Test Case Prioritization"
+        placeholder: "How will test cases be prioritized for execution?"
+        required: true
+      - name: "test_case_maintenance"
+        type: "textarea"
+        label: "Test Case Maintenance"
+        placeholder: "How will test cases be maintained and updated?"
+        required: true
+
+  - name: "Automation Strategy"
+    description: "Test automation approach and implementation"
+    required: true
+    fields:
+      - name: "automation_scope"
+        type: "textarea"
+        label: "Automation Scope"
+        placeholder: "What tests will be automated vs manual?"
+        required: true
+      - name: "automation_tools"
+        type: "list"
+        label: "Automation Tools"
+        placeholder: "List test automation tools and frameworks"
+        required: true
+      - name: "automation_framework_design"
+        type: "textarea"
+        label: "Automation Framework Design"
+        placeholder: "Describe the test automation framework architecture"
+        required: true
+      - name: "ci_cd_integration"
+        type: "textarea"
+        label: "CI/CD Integration"
+        placeholder: "How will automated tests be integrated into CI/CD pipeline?"
+        required: true
+
+  - name: "Performance Testing"
+    description: "Performance testing strategy and implementation"
+    required: true
+    fields:
+      - name: "performance_test_types"
+        type: "multiselect"
+        label: "Performance Test Types"
+        options: ["Load Testing", "Stress Testing", "Volume Testing", "Spike Testing", "Endurance Testing", "Scalability Testing", "Capacity Testing"]
+        required: true
+      - name: "performance_criteria"
+        type: "list"
+        label: "Performance Criteria"
+        placeholder: "List specific performance requirements to validate"
+        required: true
+      - name: "performance_tools"
+        type: "list"
+        label: "Performance Testing Tools"
+        placeholder: "List tools for performance testing"
+        required: true
+      - name: "performance_test_scenarios"
+        type: "list"
+        label: "Performance Test Scenarios"
+        placeholder: "List key performance test scenarios"
+        required: true
+
+  - name: "Security Testing"
+    description: "Security testing approach and implementation"
+    required: true
+    fields:
+      - name: "security_test_types"
+        type: "multiselect"
+        label: "Security Test Types"
+        options: ["Authentication Testing", "Authorization Testing", "Data Protection Testing", "SQL Injection Testing", "XSS Testing", "CSRF Testing", "Session Management Testing", "Input Validation Testing"]
+        required: true
+      - name: "security_tools"
+        type: "list"
+        label: "Security Testing Tools"
+        placeholder: "List security testing tools and scanners"
+        required: true
+      - name: "vulnerability_assessment"
+        type: "textarea"
+        label: "Vulnerability Assessment Plan"
+        placeholder: "How will vulnerabilities be identified and assessed?"
+        required: true
+      - name: "penetration_testing"
+        type: "textarea"
+        label: "Penetration Testing Plan"
+        placeholder: "Will penetration testing be performed? If so, how?"
+        required: false
+
+  - name: "Defect Management"
+    description: "Defect tracking and management process"
+    required: true
+    fields:
+      - name: "defect_tracking_tool"
+        type: "text"
+        label: "Defect Tracking Tool"
+        placeholder: "What tool will be used for defect tracking?"
+        required: true
+      - name: "defect_classification"
+        type: "list"
+        label: "Defect Classification"
+        placeholder: "List defect severity and priority levels"
+        required: true
+      - name: "defect_workflow"
+        type: "textarea"
+        label: "Defect Workflow"
+        placeholder: "Describe the defect lifecycle and workflow"
+        required: true
+      - name: "defect_reporting_standards"
+        type: "textarea"
+        label: "Defect Reporting Standards"
+        placeholder: "What information must be included in defect reports?"
+        required: true
+
+  - name: "Quality Metrics"
+    description: "Quality metrics and measurement strategy"
+    required: true
+    fields:
+      - name: "quality_metrics"
+        type: "list"
+        label: "Quality Metrics"
+        placeholder: "List metrics to measure testing effectiveness and quality"
+        required: true
+      - name: "test_coverage_targets"
+        type: "list"
+        label: "Test Coverage Targets"
+        placeholder: "List coverage targets for different types of testing"
+        required: true
+      - name: "quality_gates"
+        type: "list"
+        label: "Quality Gates"
+        placeholder: "List quality gates that must be passed"
+        required: true
+      - name: "reporting_schedule"
+        type: "textarea"
+        label: "Reporting Schedule"
+        placeholder: "How often will quality metrics be reported?"
+        required: true
+
+  - name: "Timeline & Milestones"
+    description: "Testing timeline and key milestones"
+    required: true
+    fields:
+      - name: "estimated_duration"
+        type: "text"
+        label: "Estimated Phase Duration"
+        placeholder: "e.g., 4-5 weeks"
+        required: true
+      - name: "testing_phases"
+        type: "list"
+        label: "Testing Phases"
+        placeholder: "Break testing into logical phases"
+        required: true
+      - name: "key_milestones"
+        type: "list"
+        label: "Key Milestones"
+        placeholder: "List major testing milestones with target dates"
+        required: true
+      - name: "dependencies"
+        type: "list"
+        label: "Dependencies"
+        placeholder: "List dependencies on development or external factors"
+        required: false
+
+  - name: "Risk Assessment"
+    description: "Testing risks and mitigation strategies"
+    required: true
+    fields:
+      - name: "testing_risks"
+        type: "list"
+        label: "Testing Risks"
+        placeholder: "List potential risks to testing activities"
+        required: true
+      - name: "quality_risks"
+        type: "list"
+        label: "Quality Risks"
+        placeholder: "List risks to product quality"
+        required: true
+      - name: "mitigation_strategies"
+        type: "list"
+        label: "Mitigation Strategies"
+        placeholder: "List strategies to address identified risks"
+        required: true
+      - name: "contingency_plans"
+        type: "textarea"
+        label: "Contingency Plans"
+        placeholder: "What are the backup plans if testing faces major issues?"
+        required: false
+
+  - name: "Handoff Preparation"
+    description: "Preparation for handoff to deployment phase"
+    required: true
+    fields:
+      - name: "handoff_deliverables"
+        type: "list"
+        label: "Handoff Deliverables"
+        placeholder: "What will be delivered to the deployment team?"
+        required: true
+      - name: "deployment_team_briefing_plan"
+        type: "textarea"
+        label: "Deployment Team Briefing Plan"
+        placeholder: "How will you brief the deployment team on testing results?"
+        required: true
+      - name: "quality_certification"
+        type: "textarea"
+        label: "Quality Certification"
+        placeholder: "What quality certification will be provided?"
+        required: true
+      - name: "production_readiness_checklist"
+        type: "list"
+        label: "Production Readiness Checklist"
+        placeholder: "List items that confirm production readiness"
+        required: true
+
+output_format: "markdown"
+file_extension: ".md"

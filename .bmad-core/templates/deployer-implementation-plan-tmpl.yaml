@@ -1,0 +1,385 @@
+name: "Deployer Implementation Plan"
+description: "Implementation plan for deployment and launch phase"
+version: "1.0"
+template_type: "implementation_plan"
+agent_type: "deployer"
+phase: "launch"
+
+sections:
+  - name: "Phase Overview"
+    description: "Overview of the deployment and launch phase"
+    required: true
+    fields:
+      - name: "phase_name"
+        type: "text"
+        label: "Phase Name"
+        default: "Deployment & Launch"
+        required: true
+      - name: "phase_objective"
+        type: "textarea"
+        label: "Phase Objective"
+        placeholder: "What is the primary goal of this deployment phase?"
+        required: true
+      - name: "success_criteria"
+        type: "list"
+        label: "Success Criteria"
+        placeholder: "List the criteria that define successful completion of this phase"
+        required: true
+
+  - name: "Deployment Strategy"
+    description: "Overall deployment approach and methodology"
+    required: true
+    fields:
+      - name: "deployment_approach"
+        type: "select"
+        label: "Deployment Approach"
+        options: ["Blue-Green Deployment", "Rolling Deployment", "Canary Deployment", "Feature Flag Deployment", "Big Bang Deployment", "Phased Rollout"]
+        required: true
+      - name: "deployment_environments"
+        type: "list"
+        label: "Deployment Environments"
+        placeholder: "List all environments (dev, staging, prod, etc.)"
+        required: true
+      - name: "rollback_strategy"
+        type: "textarea"
+        label: "Rollback Strategy"
+        placeholder: "How will rollbacks be handled if deployment fails?"
+        required: true
+      - name: "deployment_validation"
+        type: "textarea"
+        label: "Deployment Validation"
+        placeholder: "How will successful deployment be validated?"
+        required: true
+
+  - name: "Infrastructure Setup"
+    description: "Infrastructure provisioning and configuration"
+    required: true
+    fields:
+      - name: "infrastructure_platform"
+        type: "select"
+        label: "Infrastructure Platform"
+        options: ["AWS", "Azure", "Google Cloud", "On-Premises", "Hybrid Cloud", "Multi-Cloud", "Kubernetes", "Docker"]
+        required: true
+      - name: "infrastructure_components"
+        type: "list"
+        label: "Infrastructure Components"
+        placeholder: "List all infrastructure components needed"
+        required: true
+      - name: "infrastructure_as_code"
+        type: "textarea"
+        label: "Infrastructure as Code"
+        placeholder: "What IaC tools will be used? (Terraform, CloudFormation, etc.)"
+        required: true
+      - name: "resource_sizing"
+        type: "textarea"
+        label: "Resource Sizing"
+        placeholder: "How will compute, storage, and network resources be sized?"
+        required: true
+
+  - name: "CI/CD Pipeline"
+    description: "Continuous integration and deployment pipeline"
+    required: true
+    fields:
+      - name: "cicd_platform"
+        type: "select"
+        label: "CI/CD Platform"
+        options: ["Jenkins", "GitLab CI", "GitHub Actions", "Azure DevOps", "CircleCI", "Travis CI", "AWS CodePipeline", "Custom"]
+        required: true
+      - name: "pipeline_stages"
+        type: "list"
+        label: "Pipeline Stages"
+        placeholder: "List all stages in the CI/CD pipeline"
+        required: true
+      - name: "automated_testing_integration"
+        type: "textarea"
+        label: "Automated Testing Integration"
+        placeholder: "How will automated tests be integrated into the pipeline?"
+        required: true
+      - name: "deployment_triggers"
+        type: "list"
+        label: "Deployment Triggers"
+        placeholder: "What events will trigger deployments?"
+        required: true
+
+  - name: "Configuration Management"
+    description: "Application and environment configuration"
+    required: true
+    fields:
+      - name: "configuration_strategy"
+        type: "textarea"
+        label: "Configuration Strategy"
+        placeholder: "How will application configuration be managed?"
+        required: true
+      - name: "environment_variables"
+        type: "list"
+        label: "Environment Variables"
+        placeholder: "List key environment variables and their purposes"
+        required: true
+      - name: "secrets_management"
+        type: "textarea"
+        label: "Secrets Management"
+        placeholder: "How will secrets and sensitive data be managed?"
+        required: true
+      - name: "configuration_validation"
+        type: "textarea"
+        label: "Configuration Validation"
+        placeholder: "How will configuration be validated before deployment?"
+        required: true
+
+  - name: "Database Deployment"
+    description: "Database deployment and migration strategy"
+    required: true
+    fields:
+      - name: "database_migration_strategy"
+        type: "textarea"
+        label: "Database Migration Strategy"
+        placeholder: "How will database changes be deployed?"
+        required: true
+      - name: "data_migration_plan"
+        type: "textarea"
+        label: "Data Migration Plan"
+        placeholder: "How will existing data be migrated?"
+        required: false
+      - name: "database_backup_strategy"
+        type: "textarea"
+        label: "Database Backup Strategy"
+        placeholder: "How will database backups be handled during deployment?"
+        required: true
+      - name: "database_rollback_plan"
+        type: "textarea"
+        label: "Database Rollback Plan"
+        placeholder: "How will database changes be rolled back if needed?"
+        required: true
+
+  - name: "Security Implementation"
+    description: "Security measures for deployment and production"
+    required: true
+    fields:
+      - name: "security_hardening"
+        type: "list"
+        label: "Security Hardening"
+        placeholder: "List security hardening measures to implement"
+        required: true
+      - name: "ssl_certificate_management"
+        type: "textarea"
+        label: "SSL Certificate Management"
+        placeholder: "How will SSL certificates be managed and deployed?"
+        required: true
+      - name: "firewall_configuration"
+        type: "textarea"
+        label: "Firewall Configuration"
+        placeholder: "What firewall rules and network security will be implemented?"
+        required: true
+      - name: "access_control"
+        type: "textarea"
+        label: "Access Control"
+        placeholder: "How will access to production systems be controlled?"
+        required: true
+
+  - name: "Monitoring & Observability"
+    description: "Monitoring, logging, and observability setup"
+    required: true
+    fields:
+      - name: "monitoring_tools"
+        type: "list"
+        label: "Monitoring Tools"
+        placeholder: "List monitoring and observability tools"
+        required: true
+      - name: "metrics_collection"
+        type: "list"
+        label: "Metrics Collection"
+        placeholder: "List key metrics to collect and monitor"
+        required: true
+      - name: "logging_strategy"
+        type: "textarea"
+        label: "Logging Strategy"
+        placeholder: "How will application and system logs be collected and managed?"
+        required: true
+      - name: "alerting_configuration"
+        type: "textarea"
+        label: "Alerting Configuration"
+        placeholder: "What alerts will be configured and who will receive them?"
+        required: true
+      - name: "dashboard_setup"
+        type: "list"
+        label: "Dashboard Setup"
+        placeholder: "List dashboards to be created for monitoring"
+        required: true
+
+  - name: "Performance Optimization"
+    description: "Performance tuning and optimization"
+    required: true
+    fields:
+      - name: "performance_baselines"
+        type: "list"
+        label: "Performance Baselines"
+        placeholder: "List performance baselines to establish"
+        required: true
+      - name: "caching_implementation"
+        type: "textarea"
+        label: "Caching Implementation"
+        placeholder: "How will caching be implemented in production?"
+        required: true
+      - name: "cdn_configuration"
+        type: "textarea"
+        label: "CDN Configuration"
+        placeholder: "How will CDN be configured for static assets?"
+        required: false
+      - name: "load_balancing"
+        type: "textarea"
+        label: "Load Balancing"
+        placeholder: "How will load balancing be configured?"
+        required: true
+
+  - name: "Disaster Recovery"
+    description: "Disaster recovery and business continuity planning"
+    required: true
+    fields:
+      - name: "backup_strategy"
+        type: "textarea"
+        label: "Backup Strategy"
+        placeholder: "How will data and system backups be performed?"
+        required: true
+      - name: "recovery_procedures"
+        type: "textarea"
+        label: "Recovery Procedures"
+        placeholder: "What are the procedures for system recovery?"
+        required: true
+      - name: "rto_rpo_targets"
+        type: "text"
+        label: "RTO/RPO Targets"
+        placeholder: "What are the Recovery Time and Recovery Point Objectives?"
+        required: true
+      - name: "disaster_recovery_testing"
+        type: "textarea"
+        label: "Disaster Recovery Testing"
+        placeholder: "How will disaster recovery procedures be tested?"
+        required: true
+
+  - name: "Launch Planning"
+    description: "Go-live planning and launch coordination"
+    required: true
+    fields:
+      - name: "launch_timeline"
+        type: "list"
+        label: "Launch Timeline"
+        placeholder: "List key activities and timeline for launch"
+        required: true
+      - name: "launch_criteria"
+        type: "list"
+        label: "Launch Criteria"
+        placeholder: "List criteria that must be met before go-live"
+        required: true
+      - name: "communication_plan"
+        type: "textarea"
+        label: "Communication Plan"
+        placeholder: "How will launch be communicated to stakeholders?"
+        required: true
+      - name: "user_training_plan"
+        type: "textarea"
+        label: "User Training Plan"
+        placeholder: "How will users be trained on the new system?"
+        required: false
+
+  - name: "Post-Launch Support"
+    description: "Post-launch monitoring and support planning"
+    required: true
+    fields:
+      - name: "support_model"
+        type: "textarea"
+        label: "Support Model"
+        placeholder: "What support model will be implemented post-launch?"
+        required: true
+      - name: "incident_response_plan"
+        type: "textarea"
+        label: "Incident Response Plan"
+        placeholder: "How will production incidents be handled?"
+        required: true
+      - name: "maintenance_schedule"
+        type: "textarea"
+        label: "Maintenance Schedule"
+        placeholder: "What is the planned maintenance schedule?"
+        required: true
+      - name: "performance_monitoring_plan"
+        type: "textarea"
+        label: "Performance Monitoring Plan"
+        placeholder: "How will system performance be monitored post-launch?"
+        required: true
+
+  - name: "Timeline & Milestones"
+    description: "Deployment timeline and key milestones"
+    required: true
+    fields:
+      - name: "estimated_duration"
+        type: "text"
+        label: "Estimated Phase Duration"
+        placeholder: "e.g., 2-3 weeks"
+        required: true
+      - name: "deployment_phases"
+        type: "list"
+        label: "Deployment Phases"
+        placeholder: "Break deployment into logical phases"
+        required: true
+      - name: "key_milestones"
+        type: "list"
+        label: "Key Milestones"
+        placeholder: "List major deployment milestones with target dates"
+        required: true
+      - name: "dependencies"
+        type: "list"
+        label: "Dependencies"
+        placeholder: "List dependencies on testing or external factors"
+        required: false
+
+  - name: "Risk Assessment"
+    description: "Deployment risks and mitigation strategies"
+    required: true
+    fields:
+      - name: "deployment_risks"
+        type: "list"
+        label: "Deployment Risks"
+        placeholder: "List potential risks during deployment"
+        required: true
+      - name: "operational_risks"
+        type: "list"
+        label: "Operational Risks"
+        placeholder: "List risks to ongoing operations"
+        required: true
+      - name: "mitigation_strategies"
+        type: "list"
+        label: "Mitigation Strategies"
+        placeholder: "List strategies to address identified risks"
+        required: true
+      - name: "contingency_plans"
+        type: "textarea"
+        label: "Contingency Plans"
+        placeholder: "What are the backup plans if deployment faces major issues?"
+        required: false
+
+  - name: "Success Metrics"
+    description: "Metrics to measure deployment success"
+    required: true
+    fields:
+      - name: "deployment_success_metrics"
+        type: "list"
+        label: "Deployment Success Metrics"
+        placeholder: "List metrics to measure deployment success"
+        required: true
+      - name: "operational_metrics"
+        type: "list"
+        label: "Operational Metrics"
+        placeholder: "List metrics to monitor ongoing operations"
+        required: true
+      - name: "user_adoption_metrics"
+        type: "list"
+        label: "User Adoption Metrics"
+        placeholder: "List metrics to measure user adoption"
+        required: false
+      - name: "business_impact_metrics"
+        type: "list"
+        label: "Business Impact Metrics"
+        placeholder: "List metrics to measure business impact"
+        required: true
+
+output_format: "markdown"
+file_extension: ".md"

@@ -55,8 +55,10 @@ persona:
     - Integrity of Information - Ensure accurate sourcing and representation
     - Numbered Options Protocol - Always use numbered lists for selections
 # All commands require * prefix when used (e.g., *help)
+# CRITICAL: *create-implementation-plan MUST be the first task completed in each phase
 commands:
   - help: Show numbered list of the following commands to allow selection
+  - create-implementation-plan: **MANDATORY FIRST TASK** - Create implementation plan for requirements analysis phase (use task create-implementation-plan.md with analyst-implementation-plan-tmpl.yaml)
   - brainstorm {topic}: Facilitate structured brainstorming session (run task facilitate-brainstorming-session.md with template brainstorming-output-tmpl.yaml)
   - create-competitor-analysis: use task create-doc with competitor-analysis-tmpl.yaml
   - create-project-brief: use task create-doc with project-brief-tmpl.yaml
@@ -74,9 +76,11 @@ dependencies:
     - advanced-elicitation.md
     - create-deep-research-prompt.md
     - create-doc.md
+    - create-implementation-plan.md
     - document-project.md
     - facilitate-brainstorming-session.md
   templates:
+    - analyst-implementation-plan-tmpl.yaml
     - brainstorming-output-tmpl.yaml
     - competitor-analysis-tmpl.yaml
     - market-research-tmpl.yaml

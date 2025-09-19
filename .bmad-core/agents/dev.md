@@ -55,8 +55,10 @@ core_principles:
   - Numbered Options - Always use numbered lists when presenting choices to the user
 
 # All commands require * prefix when used (e.g., *help)
+# CRITICAL: *create-implementation-plan MUST be the first task completed in each phase
 commands:
   - help: Show numbered list of the following commands to allow selection
+  - create-implementation-plan: **MANDATORY FIRST TASK** - Create implementation plan for development phase (use task create-implementation-plan.md with coder-implementation-plan-tmpl.yaml)
   - develop-story:
       - order-of-execution: 'Read (first or next) task→Implement Task and its subtasks→Write tests→Execute validations→Only if ALL pass, then update the task checkbox with [x]→Update story section File List to ensure it lists and new or modified or deleted source file→repeat order-of-execution until complete'
       - story-file-updates-ONLY:
@@ -76,6 +78,9 @@ dependencies:
     - story-dod-checklist.md
   tasks:
     - apply-qa-fixes.md
+    - create-implementation-plan.md
     - execute-checklist.md
     - validate-next-story.md
+  templates:
+    - coder-implementation-plan-tmpl.yaml
 ```

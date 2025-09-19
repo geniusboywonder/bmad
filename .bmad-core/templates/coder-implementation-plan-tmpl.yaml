@@ -1,0 +1,285 @@
+name: "Developer Implementation Plan"
+description: "Implementation plan for development and coding phase"
+version: "1.0"
+template_type: "implementation_plan"
+agent_type: "coder"
+phase: "build"
+
+sections:
+  - name: "Phase Overview"
+    description: "Overview of the development and coding phase"
+    required: true
+    fields:
+      - name: "phase_name"
+        type: "text"
+        label: "Phase Name"
+        default: "Development & Implementation"
+        required: true
+      - name: "phase_objective"
+        type: "textarea"
+        label: "Phase Objective"
+        placeholder: "What is the primary goal of this development phase?"
+        required: true
+      - name: "success_criteria"
+        type: "list"
+        label: "Success Criteria"
+        placeholder: "List the criteria that define successful completion of this phase"
+        required: true
+
+  - name: "Development Approach"
+    description: "Development methodology and coding standards"
+    required: true
+    fields:
+      - name: "development_methodology"
+        type: "select"
+        label: "Development Methodology"
+        options: ["Agile", "Scrum", "Kanban", "Test-Driven Development", "Behavior-Driven Development", "Feature-Driven Development", "Waterfall"]
+        required: true
+      - name: "coding_standards"
+        type: "list"
+        label: "Coding Standards"
+        placeholder: "List coding standards and conventions to follow"
+        required: true
+      - name: "code_review_process"
+        type: "textarea"
+        label: "Code Review Process"
+        placeholder: "Describe the code review and approval process"
+        required: true
+      - name: "version_control_strategy"
+        type: "textarea"
+        label: "Version Control Strategy"
+        placeholder: "Describe branching strategy and version control workflow"
+        required: true
+
+  - name: "Implementation Strategy"
+    description: "Strategy for implementing features and components"
+    required: true
+    fields:
+      - name: "implementation_order"
+        type: "list"
+        label: "Implementation Order"
+        placeholder: "List features/components in order of implementation"
+        required: true
+      - name: "development_phases"
+        type: "list"
+        label: "Development Phases"
+        placeholder: "Break development into logical phases or sprints"
+        required: true
+      - name: "mvp_definition"
+        type: "textarea"
+        label: "MVP Definition"
+        placeholder: "Define the Minimum Viable Product scope"
+        required: true
+      - name: "feature_prioritization"
+        type: "textarea"
+        label: "Feature Prioritization"
+        placeholder: "How will features be prioritized for development?"
+        required: true
+
+  - name: "Technical Implementation"
+    description: "Technical approach and implementation details"
+    required: true
+    fields:
+      - name: "project_structure"
+        type: "textarea"
+        label: "Project Structure"
+        placeholder: "Describe the project folder structure and organization"
+        required: true
+      - name: "dependency_management"
+        type: "textarea"
+        label: "Dependency Management"
+        placeholder: "How will dependencies be managed and updated?"
+        required: true
+      - name: "configuration_management"
+        type: "textarea"
+        label: "Configuration Management"
+        placeholder: "How will application configuration be handled?"
+        required: true
+      - name: "error_handling_strategy"
+        type: "textarea"
+        label: "Error Handling Strategy"
+        placeholder: "Describe the approach to error handling and logging"
+        required: true
+
+  - name: "Testing Strategy"
+    description: "Comprehensive testing approach and implementation"
+    required: true
+    fields:
+      - name: "testing_levels"
+        type: "multiselect"
+        label: "Testing Levels"
+        options: ["Unit Testing", "Integration Testing", "Component Testing", "End-to-End Testing", "API Testing", "Performance Testing", "Security Testing"]
+        required: true
+      - name: "test_coverage_targets"
+        type: "text"
+        label: "Test Coverage Targets"
+        placeholder: "e.g., 80% unit test coverage, 90% integration coverage"
+        required: true
+      - name: "testing_frameworks"
+        type: "list"
+        label: "Testing Frameworks"
+        placeholder: "List testing frameworks and tools to be used"
+        required: true
+      - name: "test_data_strategy"
+        type: "textarea"
+        label: "Test Data Strategy"
+        placeholder: "How will test data be created and managed?"
+        required: true
+      - name: "automated_testing_plan"
+        type: "textarea"
+        label: "Automated Testing Plan"
+        placeholder: "Describe the automated testing pipeline and CI/CD integration"
+        required: true
+
+  - name: "Quality Assurance"
+    description: "Code quality measures and standards"
+    required: true
+    fields:
+      - name: "code_quality_tools"
+        type: "list"
+        label: "Code Quality Tools"
+        placeholder: "List linters, formatters, and static analysis tools"
+        required: true
+      - name: "performance_requirements"
+        type: "list"
+        label: "Performance Requirements"
+        placeholder: "List specific performance requirements to meet"
+        required: true
+      - name: "security_implementation"
+        type: "list"
+        label: "Security Implementation"
+        placeholder: "List security measures to implement in code"
+        required: true
+      - name: "accessibility_requirements"
+        type: "list"
+        label: "Accessibility Requirements"
+        placeholder: "List accessibility standards to implement"
+        required: false
+
+  - name: "Development Environment"
+    description: "Development environment setup and tooling"
+    required: true
+    fields:
+      - name: "development_tools"
+        type: "list"
+        label: "Development Tools"
+        placeholder: "List IDEs, editors, and development tools"
+        required: true
+      - name: "local_environment_setup"
+        type: "textarea"
+        label: "Local Environment Setup"
+        placeholder: "Describe how developers will set up their local environment"
+        required: true
+      - name: "database_setup"
+        type: "textarea"
+        label: "Database Setup"
+        placeholder: "How will the database be set up for development?"
+        required: true
+      - name: "external_services_mocking"
+        type: "textarea"
+        label: "External Services Mocking"
+        placeholder: "How will external services be mocked for development?"
+        required: false
+
+  - name: "Documentation Plan"
+    description: "Code and technical documentation strategy"
+    required: true
+    fields:
+      - name: "code_documentation_standards"
+        type: "textarea"
+        label: "Code Documentation Standards"
+        placeholder: "What documentation is required in the code?"
+        required: true
+      - name: "api_documentation_plan"
+        type: "textarea"
+        label: "API Documentation Plan"
+        placeholder: "How will APIs be documented?"
+        required: true
+      - name: "technical_documentation"
+        type: "list"
+        label: "Technical Documentation"
+        placeholder: "List technical documents to be created"
+        required: true
+      - name: "user_documentation"
+        type: "list"
+        label: "User Documentation"
+        placeholder: "List user-facing documentation to be created"
+        required: false
+
+  - name: "Timeline & Milestones"
+    description: "Development timeline and key milestones"
+    required: true
+    fields:
+      - name: "estimated_duration"
+        type: "text"
+        label: "Estimated Phase Duration"
+        placeholder: "e.g., 6-8 weeks"
+        required: true
+      - name: "sprint_duration"
+        type: "text"
+        label: "Sprint Duration"
+        placeholder: "e.g., 2 weeks"
+        required: true
+      - name: "key_milestones"
+        type: "list"
+        label: "Key Milestones"
+        placeholder: "List major development milestones with target dates"
+        required: true
+      - name: "dependencies"
+        type: "list"
+        label: "Dependencies"
+        placeholder: "List dependencies on architecture or external factors"
+        required: false
+
+  - name: "Risk Assessment"
+    description: "Development risks and mitigation strategies"
+    required: true
+    fields:
+      - name: "technical_risks"
+        type: "list"
+        label: "Technical Risks"
+        placeholder: "List potential technical risks during development"
+        required: true
+      - name: "complexity_risks"
+        type: "list"
+        label: "Complexity Risks"
+        placeholder: "List areas of high complexity that may cause delays"
+        required: true
+      - name: "mitigation_strategies"
+        type: "list"
+        label: "Mitigation Strategies"
+        placeholder: "List strategies to address identified risks"
+        required: true
+      - name: "contingency_plans"
+        type: "textarea"
+        label: "Contingency Plans"
+        placeholder: "What are the backup plans if development faces major issues?"
+        required: false
+
+  - name: "Handoff Preparation"
+    description: "Preparation for handoff to testing phase"
+    required: true
+    fields:
+      - name: "handoff_deliverables"
+        type: "list"
+        label: "Handoff Deliverables"
+        placeholder: "What will be delivered to the testing team?"
+        required: true
+      - name: "testing_team_briefing_plan"
+        type: "textarea"
+        label: "Testing Team Briefing Plan"
+        placeholder: "How will you brief the testing team on the implementation?"
+        required: true
+      - name: "deployment_package"
+        type: "list"
+        label: "Deployment Package"
+        placeholder: "What components make up the deployment package?"
+        required: true
+      - name: "known_issues"
+        type: "list"
+        label: "Known Issues"
+        placeholder: "List any known issues or limitations to communicate"
+        required: false
+
+output_format: "markdown"
+file_extension: ".md"

@@ -54,8 +54,10 @@ persona:
     - Cost-Conscious Engineering - Balance technical ideals with financial reality
     - Living Architecture - Design for change and adaptation
 # All commands require * prefix when used (e.g., *help)
+# CRITICAL: *create-implementation-plan MUST be the first task completed in each phase
 commands:
   - help: Show numbered list of the following commands to allow selection
+  - create-implementation-plan: **MANDATORY FIRST TASK** - Create implementation plan for architecture and design phase (use task create-implementation-plan.md with architect-implementation-plan-tmpl.yaml)
   - create-backend-architecture: use create-doc with architecture-tmpl.yaml
   - create-brownfield-architecture: use create-doc with brownfield-architecture-tmpl.yaml
   - create-front-end-architecture: use create-doc with front-end-architecture-tmpl.yaml
@@ -75,9 +77,11 @@ dependencies:
   tasks:
     - create-deep-research-prompt.md
     - create-doc.md
+    - create-implementation-plan.md
     - document-project.md
     - execute-checklist.md
   templates:
+    - architect-implementation-plan-tmpl.yaml
     - architecture-tmpl.yaml
     - brownfield-architecture-tmpl.yaml
     - front-end-architecture-tmpl.yaml

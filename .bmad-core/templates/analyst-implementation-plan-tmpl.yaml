@@ -1,0 +1,170 @@
+name: "Analyst Implementation Plan"
+description: "Implementation plan for requirements analysis phase"
+version: "1.0"
+template_type: "implementation_plan"
+agent_type: "analyst"
+phase: "discovery"
+
+sections:
+  - name: "Phase Overview"
+    description: "Overview of the requirements analysis phase"
+    required: true
+    fields:
+      - name: "phase_name"
+        type: "text"
+        label: "Phase Name"
+        default: "Requirements Analysis & Discovery"
+        required: true
+      - name: "phase_objective"
+        type: "textarea"
+        label: "Phase Objective"
+        placeholder: "What is the primary goal of this requirements analysis phase?"
+        required: true
+      - name: "success_criteria"
+        type: "list"
+        label: "Success Criteria"
+        placeholder: "List the criteria that define successful completion of this phase"
+        required: true
+
+  - name: "Analysis Approach"
+    description: "Methodology and approach for requirements gathering"
+    required: true
+    fields:
+      - name: "analysis_methodology"
+        type: "select"
+        label: "Analysis Methodology"
+        options: ["User-Centered Design", "Business Process Analysis", "Stakeholder Analysis", "Market Research", "Competitive Analysis", "Mixed Methods"]
+        required: true
+      - name: "research_methods"
+        type: "multiselect"
+        label: "Research Methods"
+        options: ["Stakeholder Interviews", "User Surveys", "Market Analysis", "Competitive Research", "Business Process Mapping", "Requirements Workshops", "Document Analysis"]
+        required: true
+      - name: "deliverables_planned"
+        type: "list"
+        label: "Planned Deliverables"
+        placeholder: "List all documents and artifacts to be produced"
+        required: true
+
+  - name: "Stakeholder Engagement"
+    description: "Plan for stakeholder identification and engagement"
+    required: true
+    fields:
+      - name: "key_stakeholders"
+        type: "list"
+        label: "Key Stakeholders"
+        placeholder: "Identify primary stakeholders for requirements gathering"
+        required: true
+      - name: "engagement_strategy"
+        type: "textarea"
+        label: "Stakeholder Engagement Strategy"
+        placeholder: "How will you engage with stakeholders to gather requirements?"
+        required: true
+      - name: "communication_plan"
+        type: "textarea"
+        label: "Communication Plan"
+        placeholder: "How will findings be communicated to stakeholders?"
+        required: true
+
+  - name: "Requirements Framework"
+    description: "Framework for organizing and categorizing requirements"
+    required: true
+    fields:
+      - name: "requirement_categories"
+        type: "multiselect"
+        label: "Requirement Categories"
+        options: ["Functional Requirements", "Non-Functional Requirements", "Business Requirements", "User Requirements", "System Requirements", "Interface Requirements", "Compliance Requirements"]
+        required: true
+      - name: "prioritization_method"
+        type: "select"
+        label: "Prioritization Method"
+        options: ["MoSCoW", "Kano Model", "Value vs Effort Matrix", "Business Value Ranking", "Risk-Based Prioritization"]
+        required: true
+      - name: "validation_approach"
+        type: "textarea"
+        label: "Requirements Validation Approach"
+        placeholder: "How will requirements be validated with stakeholders?"
+        required: true
+
+  - name: "Timeline & Milestones"
+    description: "Project timeline and key milestones"
+    required: true
+    fields:
+      - name: "estimated_duration"
+        type: "text"
+        label: "Estimated Phase Duration"
+        placeholder: "e.g., 2-3 weeks"
+        required: true
+      - name: "key_milestones"
+        type: "list"
+        label: "Key Milestones"
+        placeholder: "List major milestones with target dates"
+        required: true
+      - name: "dependencies"
+        type: "list"
+        label: "Dependencies"
+        placeholder: "List any dependencies that could impact timeline"
+        required: false
+
+  - name: "Risk Assessment"
+    description: "Potential risks and mitigation strategies"
+    required: true
+    fields:
+      - name: "identified_risks"
+        type: "list"
+        label: "Identified Risks"
+        placeholder: "List potential risks to requirements gathering"
+        required: true
+      - name: "mitigation_strategies"
+        type: "list"
+        label: "Mitigation Strategies"
+        placeholder: "List strategies to address identified risks"
+        required: true
+      - name: "contingency_plans"
+        type: "textarea"
+        label: "Contingency Plans"
+        placeholder: "What are the backup plans if primary approach fails?"
+        required: false
+
+  - name: "Quality Assurance"
+    description: "Quality measures for requirements analysis"
+    required: true
+    fields:
+      - name: "quality_criteria"
+        type: "list"
+        label: "Quality Criteria"
+        placeholder: "What criteria will ensure high-quality requirements?"
+        required: true
+      - name: "review_process"
+        type: "textarea"
+        label: "Review Process"
+        placeholder: "How will requirements be reviewed and approved?"
+        required: true
+      - name: "traceability_plan"
+        type: "textarea"
+        label: "Requirements Traceability Plan"
+        placeholder: "How will requirements be tracked through the project lifecycle?"
+        required: true
+
+  - name: "Handoff Preparation"
+    description: "Preparation for handoff to architecture phase"
+    required: true
+    fields:
+      - name: "handoff_deliverables"
+        type: "list"
+        label: "Handoff Deliverables"
+        placeholder: "What will be delivered to the architect?"
+        required: true
+      - name: "architect_briefing_plan"
+        type: "textarea"
+        label: "Architect Briefing Plan"
+        placeholder: "How will you brief the architect on requirements?"
+        required: true
+      - name: "open_questions"
+        type: "list"
+        label: "Open Questions for Architecture"
+        placeholder: "What questions should the architect address?"
+        required: false
+
+output_format: "markdown"
+file_extension: ".md"

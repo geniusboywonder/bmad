@@ -1,0 +1,285 @@
+name: "Architect Implementation Plan"
+description: "Implementation plan for system architecture and design phase"
+version: "1.0"
+template_type: "implementation_plan"
+agent_type: "architect"
+phase: "design"
+
+sections:
+  - name: "Phase Overview"
+    description: "Overview of the architecture and design phase"
+    required: true
+    fields:
+      - name: "phase_name"
+        type: "text"
+        label: "Phase Name"
+        default: "System Architecture & Technical Design"
+        required: true
+      - name: "phase_objective"
+        type: "textarea"
+        label: "Phase Objective"
+        placeholder: "What is the primary goal of this architecture phase?"
+        required: true
+      - name: "success_criteria"
+        type: "list"
+        label: "Success Criteria"
+        placeholder: "List the criteria that define successful completion of this phase"
+        required: true
+
+  - name: "Architecture Approach"
+    description: "Architectural methodology and design principles"
+    required: true
+    fields:
+      - name: "architecture_style"
+        type: "select"
+        label: "Architecture Style"
+        options: ["Microservices", "Monolithic", "Serverless", "Event-Driven", "Layered", "Hexagonal", "Clean Architecture", "Hybrid"]
+        required: true
+      - name: "design_principles"
+        type: "multiselect"
+        label: "Design Principles"
+        options: ["SOLID", "DRY", "KISS", "YAGNI", "Separation of Concerns", "Single Responsibility", "Open/Closed", "Dependency Inversion", "Interface Segregation"]
+        required: true
+      - name: "architectural_patterns"
+        type: "list"
+        label: "Architectural Patterns"
+        placeholder: "List key architectural patterns to be used"
+        required: true
+
+  - name: "Technology Stack"
+    description: "Technology selection and justification"
+    required: true
+    fields:
+      - name: "frontend_technologies"
+        type: "list"
+        label: "Frontend Technologies"
+        placeholder: "List frontend frameworks, libraries, and tools"
+        required: true
+      - name: "backend_technologies"
+        type: "list"
+        label: "Backend Technologies"
+        placeholder: "List backend frameworks, languages, and platforms"
+        required: true
+      - name: "database_technologies"
+        type: "list"
+        label: "Database Technologies"
+        placeholder: "List database systems and data storage solutions"
+        required: true
+      - name: "infrastructure_technologies"
+        type: "list"
+        label: "Infrastructure Technologies"
+        placeholder: "List cloud platforms, deployment tools, and infrastructure"
+        required: true
+      - name: "technology_justification"
+        type: "textarea"
+        label: "Technology Selection Justification"
+        placeholder: "Explain why these technologies were chosen"
+        required: true
+
+  - name: "System Design"
+    description: "High-level system design and components"
+    required: true
+    fields:
+      - name: "system_components"
+        type: "list"
+        label: "System Components"
+        placeholder: "List major system components and their responsibilities"
+        required: true
+      - name: "component_interactions"
+        type: "textarea"
+        label: "Component Interactions"
+        placeholder: "Describe how components interact with each other"
+        required: true
+      - name: "data_flow_design"
+        type: "textarea"
+        label: "Data Flow Design"
+        placeholder: "Describe how data flows through the system"
+        required: true
+      - name: "integration_points"
+        type: "list"
+        label: "Integration Points"
+        placeholder: "List external systems and integration requirements"
+        required: true
+
+  - name: "API Design"
+    description: "API architecture and design specifications"
+    required: true
+    fields:
+      - name: "api_style"
+        type: "select"
+        label: "API Style"
+        options: ["REST", "GraphQL", "gRPC", "WebSocket", "Event-Driven", "Hybrid"]
+        required: true
+      - name: "api_endpoints"
+        type: "list"
+        label: "Key API Endpoints"
+        placeholder: "List major API endpoints to be implemented"
+        required: true
+      - name: "authentication_strategy"
+        type: "select"
+        label: "Authentication Strategy"
+        options: ["JWT", "OAuth 2.0", "Session-based", "API Keys", "Multi-factor", "SSO"]
+        required: true
+      - name: "api_documentation_plan"
+        type: "textarea"
+        label: "API Documentation Plan"
+        placeholder: "How will APIs be documented and maintained?"
+        required: true
+
+  - name: "Data Architecture"
+    description: "Data modeling and storage architecture"
+    required: true
+    fields:
+      - name: "data_models"
+        type: "list"
+        label: "Core Data Models"
+        placeholder: "List primary data entities and their relationships"
+        required: true
+      - name: "database_schema_approach"
+        type: "textarea"
+        label: "Database Schema Approach"
+        placeholder: "Describe the database design strategy"
+        required: true
+      - name: "data_migration_plan"
+        type: "textarea"
+        label: "Data Migration Plan"
+        placeholder: "How will data be migrated or initialized?"
+        required: false
+      - name: "backup_recovery_strategy"
+        type: "textarea"
+        label: "Backup & Recovery Strategy"
+        placeholder: "How will data be backed up and recovered?"
+        required: true
+
+  - name: "Security Architecture"
+    description: "Security design and implementation plan"
+    required: true
+    fields:
+      - name: "security_requirements"
+        type: "list"
+        label: "Security Requirements"
+        placeholder: "List key security requirements and compliance needs"
+        required: true
+      - name: "security_measures"
+        type: "multiselect"
+        label: "Security Measures"
+        options: ["Encryption at Rest", "Encryption in Transit", "Input Validation", "SQL Injection Prevention", "XSS Prevention", "CSRF Protection", "Rate Limiting", "Access Control"]
+        required: true
+      - name: "security_testing_plan"
+        type: "textarea"
+        label: "Security Testing Plan"
+        placeholder: "How will security be tested and validated?"
+        required: true
+
+  - name: "Performance & Scalability"
+    description: "Performance requirements and scalability planning"
+    required: true
+    fields:
+      - name: "performance_targets"
+        type: "list"
+        label: "Performance Targets"
+        placeholder: "List specific performance requirements (response times, throughput, etc.)"
+        required: true
+      - name: "scalability_strategy"
+        type: "textarea"
+        label: "Scalability Strategy"
+        placeholder: "How will the system scale to handle increased load?"
+        required: true
+      - name: "caching_strategy"
+        type: "textarea"
+        label: "Caching Strategy"
+        placeholder: "What caching mechanisms will be implemented?"
+        required: true
+      - name: "monitoring_plan"
+        type: "textarea"
+        label: "Performance Monitoring Plan"
+        placeholder: "How will performance be monitored and measured?"
+        required: true
+
+  - name: "Development Approach"
+    description: "Development methodology and implementation strategy"
+    required: true
+    fields:
+      - name: "development_phases"
+        type: "list"
+        label: "Development Phases"
+        placeholder: "Break down development into logical phases"
+        required: true
+      - name: "implementation_priorities"
+        type: "list"
+        label: "Implementation Priorities"
+        placeholder: "List features/components in order of implementation priority"
+        required: true
+      - name: "testing_strategy"
+        type: "multiselect"
+        label: "Testing Strategy"
+        options: ["Unit Testing", "Integration Testing", "End-to-End Testing", "Performance Testing", "Security Testing", "User Acceptance Testing", "Load Testing"]
+        required: true
+      - name: "deployment_strategy"
+        type: "select"
+        label: "Deployment Strategy"
+        options: ["Blue-Green", "Rolling Deployment", "Canary Deployment", "Feature Flags", "Big Bang", "Phased Rollout"]
+        required: true
+
+  - name: "Timeline & Milestones"
+    description: "Architecture phase timeline and key milestones"
+    required: true
+    fields:
+      - name: "estimated_duration"
+        type: "text"
+        label: "Estimated Phase Duration"
+        placeholder: "e.g., 3-4 weeks"
+        required: true
+      - name: "key_milestones"
+        type: "list"
+        label: "Key Milestones"
+        placeholder: "List major milestones with target dates"
+        required: true
+      - name: "dependencies"
+        type: "list"
+        label: "Dependencies"
+        placeholder: "List dependencies on requirements or external factors"
+        required: false
+
+  - name: "Risk Assessment"
+    description: "Technical risks and mitigation strategies"
+    required: true
+    fields:
+      - name: "technical_risks"
+        type: "list"
+        label: "Technical Risks"
+        placeholder: "List potential technical risks and challenges"
+        required: true
+      - name: "mitigation_strategies"
+        type: "list"
+        label: "Mitigation Strategies"
+        placeholder: "List strategies to address identified risks"
+        required: true
+      - name: "proof_of_concept_needs"
+        type: "list"
+        label: "Proof of Concept Needs"
+        placeholder: "What POCs or prototypes are needed to validate the architecture?"
+        required: false
+
+  - name: "Handoff Preparation"
+    description: "Preparation for handoff to development phase"
+    required: true
+    fields:
+      - name: "handoff_deliverables"
+        type: "list"
+        label: "Handoff Deliverables"
+        placeholder: "What will be delivered to the development team?"
+        required: true
+      - name: "developer_briefing_plan"
+        type: "textarea"
+        label: "Developer Briefing Plan"
+        placeholder: "How will you brief developers on the architecture?"
+        required: true
+      - name: "architecture_documentation"
+        type: "list"
+        label: "Architecture Documentation"
+        placeholder: "List all architectural documents to be created"
+        required: true
+
+output_format: "markdown"
+file_extension: ".md"
