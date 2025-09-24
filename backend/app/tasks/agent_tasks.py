@@ -1,6 +1,6 @@
 """Agent task processing with Celery."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from celery import current_task
 import structlog
@@ -98,14 +98,31 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                 agent_type=agent_type,
                 project_id=str(project_uuid))
 
-    with get_session() as db:
-        # Update task status to WORKING in database
+    db_gen = get_session()
+    db = next(db_gen)
+    try:
+        # Ensure task exists in database before proceeding
         task_db = db.query(TaskDB).filter(TaskDB.id == task_uuid).first()
-        if task_db:
+        if not task_db:
+            # Create task record if it doesn't exist (race condition fix)
+            task_db = TaskDB(
+                id=task_uuid,
+                project_id=project_uuid,
+                agent_type=agent_type,
+                status=TaskStatus.WORKING,
+                instructions=instructions,
+                context_ids=context_uuids,
+                started_at=datetime.now(timezone.utc)
+            )
+            db.add(task_db)
+            logger.info("Created missing task record", task_id=str(task_uuid))
+        else:
+            # Update existing task status to WORKING
             task_db.status = TaskStatus.WORKING
             task_db.started_at = datetime.now(timezone.utc)
-            db.commit()
-            logger.info("Task status updated to WORKING", task_id=str(task_uuid))
+            logger.info("Updated task status to WORKING", task_id=str(task_uuid))
+
+        db.commit()  # Critical: commit before HITL operations
 
         # Emit task started event via WebSocket
         event = WebSocketEvent(
@@ -191,7 +208,35 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                 },
                 estimated_tokens=estimated_tokens
             ))
-            
+
+            # Broadcast HITL approval request event via WebSocket
+            hitl_event = WebSocketEvent(
+                event_type=EventType.HITL_REQUEST_CREATED,
+                project_id=project_uuid,
+                task_id=task_uuid,
+                agent_type=agent_type,
+                data={
+                    "approval_id": str(approval_id),
+                    "agent_type": agent_type,
+                    "request_type": "PRE_EXECUTION",
+                    "estimated_tokens": estimated_tokens,
+                    "estimated_cost": float(estimated_tokens * 0.00015),  # Estimate cost
+                    "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+                    "request_data": {
+                        "instructions": instructions,
+                        "estimated_tokens": estimated_tokens,
+                        "context_ids": [str(cid) for cid in context_uuids],
+                        "agent_type": agent_type
+                    },
+                    "message": f"HITL approval required for {agent_type} agent execution",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                }
+            )
+
+            # Send WebSocket event asynchronously
+            asyncio.run(websocket_manager.broadcast_event(hitl_event))
+            logger.info("HITL approval request event broadcast", task_id=str(task_uuid), approval_id=str(approval_id))
+
             # Wait for human approval
             logger.info("Waiting for HITL pre-execution approval", task_id=str(task_uuid), approval_id=str(approval_id))
             approval = asyncio.run(hitl_service.wait_for_approval(approval_id, timeout_minutes=30))
@@ -288,6 +333,28 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             )
 
             asyncio.run(websocket_manager.broadcast_event(event))
+
+            # Send agent chat message with the result
+            agent_output = result.get("output", "Task completed successfully")
+            if isinstance(agent_output, dict):
+                agent_output = agent_output.get("message", str(agent_output))
+
+            chat_event = WebSocketEvent(
+                event_type=EventType.AGENT_CHAT_MESSAGE,
+                project_id=project_uuid,
+                task_id=task_uuid,
+                agent_type=agent_type,
+                data={
+                    "agent_type": agent_type,
+                    "message": str(agent_output),
+                    "message_type": "response",
+                    "requires_response": False,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "task_id": str(task_uuid)
+                }
+            )
+
+            asyncio.run(websocket_manager.broadcast_event(chat_event))
             logger.info("Task completed successfully", task_id=str(task_uuid))
 
         else:
@@ -320,4 +387,11 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             # Re-raise exception to trigger Celery retry
             raise Exception(f"Task execution failed: {error_message}")
 
-        return result
+    finally:
+        # Properly close the database session
+        try:
+            next(db_gen)
+        except StopIteration:
+            pass
+
+    return result

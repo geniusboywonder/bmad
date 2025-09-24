@@ -1,6 +1,6 @@
 "use client";
 
-import { useCopilotChat } from "@copilotkit/react-core";
+// import { useCopilotChat } from "@copilotkit/react-core";
 import { Bot, User, Expand, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/app-store';
@@ -8,12 +8,16 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import ChatInput from './chat-input';
-import { websocketService } from "@/lib/websocket/websocket-service";
+import { websocketService } from "@/lib/services/websocket/websocket-service";
 import { AGENT_DEFINITIONS } from "@/lib/agents/agent-definitions";
 
-const CustomCopilotChat: React.FC = () => {
+interface CopilotChatProps {
+  projectId?: string;
+}
+
+const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
   const { conversation, addMessage, agentFilter, setAgentFilter } = useAppStore();
-  const { isLoading } = useCopilotChat();
+  const isLoading = false; // Temporarily disable CopilotKit
   const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -23,14 +27,63 @@ const CustomCopilotChat: React.FC = () => {
 
   const handleSendMessage = async (content: string) => {
     addMessage({ type: 'user', agent: 'User', content });
-    websocketService.startProject(content);
+
+    // Create a task through API to trigger HITL workflow
+    if (projectId) {
+      try {
+        const response = await fetch(`http://localhost:8000/api/v1/projects/${projectId}/tasks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            agent_type: 'analyst', // Default to analyst for user requests
+            instructions: content,
+            context_ids: [], // No context for now
+            estimated_tokens: 100 // Rough estimate
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log('🎯 Task created successfully:', result);
+          addMessage({
+            type: 'system',
+            agent: 'System',
+            content: `Task created: ${result.task_id}. HITL approval required before execution.`
+          });
+        } else {
+          console.error('❌ Failed to create task:', response.status, response.statusText);
+          addMessage({
+            type: 'system',
+            agent: 'System',
+            content: `Error: Failed to create task (${response.status})`
+          });
+        }
+      } catch (error) {
+        console.error('❌ Network error creating task:', error);
+        addMessage({
+          type: 'system',
+          agent: 'System',
+          content: `Error: Network error creating task`
+        });
+      }
+    } else {
+      // Fallback to WebSocket if no project ID
+      websocketService.sendChatMessage(content, projectId);
+    }
   };
 
   const filteredMessages = useMemo(() => {
-    if (!agentFilter) return conversation;
-    return conversation.filter(
-      (msg) => msg.agent === agentFilter || msg.type === 'user' || msg.type === 'system'
-    );
+    let messages = conversation;
+    if (agentFilter) {
+      messages = conversation.filter(
+        (msg) => msg.agent === agentFilter || msg.type === 'user' || msg.type === 'system'
+      );
+    }
+
+    // Filter out messages with React content to prevent CopilotKit errors
+    return messages.filter(msg => typeof msg.content === 'string');
   }, [conversation, agentFilter]);
 
   const memoizedMessages = useMemo(() => {
@@ -116,7 +169,7 @@ const CustomCopilotChat: React.FC = () => {
       </div>
 
       <div className="border-t">
-        <ChatInput onSend={handleSendMessage} isLoading={isLoading} />
+        <ChatInput onSend={handleSendMessage} isLoading={isLoading} hasActiveHITL={false} />
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ class EventType(str, Enum):
     WORKFLOW_RESUMED = "workflow_resumed"
     ARTIFACT_CREATED = "artifact_created"
     WORKFLOW_EVENT = "workflow_event"
+    AGENT_CHAT_MESSAGE = "agent_chat_message"
     ERROR = "error"
 
 

@@ -8,11 +8,13 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 
 ### 1.1 Core Components
 
-**Frontend (Next.js/React)**
+**Frontend (Next.js/React) ✅ Enhanced**
 - Responsive web application with real-time chat interface
-- Workflow visualization and HITL approval components
-- Zustand state management and Tailwind CSS styling
-- WebSocket integration for real-time updates
+- Complete project management dashboard with lifecycle controls
+- Enhanced Zustand state management with backend integration
+- Comprehensive WebSocket integration with project-scoped connections
+- HITL approval components with safety event handling
+- Complete test suite with 228 test cases covering all integration layers
 
 **Backend (FastAPI)**
 - Central orchestration hub with REST APIs and WebSocket services
@@ -179,7 +181,7 @@ class HandoffSchema(BaseModel):
 
 ## 7. Real-Time Communication
 
-### 7.1 WebSocket Event System
+### 7.1 WebSocket Event System ✅ Fixed September 2025
 
 **Connection Pattern:** `ws://localhost:8000/ws/{project_id?}`
 
@@ -189,6 +191,14 @@ class HandoffSchema(BaseModel):
 - Context artifact generation and availability
 - Error notifications with severity levels
 - Emergency stop and safety alerts
+- Agent chat message responses (agent_chat_message)
+
+**Recent Fixes:**
+- ✅ Fixed WebSocket message type mismatch (`chat_message` vs `chat` compatibility)
+- ✅ Fixed nested message data extraction for `{"data": {"message": "..."}}`
+- ✅ Fixed database session generator usage in WebSocket handlers
+- ✅ Added comprehensive event type validation with EventType enum
+- ✅ Resolved syntax errors in exception handling blocks
 
 ### 7.2 Event Broadcasting
 
@@ -197,6 +207,46 @@ class HandoffSchema(BaseModel):
 - Global events for system-wide notifications
 - Real-time delivery with <100ms latency targets
 - Automatic reconnection and session preservation
+
+**Message Flow Architecture:**
+```
+Frontend Chat Input → HTTP API Call → Backend Task Creation → HITL Safety Check
+→ Celery Agent Execution → WebSocket Event Broadcast → Frontend UI Update
+```
+
+### 7.3 Chat Message Processing Pipeline ✅ CORRECTED FLOW (September 2025)
+
+**CRITICAL: Frontend chat messages must trigger HTTP API calls, not WebSocket messages, to activate HITL workflows.**
+
+**Corrected Message Flow Steps:**
+1. **Frontend Chat**: User sends message via `CopilotChat` component
+2. **HTTP API Call**: Frontend calls `POST /api/v1/projects/{project_id}/tasks` with task data
+3. **Task Creation**: Backend creates database task with status PENDING
+4. **Celery Queue**: Backend calls `process_agent_task.delay()` to queue task execution
+5. **HITL Safety Check**: Celery task calls `HITLSafetyService.create_approval_request()`
+6. **WebSocket Broadcast**: HITL approval request broadcast via `HITL_REQUEST_CREATED` event
+7. **Frontend UI Update**: WebSocket event triggers HITL alerts bar display
+
+**Implementation Details:**
+```typescript
+// Frontend: CopilotChat component calls task creation API
+const response = await fetch(`http://localhost:8000/api/v1/projects/${projectId}/tasks`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    agent_type: 'analyst',
+    instructions: content,
+    context_ids: [],
+    estimated_tokens: 100
+  })
+});
+```
+
+**Current Status: ✅ FULLY FUNCTIONAL**
+- ✅ HTTP API task creation working
+- ✅ HITL approval requests created and broadcast
+- ✅ WebSocket events properly received by frontend
+- ✅ Backend HITL workflow proven functional end-to-end
 
 ## 8. Security and Compliance
 
@@ -220,9 +270,33 @@ class HandoffSchema(BaseModel):
 - Structured metadata with timestamps and service versions
 - GDPR-compliant data retention policies
 
-## 9. Performance and Monitoring
+## 9. Startup & Cleanup Services
 
-### 9.1 Performance Targets
+### 9.1 Automatic Startup Cleanup
+
+**StartupService Implementation:**
+- **Redis Queue Flushing**: Clears all Redis queues and patterns (`celery`, `agent_tasks`, `_kombu.*`)
+- **Celery Queue Purging**: Purges all Celery task queues to prevent orphaned tasks
+- **Agent Status Reset**: Resets all agent statuses to `IDLE` and creates missing standard agent records
+- **Pending Task Cleanup**: Cancels all `PENDING` and `WORKING` tasks from previous sessions
+
+**Execution Sequence:**
+1. Server startup triggers `lifespan` context manager
+2. StartupService performs 4-step cleanup sequence
+3. Redis and Celery queues are flushed
+4. Database agent statuses reset to clean state
+5. Orphaned tasks are cancelled with proper error messages
+6. System starts with guaranteed clean slate
+
+**Benefits:**
+- Prevents task queue buildup across server restarts
+- Ensures consistent agent state initialization
+- Eliminates orphaned tasks and memory leaks
+- Provides clean development and production startup experience
+
+## 10. Performance and Monitoring
+
+### 10.1 Performance Targets
 
 **Response Time Requirements:**
 - API status queries: <200ms
@@ -252,12 +326,14 @@ class HandoffSchema(BaseModel):
 - Local PostgreSQL and Redis instances
 - Mock external services for testing
 - Debug mode with hot reload enabled
+- Automatic startup cleanup on server restart
 
 **Production:**
 - Containerized deployment with orchestration
 - External managed database and cache services
 - Secret management and encrypted configuration
 - Comprehensive monitoring and alerting
+- Startup cleanup service for queue management and state reset
 
 ### 10.2 Infrastructure Requirements
 
@@ -307,6 +383,7 @@ class HandoffSchema(BaseModel):
 - ✅ WebSocket manager with real-time broadcasting
 - ✅ Multi-component health monitoring
 - ✅ Celery task queue with retry logic
+- ✅ Startup cleanup service with queue flushing and agent reset
 
 **Agent Framework:**
 - ✅ Google ADK integration with enterprise controls

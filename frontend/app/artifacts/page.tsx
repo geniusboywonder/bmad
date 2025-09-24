@@ -12,7 +12,7 @@ import { useArtifactScaffoldingStore, ScaffoldedArtifact } from "@/lib/stores/ar
 import { Progress } from "@/components/ui/progress"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return "0 Bytes"
@@ -119,6 +119,15 @@ export default function ArtifactsPage() {
   const completedArtifacts = useArtifactStore((state) => state.artifacts)
   const scaffoldedArtifacts = useArtifactScaffoldingStore((state) => state.artifacts)
 
+  const tabs = [
+    { value: "requirements", label: "Requirements" },
+    { value: "design", label: "Design" },
+    { value: "development", label: "Development" },
+    { value: "testing", label: "Testing" },
+    { value: "deployment", label: "Deployment" },
+    { value: "maintenance", label: "Maintenance" },
+  ]
+
   const allArtifacts = useMemo(() => {
     const combined: { [key: string]: ArtifactNode[] } = {};
     const allKeys = new Set([...Object.keys(completedArtifacts), ...Object.values(scaffoldedArtifacts).map(a => a.stage)]);
@@ -167,15 +176,6 @@ export default function ArtifactsPage() {
     if (!artifacts) return 0
     return artifacts.length;
   }
-
-  const tabs = [
-    { value: "requirements", label: "Requirements" },
-    { value: "design", label: "Design" },
-    { value: "development", label: "Development" },
-    { value: "testing", label: "Testing" },
-    { value: "deployment", label: "Deployment" },
-    { value: "maintenance", label: "Maintenance" },
-  ]
 
   return (
     <MainLayout>

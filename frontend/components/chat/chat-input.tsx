@@ -53,19 +53,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
     console.log('🔥🔥🔥 Computed - isDisabled:', isDisabled, 'canSend:', canSend);
     console.log('🔥🔥🔥 Message details - length:', message.length, 'trimmed length:', message.trim().length);
     console.log('🔥🔥🔥 onSend function type:', typeof onSend);
-    
-    if (message.trim()) {  // FORCE SEND - ignore all blocking conditions
-      console.log('🚀🚀🚀 ChatInput calling onSend with:', message.trim());
-      onSend(message.trim());
+
+    // Store trimmed message before validation
+    const trimmedMessage = message.trim();
+
+    if (trimmedMessage && !isDisabled) {
+      console.log('🚀🚀🚀 ChatInput calling onSend with:', trimmedMessage);
+      onSend(trimmedMessage);
       setMessage('');
       console.log('✅✅✅ ChatInput onSend called and message cleared');
     } else {
       console.error('❌❌❌ ChatInput conditions not met for sending');
       console.error('❌ Condition details:');
-      console.error('  - message.trim():', !!message.trim());
+      console.error('  - trimmedMessage:', !!trimmedMessage);
       console.error('  - !isLoading:', !isLoading);
-      console.error('  - !disabled:', !disabled);  
+      console.error('  - !disabled:', !disabled);
       console.error('  - !hasActiveHITL:', !hasActiveHITL);
+      console.error('  - !isDisabled:', !isDisabled);
     }
   };
 

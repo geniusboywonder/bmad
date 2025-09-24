@@ -1,18 +1,23 @@
-import { webSocketBridge } from "@/lib/websocket/websocket-bridge";
+import { websocketManager } from "@/lib/services/websocket/enhanced-websocket-client";
 
 export async function POST(req: Request): Promise<Response> {
   const transformStream = new TransformStream();
   const writer = transformStream.writable.getWriter();
   const encoder = new TextEncoder();
 
+  // Get the global WebSocket connection
+  const globalConnection = websocketManager.getGlobalConnection();
+
   const listener = (message: any) => {
     console.log("Writing to stream:", message);
     writer.write(encoder.encode("data: " + JSON.stringify(message) + "\n\n"));
   };
-  webSocketBridge.addMessageListener(listener);
+
+  // Subscribe to all message events from the WebSocket
+  globalConnection.on('message', listener);
 
   req.signal.onabort = () => {
-    webSocketBridge.removeMessageListener(listener);
+    globalConnection.off('message', listener);
     writer.close();
   };
 
@@ -27,7 +32,7 @@ export async function POST(req: Request): Promise<Response> {
               text: body.message,
             },
           };
-        webSocketBridge.sendMessage(backendMessage)
+        globalConnection.send(JSON.stringify(backendMessage));
       }
     } catch (error) {
         // Ignore errors from reading the body, as it might have been already read.

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { websocketService, ConnectionStatus } from "@/lib/websocket/websocket-service"
+import { websocketService, ConnectionStatus } from "@/lib/services/websocket/websocket-service"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Wifi, WifiOff, RefreshCw, AlertTriangle, CheckCircle, Clock } from "lucide-react"

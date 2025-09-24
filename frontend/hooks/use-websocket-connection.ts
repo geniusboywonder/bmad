@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 
 interface ConnectionStatus {
   connected: boolean

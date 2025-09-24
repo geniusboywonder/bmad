@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2025-09-23
+
+### 🔄 Major - Startup Cleanup Service & System State Management
+
+**Automatic Server Startup Cleanup**
+- **StartupService implementation** with comprehensive queue flushing and state reset
+- **Redis Queue Flushing**: Automatic clearing of stale cache and queue data (`celery`, `agent_tasks`, `_kombu.*`)
+- **Celery Queue Purging**: Removal of orphaned background tasks to prevent accumulation
+- **Agent Status Reset**: All agents automatically initialized to IDLE state on server restart
+- **Pending Task Cleanup**: Cancellation of incomplete tasks from previous sessions with proper error messages
+
+**Implementation Features**
+- **4-step cleanup sequence** executed during FastAPI lifespan startup
+- **Database session management** with proper generator pattern usage and cleanup
+- **Comprehensive error handling** with detailed logging for each cleanup step
+- **Production-ready architecture** suitable for containerized deployments
+- **Zero-downtime restarts** with guaranteed clean system state
+
+**Benefits**
+- **Prevents task queue buildup** across server restarts
+- **Eliminates orphaned tasks** and memory leaks
+- **Ensures consistent agent state** initialization
+- **Provides clean development experience** with automatic reset
+- **Supports production deployments** with reliable startup procedures
+
+**Technical Implementation**
+- **FastAPI lifespan integration** for automatic startup execution
+- **Redis client management** with pattern-based key deletion
+- **Celery control commands** for queue purging across worker processes
+- **SQLAlchemy ORM integration** for agent status and task management
+- **Structured logging** with comprehensive cleanup reporting
+
+## [2.4.0] - 2025-01-21
+
+### 🧪 Major - Complete Frontend Integration Test Suite
+
+**Frontend Test Suite Implementation**
+- **228 comprehensive test cases** covering all integration layers
+- **Complete backend integration testing** with API services, WebSocket, and safety systems
+- **Component testing suite** with React Testing Library and user interaction validation
+- **End-to-end integration tests** for complete workflow validation
+
+**Testing Infrastructure**
+- **Vitest configuration** with jsdom environment and comprehensive mocking
+- **Test categories breakdown**:
+  - **156 Unit Tests**: Individual components and services
+  - **52 Integration Tests**: Inter-service communication
+  - **20 End-to-End Tests**: Complete workflow validation
+- **Comprehensive mocking system** for WebSocket, Fetch, and browser APIs
+
+**Phase 1 API Service Layer Tests**
+- **API Client Tests** (`lib/services/api/client.test.ts`): 15 tests covering retry logic, error handling, and response validation
+- **Projects Service Tests** (`lib/services/api/projects.service.test.ts`): 17 tests for CRUD operations and lifecycle management
+- **WebSocket Integration Tests** (`lib/services/websocket/enhanced-websocket-client.test.ts`): 24 tests for connection management and event handling
+- **Safety Event Handler Tests** (`lib/services/safety/safety-event-handler.test.ts`): 46 tests for HITL workflows and emergency controls
+
+**Phase 2 Project Management Tests**
+- **Project Store Tests** (`lib/stores/project-store.test.ts`): 34 tests for state management and backend synchronization
+- **Project Dashboard Tests** (`components/projects/project-dashboard.test.tsx`): 28 tests for UI components and interactions
+- **Project Creation Form Tests** (`components/projects/project-creation-form.test.tsx`): 24 tests for form validation and submission
+
+**Integration Test Suite**
+- **Frontend Integration Tests** (`tests/integration/frontend-integration.test.ts`): 20 comprehensive end-to-end tests
+- **Performance testing** with concurrent connections and load scenarios
+- **Error recovery testing** across all integration layers
+- **Data consistency verification** between components and backend
+
+**Quality Assurance Features**
+- **Real-time event testing** with WebSocket simulation
+- **Safety system testing** with HITL workflow validation
+- **Component interaction testing** with accessibility verification
+- **Error boundary testing** with recovery scenarios
+
 ## [2.3.0] - 2025-09-19
 
 ### 🔧 Major - Test Suite Refactoring & Production Readiness

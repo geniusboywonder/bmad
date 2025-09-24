@@ -134,6 +134,10 @@ class ProjectLifecycleManager:
 
         return project.id
 
+    def list_projects(self) -> List[ProjectDB]:
+        """List all projects."""
+        return self.db.query(ProjectDB).all()
+
     def get_current_phase(self, project_id: UUID) -> str:
         """Get the current SDLC phase for a project."""
         return self.current_project_phases.get(str(project_id), "discovery")
@@ -299,7 +303,28 @@ class ProjectLifecycleManager:
                 instructions=db_task.instructions,
                 status=TaskStatus(db_task.status),
                 context_ids=[UUID(cid) for cid in db_task.context_ids] if db_task.context_ids else [],
-                result=db_task.result,
+                result=db_task.output,
+                created_at=db_task.created_at,
+                updated_at=db_task.updated_at
+            )
+            tasks.append(task)
+
+        return tasks
+
+    def get_all_recent_tasks(self, limit: int = 50) -> List[Task]:
+        """Get the most recent tasks across all projects."""
+        db_tasks = self.db.query(TaskDB).order_by(TaskDB.created_at.desc()).limit(limit).all()
+
+        tasks = []
+        for db_task in db_tasks:
+            task = Task(
+                id=db_task.id,
+                project_id=db_task.project_id,
+                agent_type=db_task.agent_type,
+                instructions=db_task.instructions,
+                status=TaskStatus(db_task.status),
+                context_ids=[UUID(cid) for cid in db_task.context_ids] if db_task.context_ids else [],
+                result=db_task.output,
                 created_at=db_task.created_at,
                 updated_at=db_task.updated_at
             )

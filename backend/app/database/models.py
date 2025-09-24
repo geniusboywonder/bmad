@@ -87,7 +87,7 @@ class AgentStatusDB(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     agent_type = Column(SQLEnum(AgentType), nullable=False, unique=True)
     status = Column(SQLEnum(AgentStatus), default=AgentStatus.IDLE)
-    current_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"))
+    current_task_id = Column(UUID(as_uuid=True), ForeignKey("tasks.id"), nullable=True)
     last_activity = Column(DateTime, default=utcnow)
     error_message = Column(Text)
     created_at = Column(DateTime, default=utcnow)

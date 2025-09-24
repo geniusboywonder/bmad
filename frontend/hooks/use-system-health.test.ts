@@ -1,12 +1,12 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useSystemHealth } from './use-system-health';
-import { websocketService } from '@/lib/websocket/websocket-service';
+import { websocketService } from '@/lib/services/websocket/websocket-service';
 import { useAgentStore } from '@/lib/stores/agent-store';
 import { useLogStore } from '@/lib/stores/log-store';
 
 // Mock the entire websocket service
-vi.mock('@/lib/websocket/websocket-service', () => ({
+vi.mock('@/lib/services/websocket/websocket-service', () => ({
   websocketService: {
     getConnectionStatus: vi.fn(),
     getMetrics: vi.fn(),

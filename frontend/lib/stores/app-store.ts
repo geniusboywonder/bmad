@@ -19,6 +19,15 @@ export interface Message {
   type: 'user' | 'agent' | 'system' | 'error';
   agent: string;
   content: string;
+  timestamp?: Date;
+  requiresApproval?: boolean;
+  estimatedCost?: number;
+  estimatedTime?: string;
+  metadata?: {
+    requestId?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    [key: string]: any;
+  };
 }
 
 export interface AppState {

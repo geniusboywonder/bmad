@@ -49,7 +49,7 @@ class AgentCoordinator:
 
         # Convert back to Task model
         task = Task(
-            id=db_task.id,
+            task_id=db_task.id,
             project_id=db_task.project_id,
             agent_type=db_task.agent_type,
             instructions=db_task.instructions,
@@ -69,6 +69,10 @@ class AgentCoordinator:
     def submit_task(self, task: Task) -> str:
         """Submit a task to the Celery queue."""
 
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Starting task submission",
+                   task_id=str(task.task_id),
+                   agent_type=task.agent_type)
+
         # Import here to avoid circular import
         from app.tasks.agent_tasks import process_agent_task
 
@@ -81,28 +85,57 @@ class AgentCoordinator:
         }
 
         # Submit to Celery
-        celery_task = process_agent_task.delay(task_data)
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Submitting task to Celery", task_data=task_data)
+        try:
+            celery_task = process_agent_task.delay(task_data)
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Celery task submitted successfully",
+                       celery_task_id=celery_task.id if celery_task else None)
+        except Exception as e:
+            logger.error("🔥 AGENT COORDINATOR DEBUG: Celery task submission failed",
+                        error=str(e), exc_info=True)
+            return None
 
         # Update task status to working
-        self.update_task_status(task.task_id, TaskStatus.WORKING)
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Updating task status to WORKING")
+        try:
+            self.update_task_status(task.task_id, TaskStatus.WORKING)
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Task status updated successfully")
+        except Exception as e:
+            logger.error("🔥 AGENT COORDINATOR DEBUG: Failed to update task status",
+                        error=str(e), exc_info=True)
+            return None
 
-        # Update agent status
-        self.update_agent_status(task.agent_type, AgentStatus.WORKING, task.task_id)
+        # Update agent status (don't set current_task_id to avoid foreign key constraint)
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Updating agent status to WORKING")
+        try:
+            self.update_agent_status(task.agent_type, AgentStatus.WORKING)
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Agent status updated successfully")
+        except Exception as e:
+            logger.error("🔥 AGENT COORDINATOR DEBUG: Failed to update agent status",
+                        error=str(e), exc_info=True)
+            # Don't return None here as this is not critical for Celery task
 
         # Emit WebSocket event
-        event = WebSocketEvent(
-            event_type=EventType.TASK_STARTED,
-            project_id=task.project_id,
-            task_id=task.task_id,
-            agent_type=task.agent_type,
-            data={
-                "status": "working",
-                "celery_task_id": celery_task.id
-            }
-        )
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Creating WebSocket event")
+        try:
+            event = WebSocketEvent(
+                event_type=EventType.TASK_STARTED,
+                project_id=task.project_id,
+                task_id=task.task_id,
+                agent_type=task.agent_type,
+                data={
+                    "status": "working",
+                    "celery_task_id": celery_task.id
+                }
+            )
+            logger.info("🔥 AGENT COORDINATOR DEBUG: WebSocket event created successfully")
+        except Exception as e:
+            logger.error("🔥 AGENT COORDINATOR DEBUG: Failed to create WebSocket event",
+                        error=str(e), exc_info=True)
+            # Don't return None here as this is not critical for Celery task
 
         # Note: In a real implementation, we would use asyncio to send the event
-        logger.info("Task submitted to queue",
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Task submission completed successfully",
                    task_id=task.task_id,
                    celery_task_id=celery_task.id)
 
@@ -152,16 +185,23 @@ class AgentCoordinator:
     ):
         """Update an agent's status."""
 
+        # Convert string agent_type to AgentType enum for querying
+        try:
+            agent_type_enum = AgentType(agent_type.upper())
+        except ValueError:
+            # If not a valid enum, default to ANALYST
+            agent_type_enum = AgentType.ANALYST
+
         db_agent = self.db.query(AgentStatusDB).filter(
-            AgentStatusDB.agent_type == agent_type
+            AgentStatusDB.agent_type == agent_type_enum
         ).first()
 
         if not db_agent:
-            # Create new agent status record
+            # Create new agent status record - don't set current_task_id on creation to avoid foreign key issues
             db_agent = AgentStatusDB(
-                agent_type=agent_type,
+                agent_type=agent_type_enum,
                 status=status,
-                current_task_id=current_task_id,
+                current_task_id=None,  # Always set to None on creation
                 error_message=error_message
             )
             self.db.add(db_agent)
@@ -180,8 +220,15 @@ class AgentCoordinator:
     def get_agent_status(self, agent_type: str) -> Optional[AgentStatus]:
         """Get an agent's current status."""
 
+        # Convert string agent_type to AgentType enum for querying
+        try:
+            agent_type_enum = AgentType(agent_type.upper())
+        except ValueError:
+            # If not a valid enum, default to ANALYST
+            agent_type_enum = AgentType.ANALYST
+
         db_agent = self.db.query(AgentStatusDB).filter(
-            AgentStatusDB.agent_type == agent_type
+            AgentStatusDB.agent_type == agent_type_enum
         ).first()
 
         if not db_agent:
@@ -192,26 +239,63 @@ class AgentCoordinator:
     def assign_agent_to_task(self, task: Task) -> Dict[str, Any]:
         """Assign appropriate agent to task based on requirements."""
 
-        # Check if agent is available
-        agent_status = self.get_agent_status(task.agent_type)
+        logger.info("🔥 AGENT COORDINATOR DEBUG: Starting agent assignment",
+                   task_id=str(task.task_id),
+                   agent_type=task.agent_type)
 
-        if agent_status == AgentStatus.WORKING:
+        # Check if agent is available
+        try:
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Checking agent status")
+            agent_status = self.get_agent_status(task.agent_type)
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Agent status retrieved",
+                       agent_status=agent_status.value if agent_status else "None")
+
+            if agent_status == AgentStatus.WORKING:
+                logger.warning("🔥 AGENT COORDINATOR DEBUG: Agent is busy, returning error")
+                return {
+                    "success": False,
+                    "error": f"Agent {task.agent_type} is currently busy",
+                    "agent_status": agent_status.value if agent_status else "unknown"
+                }
+
+            # Submit task to agent
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Submitting task to agent")
+            celery_task_id = self.submit_task(task)
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Task submission completed",
+                       celery_task_id=celery_task_id)
+
+            if celery_task_id is None:
+                logger.error("🔥 AGENT COORDINATOR DEBUG: Celery task submission returned None")
+                return {
+                    "success": False,
+                    "error": "Failed to submit task to Celery queue",
+                    "task_id": str(task.task_id),
+                    "agent_type": task.agent_type
+                }
+
+            logger.info("🔥 AGENT COORDINATOR DEBUG: Agent assignment successful",
+                       task_id=str(task.task_id),
+                       celery_task_id=celery_task_id)
+
             return {
-                "success": False,
-                "error": f"Agent {task.agent_type} is currently busy",
-                "agent_status": agent_status.value if agent_status else "unknown"
+                "success": True,
+                "task_id": str(task.task_id),
+                "agent_type": task.agent_type,
+                "celery_task_id": celery_task_id,
+                "status": "assigned"
             }
 
-        # Submit task to agent
-        celery_task_id = self.submit_task(task)
-
-        return {
-            "success": True,
-            "task_id": str(task.task_id),
-            "agent_type": task.agent_type,
-            "celery_task_id": celery_task_id,
-            "status": "assigned"
-        }
+        except Exception as e:
+            logger.error("🔥 AGENT COORDINATOR DEBUG: Exception in agent assignment",
+                        task_id=str(task.task_id),
+                        error=str(e),
+                        exc_info=True)
+            return {
+                "success": False,
+                "error": f"Agent assignment failed: {str(e)}",
+                "task_id": str(task.task_id),
+                "agent_type": task.agent_type
+            }
 
     def coordinate_multi_agent_workflow(self, project_id: UUID, agents_config: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Coordinate multiple agents for complex workflows."""

@@ -52,6 +52,10 @@ class OrchestratorCore:
         """Create new project with initial state."""
         return self.project_manager.create_project(name, description)
 
+    def list_projects(self) -> List:
+        """List all projects."""
+        return self.project_manager.list_projects()
+
     def get_current_phase(self, project_id: UUID) -> str:
         """Get the current SDLC phase for a project."""
         return self.project_manager.get_current_phase(project_id)

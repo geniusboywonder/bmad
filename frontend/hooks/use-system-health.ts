@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 import { useAgentStore } from "@/lib/stores/agent-store"
 import { useLogStore } from "@/lib/stores/log-store"
 

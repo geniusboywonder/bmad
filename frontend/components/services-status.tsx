@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Wifi, Brain } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 
 interface ServiceStatus {
   name: string

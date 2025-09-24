@@ -1,10 +1,14 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useHITLStore } from '@/lib/stores/hitl-store';
 import { useAgentStore } from '@/lib/stores/agent-store';
+import { useProjectStore } from '@/lib/stores/project-store';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, ChevronDown, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { AlertTriangle, ChevronDown, X, DollarSign, Zap, StopCircle, Shield } from 'lucide-react';
+import { safetyEventHandler } from '@/lib/services/safety/safety-event-handler';
 
 interface SystemAlert {
   id: string;
@@ -27,12 +31,36 @@ export const HITLAlertsBar: React.FC<HITLAlertsBarProps> = ({
   dismissAlert,
   isClient
 }) => {
-  const { requests, navigateToRequest, resolveRequest } = useHITLStore();
+  const { requests, navigateToRequest, resolveRequest, safetyAlerts } = useHITLStore();
   const { setAgentFilter } = useAgentStore();
+  const { currentProject } = useProjectStore();
+  const [budgetUsage, setBudgetUsage] = useState({ used: 0, limit: 100, percentage: 0 });
+  const [showEmergencyStop, setShowEmergencyStop] = useState(false);
+
   const pendingHITLRequests = isClient ? requests.filter(r => r.status === 'pending') : [];
 
-  // Show alerts bar only if there are system alerts or HITL requests
-  const hasAlerts = systemAlerts.length > 0 || pendingHITLRequests.length > 0;
+  // Mock budget calculation - in real app, this would come from backend
+  useEffect(() => {
+    if (currentProject && currentProject.budget_limit) {
+      const mockUsed = Math.random() * currentProject.budget_limit * 0.7; // Mock current usage
+      const percentage = (mockUsed / currentProject.budget_limit) * 100;
+      setBudgetUsage({
+        used: mockUsed,
+        limit: currentProject.budget_limit,
+        percentage
+      });
+    }
+  }, [currentProject]);
+
+  // Check for critical budget threshold
+  const isBudgetCritical = budgetUsage.percentage > 85;
+  const isBudgetWarning = budgetUsage.percentage > 70;
+
+  // Show alerts bar if there are any alerts, budget warnings, or HITL requests
+  const hasAlerts = systemAlerts.length > 0 ||
+                    pendingHITLRequests.length > 0 ||
+                    isBudgetWarning ||
+                    safetyAlerts.some(alert => !alert.acknowledged);
 
   if (!hasAlerts) {
     return null;
@@ -57,9 +85,25 @@ export const HITLAlertsBar: React.FC<HITLAlertsBarProps> = ({
     resolveRequest(requestId, 'rejected', 'Dismissed from alerts bar');
   };
 
+  const handleEmergencyStop = async () => {
+    if (!currentProject) return;
+
+    setShowEmergencyStop(true);
+    try {
+      await safetyEventHandler.triggerEmergencyStop(
+        currentProject.id,
+        'Emergency stop triggered from alert bar'
+      );
+    } catch (error) {
+      console.error('Failed to trigger emergency stop:', error);
+    } finally {
+      setShowEmergencyStop(false);
+    }
+  };
+
   return (
     <div className="border-b border-border px-6 py-2 bg-card">
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-3 flex-wrap gap-y-2">
         {/* System Alerts */}
         {systemAlerts.map((alert) => {
           const isExpanded = expandedAlerts.includes(alert.id);
@@ -125,6 +169,68 @@ export const HITLAlertsBar: React.FC<HITLAlertsBarProps> = ({
             <span className="text-sm font-medium">
               +{pendingHITLRequests.length - 3} more HITL requests
             </span>
+          </div>
+        )}
+
+        {/* Budget Control Monitoring */}
+        {currentProject && currentProject.budget_limit && isBudgetWarning && (
+          <div className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${
+            isBudgetCritical
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+          }`}>
+            <DollarSign className={`w-4 h-4 ${isBudgetCritical ? 'text-red-600' : 'text-yellow-600'}`} />
+            <div className="flex items-center space-x-1">
+              <span className="text-sm font-medium">
+                Budget: ${budgetUsage.used.toFixed(2)}/${budgetUsage.limit}
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {budgetUsage.percentage.toFixed(0)}%
+              </Badge>
+            </div>
+            <div className="w-16">
+              <Progress
+                value={budgetUsage.percentage}
+                className={`h-2 ${isBudgetCritical ? 'bg-red-100' : 'bg-yellow-100'}`}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Safety Alerts */}
+        {safetyAlerts.filter(alert => !alert.acknowledged).slice(0, 2).map((alert) => (
+          <div key={alert.id} className={`flex items-center space-x-2 px-3 py-1 rounded-full border ${
+            alert.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-800' :
+            alert.severity === 'high' ? 'bg-orange-50 border-orange-200 text-orange-800' :
+            'bg-yellow-50 border-yellow-200 text-yellow-800'
+          }`}>
+            <Shield className={`w-4 h-4 ${
+              alert.severity === 'critical' ? 'text-red-600' :
+              alert.severity === 'high' ? 'text-orange-600' : 'text-yellow-600'
+            }`} />
+            <span className="text-sm font-medium">
+              {alert.title}
+            </span>
+            <Badge variant="outline" className="text-xs">
+              {alert.severity.toUpperCase()}
+            </Badge>
+          </div>
+        ))}
+
+        {/* Emergency Stop Control */}
+        {currentProject && (
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleEmergencyStop}
+              disabled={showEmergencyStop}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              title="Emergency Stop - Immediately halt all agents"
+            >
+              <StopCircle className="w-3 h-3 mr-1" />
+              {showEmergencyStop ? 'Stopping...' : 'Emergency Stop'}
+            </Button>
           </div>
         )}
       </div>

@@ -227,8 +227,99 @@
 - **Test Coverage**: Maintain test coverage during service decomposition
 - **Documentation**: Update architecture docs during major refactoring
 
+## Systematic Debugging Protocol
+
+### 🚨 PRIMARY DEBUGGING PRINCIPLES
+
+**NEVER ASSUME - ALWAYS TRACE**
+- Wrong: "Backend is working, frontend must be broken"
+- Right: Trace every single step from user action to expected outcome
+- Method: Start with the user action and follow the data through each system component
+
+**START WITH THE SIMPLEST POSSIBLE TEST**
+- Wrong: Test the entire complex workflow first
+- Right: Can the user even trigger the initial action?
+- Example: Before testing complex integrations, verify basic user actions work
+
+**VERIFY EACH LINK IN THE CHAIN INDEPENDENTLY**
+```
+User Action → Frontend Processing → API Call → Backend Logic → Database → Queue → Response → UI Update
+```
+Test each arrow individually before testing the whole chain.
+
+### 🔍 SYSTEMATIC DEBUGGING METHODOLOGY
+
+**Step 1: Identify the Complete Data Flow**
+- Map out every component the data must pass through
+- Don't assume any component works - verify each one
+- Document the expected data transformation at each step
+
+**Step 2: Test the Happy Path First**
+- Can the most basic version of the action happen?
+- Only after basic flow works, add complexity
+
+**Step 3: Use End-to-End Validation**
+- After each "fix", test the complete user workflow
+- Don't celebrate partial fixes - verify the end result
+- Clear any mock data or cached state before testing
+
+**Step 4: Trace Backwards from the Problem**
+- Start with the user-visible symptom
+- Work backwards: What should trigger this? Does that happen? What triggers that?
+- Continue until you find the broken link
+
+### ⚡ FAST DEBUGGING CHECKLIST
+
+For any frontend-backend integration issue:
+
+**Immediate Investigation (5 minutes)**
+1. **Can the user action happen at all?** (Send message, click button, etc.)
+2. **Does it reach the backend?** (Check network tab, backend logs)
+3. **Does backend create expected data?** (Database queries, logs)
+4. **Does backend broadcast events?** (WebSocket logs)
+5. **Does frontend receive events?** (Browser console, WebSocket messages)
+6. **Does frontend update state?** (Store inspection, React dev tools)
+7. **Does UI reflect the state?** (Component re-rendering, conditional display)
+
+**Root Cause Questions**
+- **"What is the FIRST step that fails?"** - Don't assume early steps work
+- **"Am I testing the real flow or mocked data?"** - Clear all caches first
+- **"Does this fix directly address the user's symptom?"** - Avoid rabbit holes
+
+### 🚫 DEBUGGING ANTI-PATTERNS TO AVOID
+
+**1. Backend Obsession**
+- Pattern: Fixing backend when frontend is the issue
+- Solution: Listen to user feedback and focus on the actual problem area
+
+**2. Premature Success Celebration**
+- Pattern: Claiming success after partial fixes without end-to-end testing
+- Solution: Only celebrate after complete user workflow is verified
+
+**3. Irrelevant Bug Fixing**
+- Pattern: Fixing unrelated issues while ignoring the main problem
+- Solution: Always connect fixes directly to the end-user symptom
+
+**4. Mock Data Confusion**
+- Pattern: Testing with cached/persistent data and thinking it's real
+- Solution: Always test in clean state - clear cache/localStorage first
+
+### 📝 GENERIC DEBUGGING PROTOCOL
+
+```
+1. UNDERSTAND: What should happen end-to-end?
+2. ISOLATE: What is the simplest test case?
+3. TRACE: Follow data through each component
+4. VERIFY: Test each component independently
+5. VALIDATE: Confirm complete workflow works
+6. DOCUMENT: Record the actual working flow
+```
+
+**Never skip step 3 (TRACE) - this is where most debugging failures happen.**
+
 ## Enforcement
 
-- Stay in scope; don’t expand tasks without approval.
+- Stay in scope; don't expand tasks without approval.
 - Never guess; ask questions.
 - Fix errors immediately before proceeding.
+- **Follow the systematic debugging protocol for all integration issues.**

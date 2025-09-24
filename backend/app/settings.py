@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     api_host: str = Field(default="0.0.0.0")  # Reads API_HOST env var automatically
     api_port: int = Field(default=8000)  # Reads API_PORT env var automatically
     cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:5173"]
+        default=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
         # Reads CORS_ORIGINS env var automatically
     )
     

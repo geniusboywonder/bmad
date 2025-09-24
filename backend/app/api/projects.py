@@ -36,6 +36,34 @@ class TaskCreateRequest(BaseModel):
     estimated_tokens: int = 100
 
 
+@router.get("/",
+           response_model=List[ProjectResponse],
+           summary="📋 List All Projects",
+           description="**Retrieve all projects with their current status**")
+async def list_projects(
+    orchestrator: OrchestratorService = Depends(get_orchestrator_service)
+):
+    """Get all projects."""
+    try:
+        projects = orchestrator.list_projects()
+        return [
+            ProjectResponse(
+                id=project.id,
+                name=project.name or f"Project {project.id}",
+                description=project.description,
+                status=project.status or "active"
+            )
+            for project in projects
+        ]
+    except Exception as e:
+        # Import logger at the top of the file if not already there
+        import structlog
+        logger = structlog.get_logger(__name__)
+        logger.error("Failed to list projects due to an unexpected error", error=str(e), exc_info=True)
+        # Return empty list if no projects or service unavailable
+        return []
+
+
 @router.post("/",
              response_model=ProjectResponse,
              status_code=status.HTTP_201_CREATED,

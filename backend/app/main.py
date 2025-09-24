@@ -8,7 +8,9 @@ import structlog
 
 from app.settings import settings
 from app.api import projects, hitl, health, websocket, agents, artifacts, audit, workflows, adk, hitl_safety  # hitl_request_endpoints removed due to endpoint duplication
+from app.api.v1.endpoints import status
 from app.database.connection import get_engine, Base
+from app.services.startup_service import startup_service
 
 # Configure structured logging
 structlog.configure(
@@ -39,6 +41,20 @@ async def lifespan(app: FastAPI):
     logger.info("BotArmy Backend starting up",
                 version=settings.app_version,
                 debug=settings.debug)
+
+    # Perform startup cleanup: flush queues and reset agent statuses
+    try:
+        cleanup_results = await startup_service.perform_startup_cleanup()
+        if cleanup_results["overall_success"]:
+            logger.info("✅ Startup cleanup completed successfully")
+        else:
+            logger.warning("⚠️ Startup cleanup completed with some issues",
+                          results=cleanup_results)
+    except Exception as e:
+        logger.error("❌ Failed to perform startup cleanup",
+                    error=str(e),
+                    exc_info=True)
+
     yield
     # Shutdown
     logger.info("BotArmy Backend shutting down")
@@ -169,6 +185,7 @@ app.include_router(audit.router, prefix=settings.api_v1_prefix)
 app.include_router(workflows.router)
 app.include_router(adk.router)
 app.include_router(hitl_safety.router)
+app.include_router(status.router, prefix=settings.api_v1_prefix)
 # app.include_router(hitl_request_endpoints.router)  # Commented out - duplicates hitl.router endpoints
 
 

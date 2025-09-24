@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, memo, useMemo } from "react"
 import { useConversationStore } from "@/lib/stores/conversation-store"
 import { useAgentStore } from "@/lib/stores/agent-store"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 import {
   Dialog,
   DialogContent,

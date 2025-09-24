@@ -20,7 +20,7 @@ import {
   HardDrive,
   Network
 } from "lucide-react"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 import { cn } from "@/lib/utils"
 
 interface PerformanceMetrics {

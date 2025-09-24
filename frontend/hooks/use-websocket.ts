@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { websocketService, type ConnectionStatus } from "../lib/websocket/websocket-service"
+import { websocketService, type ConnectionStatus } from "../lib/services/websocket/websocket-service"
 
 const defaultConnectionStatus: ConnectionStatus = {
   connected: false,

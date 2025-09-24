@@ -106,7 +106,7 @@ const CustomCopilotChat: React.FC = () => {
 
     // Send message to backend via WebSocket
     try {
-      const { websocketService } = await import('@/lib/websocket/websocket-service');
+      const { websocketService } = await import('@/lib/services/websocket/websocket-service');
       
       // Ensure connection is established before sending
       const status = websocketService.getConnectionStatus();

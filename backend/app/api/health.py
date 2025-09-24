@@ -327,7 +327,24 @@ async def detailed_health_check(db: Session = Depends(get_session)):
     # Check LLM provider connectivity
     llm_status = await check_llm_providers()
     health_status["components"]["llm_providers"] = llm_status
-    
+
+    # Check WebSocket infrastructure
+    try:
+        from app.websocket.manager import websocket_manager
+        connection_count = websocket_manager.get_connection_count()
+        health_status["components"]["websocket"] = {
+            "status": "healthy",
+            "message": "WebSocket infrastructure operational",
+            "total_connections": connection_count,
+            "project_connections": len(websocket_manager.active_connections)
+        }
+    except Exception as e:
+        health_status["components"]["websocket"] = {
+            "status": "unhealthy",
+            "message": f"WebSocket infrastructure failed: {str(e)}"
+        }
+        health_status["status"] = "unhealthy"
+
     # Check HITL Safety System
     try:
         from app.services.hitl_safety_service import HITLSafetyService
@@ -504,7 +521,8 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
             "redis": False,
             "celery": False,
             "audit_system": False,
-            "llm_providers": False
+            "llm_providers": False,
+            "websocket": False
         }
         
         # Database connectivity check
@@ -538,12 +556,21 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
             llm_status = await check_llm_providers()
             # Consider LLM healthy if at least one provider is healthy or not_configured is acceptable
             has_healthy_provider = any(
-                provider.get("status") in ["healthy", "not_configured"] 
+                provider.get("status") in ["healthy", "not_configured"]
                 for provider in llm_status.values()
             )
             checks["llm_providers"] = has_healthy_provider
         except Exception as e:
             logger.error("LLM providers health check failed", error=str(e))
+
+        # WebSocket infrastructure check
+        try:
+            from app.websocket.manager import websocket_manager
+            # Basic check - if we can access the manager, WebSocket infrastructure is operational
+            connection_count = websocket_manager.get_connection_count()
+            checks["websocket"] = True
+        except Exception as e:
+            logger.error("WebSocket health check failed", error=str(e))
         
         # Determine overall health status
         healthy_services = sum(checks.values())
@@ -558,10 +585,11 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "checks": {
                 "database": "pass" if checks["database"] else "fail",
-                "redis": "pass" if checks["redis"] else "fail", 
+                "redis": "pass" if checks["redis"] else "fail",
                 "celery": "pass" if checks["celery"] else "fail",
                 "audit_system": "pass" if checks["audit_system"] else "fail",
-                "llm_providers": "pass" if checks["llm_providers"] else "fail"
+                "llm_providers": "pass" if checks["llm_providers"] else "fail",
+                "websocket": "pass" if checks["websocket"] else "fail"
             },
             "health_percentage": health_percentage,
             "services_healthy": f"{healthy_services}/{total_services}"

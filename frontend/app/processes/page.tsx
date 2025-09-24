@@ -13,7 +13,7 @@ export default function ProcessesPage() {
     // to the backend to initiate the selected process.
 
     // Example of how the WebSocket message might be sent:
-    // import { websocketService } from '@/lib/websocket/websocket-service';
+    // import { websocketService } from '@/lib/services/websocket/websocket-service';
     // if (typeof process === 'string') {
     //   websocketService.sendCommand('start_project', { brief: `Start predefined process: ${process}`, config_name: process });
     // } else {

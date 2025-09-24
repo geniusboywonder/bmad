@@ -1,10 +1,10 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useWebSocket } from './use-websocket';
-import { websocketService, type ConnectionStatus } from '../lib/websocket/websocket-service';
+import { websocketService, type ConnectionStatus } from '../lib/services/websocket/websocket-service';
 
 // Mock the websocketService
-vi.mock('../lib/websocket/websocket-service', () => ({
+vi.mock('../lib/services/websocket/websocket-service', () => ({
   websocketService: {
     getConnectionStatus: vi.fn(),
     onStatusChange: vi.fn(),

@@ -4,7 +4,7 @@ import { Component, ErrorInfo, ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertTriangle, RefreshCw, Wifi } from "lucide-react"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 
 interface Props {
   children: ReactNode

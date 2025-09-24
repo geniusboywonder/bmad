@@ -3,7 +3,7 @@
 import { MainLayout } from "@/components/main-layout"
 import { JSONLLogViewer } from "@/components/logs/jsonl-log-viewer"
 import { useWebSocket } from "@/hooks/use-websocket"
-import { websocketService } from "@/lib/websocket/websocket-service"
+import { websocketService } from "@/lib/services/websocket/websocket-service"
 import { Button } from "@/components/ui/button"
 import { useLogStore } from "@/lib/stores/log-store"
 

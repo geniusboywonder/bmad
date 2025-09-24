@@ -6,10 +6,12 @@ from app.settings import settings
 # Create Celery instance
 celery_app = Celery(
     "botarmy",
-    broker=settings.redis_celery_url,
-    backend=settings.redis_celery_url,
     include=["app.tasks.agent_tasks"]
 )
+
+# Configure broker and backend URLs
+celery_app.conf.broker_url = settings.redis_celery_url
+celery_app.conf.result_backend = settings.redis_celery_url
 
 # Celery configuration
 celery_app.conf.update(

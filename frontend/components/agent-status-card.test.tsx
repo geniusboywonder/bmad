@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { AgentStatusCard, type Agent } from './agent-status-card';
 
 // Mock the websocketService used by the component
-vi.mock('@/lib/websocket/websocket-service', () => ({
+vi.mock('@/lib/services/websocket/websocket-service', () => ({
   websocketService: {
     sendAgentCommand: vi.fn(),
   },

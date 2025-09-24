@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useRef } from 'react'
-import { websocketService } from '@/lib/websocket/websocket-service'
+import { websocketService } from '@/lib/services/websocket/websocket-service'
 
 interface WebSocketContextType {
   service: typeof websocketService

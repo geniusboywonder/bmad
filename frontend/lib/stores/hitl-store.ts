@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { safetyEventHandler, SafetyAlert } from '../services/safety/safety-event-handler';
+import { hitlService } from '../services/api/hitl.service';
 
 // Safe storage implementation with error handling
 const createSafeStorage = () => {
@@ -55,11 +57,16 @@ interface HITLRequest {
 interface HITLStore {
   requests: HITLRequest[];
   activeRequest: HITLRequest | null;
+  safetyAlerts: SafetyAlert[];
 
   addRequest: (request: Omit<HITLRequest, 'id' | 'timestamp' | 'status'>) => void;
-  resolveRequest: (id: string, status: 'approved' | 'rejected' | 'modified', response?: string) => void;
+  resolveRequest: (id: string, status: 'approved' | 'rejected' | 'modified', response?: string) => Promise<void>;
   getRequestsByAgent: (agentName: string) => HITLRequest[];
   getPendingCount: () => number;
+
+  // Safety alerts integration
+  setSafetyAlerts: (alerts: SafetyAlert[]) => void;
+  acknowledgeSafetyAlert: (alertId: string) => void;
 
   // Navigation helpers
   navigateToRequest: (id: string) => void;
@@ -71,6 +78,7 @@ export const useHITLStore = create<HITLStore>()(
     (set, get) => ({
       requests: [],
       activeRequest: null,
+      safetyAlerts: [],
 
       addRequest: (request) => {
         const newRequest: HITLRequest = {
@@ -82,13 +90,34 @@ export const useHITLStore = create<HITLStore>()(
         set((state) => ({ requests: [...state.requests, newRequest] }));
       },
 
-      resolveRequest: (id, status, response) => {
-        set((state) => ({
-          requests: state.requests.map((req) =>
-            req.id === id ? { ...req, status, response } : req
-          ),
-          activeRequest: state.activeRequest?.id === id ? null : state.activeRequest,
-        }));
+      resolveRequest: async (id, status, response) => {
+        const request = get().requests.find((req) => req.id === id);
+        if (!request) return;
+
+        try {
+          // Call backend API to resolve the HITL request
+          await hitlService.respondToRequest(id, {
+            action: status,
+            comment: response || `Request ${status}`,
+          });
+
+          // Update local state
+          set((state) => ({
+            requests: state.requests.map((req) =>
+              req.id === id ? { ...req, status, response } : req
+            ),
+            activeRequest: state.activeRequest?.id === id ? null : state.activeRequest,
+          }));
+
+          // Acknowledge related safety alert if exists
+          const relatedAlertId = `hitl_${id}`;
+          safetyEventHandler.acknowledgeAlert(relatedAlertId);
+
+          console.log(`[HITLStore] Resolved request ${id} with status: ${status}`);
+        } catch (error) {
+          console.error(`[HITLStore] Failed to resolve request ${id}:`, error);
+          throw error;
+        }
       },
 
       getRequestsByAgent: (agentName) => {
@@ -97,6 +126,20 @@ export const useHITLStore = create<HITLStore>()(
 
       getPendingCount: () => {
         return get().requests.filter((req) => req.status === 'pending').length;
+      },
+
+      // Safety alerts integration
+      setSafetyAlerts: (alerts) => {
+        set({ safetyAlerts: alerts });
+      },
+
+      acknowledgeSafetyAlert: (alertId) => {
+        safetyEventHandler.acknowledgeAlert(alertId);
+        set((state) => ({
+          safetyAlerts: state.safetyAlerts.map(alert =>
+            alert.id === alertId ? { ...alert, acknowledged: true } : alert
+          )
+        }));
       },
 
       navigateToRequest: (id) => {

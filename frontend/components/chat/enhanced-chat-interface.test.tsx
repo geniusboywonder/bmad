@@ -5,14 +5,14 @@ import { useConversationStore } from '@/lib/stores/conversation-store';
 import { useAgentStore } from '@/lib/stores/agent-store';
 import { useChatModeStore } from '@/lib/stores/chat-mode-store';
 import { useInteractiveSessionStore } from '@/lib/stores/interactive-session-store';
-import { websocketService } from '@/lib/websocket/websocket-service';
+import { websocketService } from '@/lib/services/websocket/websocket-service';
 
 // Mock the external dependencies
 vi.mock('@/lib/stores/conversation-store');
 vi.mock('@/lib/stores/agent-store');
 vi.mock('@/lib/stores/chat-mode-store');
 vi.mock('@/lib/stores/interactive-session-store');
-vi.mock('@/lib/websocket/websocket-service');
+vi.mock('@/lib/services/websocket/websocket-service');
 
 describe('EnhancedChatInterface', () => {
   const mockAddMessage = vi.fn();
