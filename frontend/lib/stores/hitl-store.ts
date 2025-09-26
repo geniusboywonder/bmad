@@ -95,11 +95,32 @@ export const useHITLStore = create<HITLStore>()(
         if (!request) return;
 
         try {
-          // Call backend API to resolve the HITL request
-          await hitlService.respondToRequest(id, {
-            action: status,
-            comment: response || `Request ${status}`,
-          });
+          // Get approval ID from context
+          const approvalId = request.context?.approvalId;
+
+          if (approvalId) {
+            // Use the correct HITL safety API endpoint for agent approvals
+            const approved = status === 'approved';
+            const apiResponse = await fetch(`http://localhost:8000/api/v1/hitl-safety/approve-agent-execution/${approvalId}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                approved: approved,
+                response: response || `Request ${status}`,
+                comment: response || `Request ${status}`
+              }),
+            });
+
+            if (!apiResponse.ok) {
+              throw new Error(`API call failed: ${apiResponse.status} ${apiResponse.statusText}`);
+            }
+
+            console.log(`[HITLStore] Successfully called HITL safety API for approval ${approvalId}`);
+          } else {
+            console.warn(`[HITLStore] No approval ID found in request context for ${id}`);
+          }
 
           // Update local state
           set((state) => ({
@@ -166,3 +187,7 @@ export const useHITLStore = create<HITLStore>()(
     }
   )
 );
+
+if (typeof window !== 'undefined') {
+  (window as any).useHITLStore = useHITLStore;
+}

@@ -79,13 +79,64 @@ class WebSocketService {
       return;
     }
 
-    console.log("[WebSocket] Connecting to backend...");
+    console.log("[WebSocket] Connecting to backend at ws://localhost:8000/ws");
     this.globalConnection.connect();
+
+    // Add connection status debugging
+    setTimeout(() => {
+      console.log("[WebSocket] Connection status after 2s: checking...");
+    }, 2000);
   }
 
   enableAutoConnect() {
     this.shouldAutoConnect = true;
     this.connect();
+
+    // Poll for pending HITL requests as fallback
+    this.startHITLPolling();
+  }
+
+  private startHITLPolling() {
+    // Check for pending HITL requests every 10 seconds as backup
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/hitl/approvals?status=pending');
+        if (response.ok) {
+          const pendingRequests = await response.json();
+          const { addRequest } = useHITLStore.getState();
+          const currentRequests = useHITLStore.getState().requests;
+
+          // Add any missing requests
+          for (const request of pendingRequests.approvals || []) {
+            const exists = currentRequests.find(r => r.context?.approvalId === request.id);
+            if (!exists) {
+              console.log('[WebSocket] Adding missing HITL request from API polling:', request.id);
+              addRequest({
+                agentName: request.agent_type || "System",
+                decision: request.request_type || "Pre-execution approval",
+                context: {
+                  approvalId: request.id,
+                  agentType: request.agent_type,
+                  requestType: request.request_type,
+                  estimatedTokens: request.estimated_tokens,
+                  estimatedCost: request.estimated_cost,
+                  expiresAt: request.expires_at,
+                  requestData: request.request_data
+                },
+                priority: (request.estimated_cost && request.estimated_cost > 5) ? 'high' : 'medium'
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[WebSocket] HITL polling failed:', error);
+      }
+    }, 10000);
+
+    // Store interval for cleanup
+    if (typeof window !== 'undefined') {
+      (window as any).hitlPollingInterval = interval;
+    }
   }
 
   // Enhanced event handlers for all backend event types
@@ -130,33 +181,35 @@ class WebSocketService {
 
   private handleHITLRequestCreated(event: HitlRequestCreatedEvent | any) {
     console.log(`[WebSocket] HITL request received:`, event);
+    console.log(`[WebSocket] HITL event data:`, event.data);
 
     const { data } = event;
     const { addLog, addMessage } = useAppStore.getState();
+    const { addRequest } = useHITLStore.getState();
 
-    // Use dynamic import to avoid circular dependency issues
-    import('@/lib/stores/hitl-store').then(({ useHITLStore }) => {
-      const { addRequest } = useHITLStore.getState();
-
-      addRequest({
-        agentName: data.agent_type || "System",
-        decision: data.request_type || "Pre-execution approval",
-        context: {
-          approvalId: data.approval_id,
-          agentType: data.agent_type,
-          requestType: data.request_type,
-          estimatedTokens: data.estimated_tokens,
-          estimatedCost: data.estimated_cost,
-          expiresAt: data.expires_at,
-          requestData: data.request_data
-        },
-        priority: (data.estimated_cost && data.estimated_cost > 5) ? 'high' : 'medium'
-      });
-
-      console.log(`[WebSocket] HITL request added to store for ${data.agent_type}: ${data.approval_id}`);
-    }).catch(error => {
-      console.error('[WebSocket] Error loading HITL store:', error);
+    // Enhanced logging for debugging
+    console.log(`[WebSocket] Adding HITL request to store:`, {
+      agentName: data.agent_type || "System",
+      decision: data.request_type || "Pre-execution approval",
+      approvalId: data.approval_id
     });
+
+    addRequest({
+      agentName: data.agent_type || "System",
+      decision: data.request_type || "Pre-execution approval",
+      context: {
+        approvalId: data.approval_id,
+        agentType: data.agent_type,
+        requestType: data.request_type,
+        estimatedTokens: data.estimated_tokens,
+        estimatedCost: data.estimated_cost,
+        expiresAt: data.expires_at,
+        requestData: data.request_data
+      },
+      priority: (data.estimated_cost && data.estimated_cost > 5) ? 'high' : 'medium'
+    });
+
+    console.log(`[WebSocket] HITL request added to store for ${data.agent_type}: ${data.approval_id}`);
 
     addMessage({
       type: "hitl",
@@ -165,14 +218,6 @@ class WebSocketService {
       urgency: (data.estimated_cost && data.estimated_cost > 5) ? "high" : "medium",
       requestId: data.approval_id
     });
-
-    addLog({
-      agent: "HITL",
-      level: (data.estimated_cost && data.estimated_cost > 5) ? "warning" : "info",
-      message: `HITL approval required: ${data.request_type} for ${data.agent_type}`
-    });
-
-    console.log(`[WebSocket] HITL request created: ${data.approval_id}`, data);
   }
 
   private handleArtifactGenerated(event: ArtifactGeneratedEvent) {
@@ -308,6 +353,11 @@ class WebSocketService {
     connection.on('task_progress_updated', (event) => {
       event.project_id = projectId;
       this.handleTaskProgressUpdated(event);
+    });
+
+    connection.on('hitl_request_created', (event) => {
+      event.project_id = projectId;
+      this.handleHITLRequestCreated(event);
     });
 
     connection.on('artifact_generated', (event) => {

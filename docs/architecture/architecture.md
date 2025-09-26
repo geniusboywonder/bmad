@@ -32,6 +32,7 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - WebSocket session management
 - Celery task queue broker with retry logic
 - API response caching for performance optimization
+- **CRITICAL**: Dual Redis database architecture (0 for WebSocket, 1 for Celery tasks)
 
 ## 2. Multi-LLM Provider Architecture
 
@@ -247,6 +248,52 @@ const response = await fetch(`http://localhost:8000/api/v1/projects/${projectId}
 - ✅ HITL approval requests created and broadcast
 - ✅ WebSocket events properly received by frontend
 - ✅ Backend HITL workflow proven functional end-to-end
+- ✅ Celery worker configuration issue resolved (September 2025)
+
+### 7.4 Critical Configuration Issue Resolution (September 2025)
+
+**⚠️ CRITICAL REDIS DATABASE CONFIGURATION ISSUE**
+
+**The Problem**: Multiple Redis database configuration points caused persistent Celery worker misconfiguration:
+
+**Root Cause Analysis**:
+1. **`.env` configuration**: `REDIS_CELERY_URL=redis://localhost:6379/1` (Database 1)
+2. **Celery workers**: Defaulting to `redis://localhost:6379/0` (Database 0)
+3. **Result**: Tasks queued in DB1, workers polling DB0 → Tasks remain PENDING indefinitely
+4. **Symptom**: HITL approval requests expire after 30 minutes, causing 400 Bad Request errors
+
+**Why Two Redis Databases?**
+- **Database 0**: WebSocket session management and general caching
+- **Database 1**: Celery task queue isolation to prevent data conflicts
+
+**Configuration Points Requiring Alignment**:
+```bash
+# Environment file (.env)
+REDIS_CELERY_URL=redis://localhost:6379/1
+CELERY_BROKER_URL=redis://localhost:6379/1
+CELERY_RESULT_BACKEND=redis://localhost:6379/1
+
+# Celery worker startup
+CELERY_BROKER_URL="redis://localhost:6379/1" CELERY_RESULT_BACKEND="redis://localhost:6379/1" \
+celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celery
+```
+
+**Why This Issue Keeps Recurring**:
+1. **Multiple configuration sources**: Environment variables, runtime flags, defaults
+2. **Development shortcuts**: Using `celery worker` without explicit DB specification
+3. **No validation**: System doesn't validate broker connectivity on startup
+4. **Silent failures**: Tasks remain PENDING without clear error messages
+
+**Permanent Solution Strategy**:
+1. **Centralized configuration**: Single source of truth for Redis database selection
+2. **Startup validation**: Check Celery worker connectivity during app initialization
+3. **Clear documentation**: Explicit worker startup commands in development guides
+4. **Health checks**: Monitor task queue processing and alert on PENDING buildup
+
+**Impact Assessment**:
+- **Before Fix**: HITL workflow broken, 400 Bad Request errors, task execution failure
+- **After Fix**: Complete end-to-end HITL workflow operational, fresh approval processing working
+- **Future Prevention**: Configuration validation and startup checks prevent recurrence
 
 ## 8. Security and Compliance
 

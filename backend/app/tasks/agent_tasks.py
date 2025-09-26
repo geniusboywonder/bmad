@@ -1,6 +1,7 @@
 """Agent task processing with Celery."""
 
 from datetime import datetime, timezone, timedelta
+import time
 from typing import Dict, Any, Optional
 from celery import current_task
 import structlog
@@ -17,7 +18,7 @@ from app.websocket.events import WebSocketEvent, EventType
 from app.services.autogen_service import AutoGenService
 from app.services.context_store import ContextStoreService
 from app.database.connection import get_session
-from app.database.models import TaskDB
+from app.database.models import TaskDB, HitlAgentApprovalDB
 
 logger = structlog.get_logger(__name__)
 
@@ -194,8 +195,12 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             if not budget_check.approved:
                 raise BudgetLimitExceeded(f"Budget limit exceeded: {budget_check.reason}")
             
-            # Request pre-execution approval
-            approval_id = asyncio.run(hitl_service.create_approval_request(
+            # Create pre-execution approval record directly in same database session
+            # This prevents foreign key constraint violations
+            estimated_cost = float(estimated_tokens * 0.00015)  # Estimate cost
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+            approval_record = HitlAgentApprovalDB(
                 project_id=project_uuid,
                 task_id=task_uuid,
                 agent_type=agent_type,
@@ -206,8 +211,17 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                     "context_ids": [str(cid) for cid in context_uuids],
                     "agent_type": agent_type
                 },
-                estimated_tokens=estimated_tokens
-            ))
+                estimated_tokens=estimated_tokens,
+                estimated_cost=estimated_cost,
+                expires_at=expires_at,
+                status="PENDING"
+            )
+
+            db.add(approval_record)
+            db.commit()  # Commit both task and approval in same transaction
+            approval_id = approval_record.id
+
+            logger.info("Created HITL approval record", task_id=str(task_uuid), approval_id=str(approval_id))
 
             # Broadcast HITL approval request event via WebSocket
             hitl_event = WebSocketEvent(
@@ -220,7 +234,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                     "agent_type": agent_type,
                     "request_type": "PRE_EXECUTION",
                     "estimated_tokens": estimated_tokens,
-                    "estimated_cost": float(estimated_tokens * 0.00015),  # Estimate cost
+                    "estimated_cost": estimated_cost,  # Use same calculation
                     "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
                     "request_data": {
                         "instructions": instructions,
@@ -237,14 +251,44 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             asyncio.run(websocket_manager.broadcast_event(hitl_event))
             logger.info("HITL approval request event broadcast", task_id=str(task_uuid), approval_id=str(approval_id))
 
-            # Wait for human approval
+            # Wait for human approval by polling database
             logger.info("Waiting for HITL pre-execution approval", task_id=str(task_uuid), approval_id=str(approval_id))
-            approval = asyncio.run(hitl_service.wait_for_approval(approval_id, timeout_minutes=30))
-            
-            if not approval.approved:
-                raise AgentExecutionDenied(f"Human rejected agent execution: {approval.comment}")
-            
-            logger.info("HITL pre-execution approval granted", task_id=str(task_uuid))
+
+            # Simple polling mechanism - check every 5 seconds for up to 30 minutes
+            timeout_minutes = 30
+            poll_interval = 5
+            max_polls = (timeout_minutes * 60) // poll_interval
+
+            approval_granted = False
+            approval_comment = None
+
+            for poll_count in range(max_polls):
+                # Refresh database session to get latest status
+                db.refresh(approval_record)
+
+                if approval_record.status == "APPROVED":
+                    approval_granted = True
+                    approval_comment = approval_record.user_comment
+                    break
+                elif approval_record.status == "REJECTED":
+                    approval_granted = False
+                    approval_comment = approval_record.user_comment or "Request rejected"
+                    break
+                elif approval_record.status == "EXPIRED":
+                    approval_granted = False
+                    approval_comment = "Request expired"
+                    break
+
+                # Wait before next poll
+                time.sleep(poll_interval)
+
+            if not approval_granted:
+                if approval_comment:
+                    raise AgentExecutionDenied(f"Human rejected agent execution: {approval_comment}")
+                else:
+                    raise AgentExecutionDenied("HITL approval timed out after 30 minutes")
+
+            logger.info("HITL pre-execution approval granted", task_id=str(task_uuid), comment=approval_comment)
             
             # Execute task with AutoGen service
             result = asyncio.run(autogen_service.execute_task(task, handoff, context_artifacts))

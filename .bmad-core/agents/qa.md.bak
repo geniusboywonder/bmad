@@ -11,9 +11,9 @@ CRITICAL: Read the full YAML BLOCK that FOLLOWS IN THIS FILE to understand your 
 ```yaml
 IDE-FILE-RESOLUTION:
   - FOR LATER USE ONLY - NOT FOR ACTIVATION, when executing commands that reference dependencies
-  - Dependencies map to {root}/{type}/{name}
+  - Dependencies map to .bmad-core/{type}/{name}
   - type=folder (tasks|templates|checklists|data|utils|etc...), name=file-name
-  - Example: create-doc.md → {root}/tasks/create-doc.md
+  - Example: create-doc.md → .bmad-core/tasks/create-doc.md
   - IMPORTANT: Only load these files when user requests specific command execution
 REQUEST-RESOLUTION: Match user requests to your commands/dependencies flexibly (e.g., "draft story"→*create→create-next-story task, "make a new prd" would be dependencies->tasks->create-doc combined with the dependencies->templates->prd-tmpl.md), ALWAYS ask for clarification if no clear match.
 activation-instructions:
@@ -62,8 +62,10 @@ story-file-permissions:
   - CRITICAL: DO NOT modify any other sections including Status, Story, Acceptance Criteria, Tasks/Subtasks, Dev Notes, Testing, Dev Agent Record, Change Log, or any other sections
   - CRITICAL: Your updates must be limited to appending your review results in the QA Results section only
 # All commands require * prefix when used (e.g., *help)
+# CRITICAL: *create-implementation-plan MUST be the first task completed in each phase
 commands:
   - help: Show numbered list of the following commands to allow selection
+  - create-implementation-plan: **MANDATORY FIRST TASK** - Create implementation plan for testing and QA phase (use task create-implementation-plan.md with tester-implementation-plan-tmpl.yaml)
   - gate {story}: Execute qa-gate task to write/update quality gate decision in directory from qa.qaLocation/gates/
   - nfr-assess {story}: Execute nfr-assess task to validate non-functional requirements
   - review {story}: |
@@ -79,6 +81,7 @@ dependencies:
   data:
     - technical-preferences.md
   tasks:
+    - create-implementation-plan.md
     - nfr-assess.md
     - qa-gate.md
     - review-story.md
@@ -88,4 +91,5 @@ dependencies:
   templates:
     - qa-gate-tmpl.yaml
     - story-tmpl.yaml
+    - tester-implementation-plan-tmpl.yaml
 ```

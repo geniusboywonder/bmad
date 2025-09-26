@@ -4,12 +4,14 @@
 import { Bot, User, Expand, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/stores/app-store';
+import { useHITLStore } from '@/lib/stores/hitl-store';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import ChatInput from './chat-input';
 import { websocketService } from "@/lib/services/websocket/websocket-service";
 import { AGENT_DEFINITIONS } from "@/lib/agents/agent-definitions";
+import { InlineHITLApproval } from '@/components/hitl/inline-hitl-approval';
 
 interface CopilotChatProps {
   projectId?: string;
@@ -17,6 +19,7 @@ interface CopilotChatProps {
 
 const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
   const { conversation, addMessage, agentFilter, setAgentFilter } = useAppStore();
+  const { requests } = useHITLStore();
   const isLoading = false; // Temporarily disable CopilotKit
   const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,6 +92,13 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
   const memoizedMessages = useMemo(() => {
     return filteredMessages.map((msg, index) => {
       const isUser = msg.type === 'user';
+
+      // For system messages that mention "Task created", show HITL request (pending or resolved)
+      // This approach works because task creation and HITL request creation happen simultaneously
+      const isTaskCreatedMessage = msg.type === 'system' && msg.content.includes('Task created:');
+      const hitlRequest = isTaskCreatedMessage ?
+        requests.find(req => req.status === 'pending') || requests[requests.length - 1] : null;
+
       return (
         <div key={index} className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
           <div className={cn('max-w-[80%] rounded-lg px-4 py-3 shadow-sm', isUser ? 'bg-primary text-primary-foreground' : 'bg-card border')}>
@@ -97,11 +107,19 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
               <span className="text-xs font-medium">{msg.agent}</span>
             </div>
             <div className="text-sm leading-relaxed">{msg.content}</div>
+
+            {/* Show HITL approval component if there's a matching request */}
+            {hitlRequest && (
+              <InlineHITLApproval
+                request={hitlRequest}
+                className="mt-3"
+              />
+            )}
           </div>
         </div>
       );
     });
-  }, [filteredMessages]);
+  }, [filteredMessages, requests]);
 
   return (
     <div className={cn(

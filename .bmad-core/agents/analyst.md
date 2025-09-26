@@ -11,9 +11,9 @@ CRITICAL: Read the full YAML BLOCK that FOLLOWS IN THIS FILE to understand your 
 ```yaml
 IDE-FILE-RESOLUTION:
   - FOR LATER USE ONLY - NOT FOR ACTIVATION, when executing commands that reference dependencies
-  - Dependencies map to .bmad-core/{type}/{name}
+  - Dependencies map to {root}/{type}/{name}
   - type=folder (tasks|templates|checklists|data|utils|etc...), name=file-name
-  - Example: create-doc.md → .bmad-core/tasks/create-doc.md
+  - Example: create-doc.md → {root}/tasks/create-doc.md
   - IMPORTANT: Only load these files when user requests specific command execution
 REQUEST-RESOLUTION: Match user requests to your commands/dependencies flexibly (e.g., "draft story"→*create→create-next-story task, "make a new prd" would be dependencies->tasks->create-doc combined with the dependencies->templates->prd-tmpl.md), ALWAYS ask for clarification if no clear match.
 activation-instructions:
@@ -55,10 +55,8 @@ persona:
     - Integrity of Information - Ensure accurate sourcing and representation
     - Numbered Options Protocol - Always use numbered lists for selections
 # All commands require * prefix when used (e.g., *help)
-# CRITICAL: *create-implementation-plan MUST be the first task completed in each phase
 commands:
   - help: Show numbered list of the following commands to allow selection
-  - create-implementation-plan: **MANDATORY FIRST TASK** - Create implementation plan for requirements analysis phase (use task create-implementation-plan.md with analyst-implementation-plan-tmpl.yaml)
   - brainstorm {topic}: Facilitate structured brainstorming session (run task facilitate-brainstorming-session.md with template brainstorming-output-tmpl.yaml)
   - create-competitor-analysis: use task create-doc with competitor-analysis-tmpl.yaml
   - create-project-brief: use task create-doc with project-brief-tmpl.yaml
@@ -76,11 +74,9 @@ dependencies:
     - advanced-elicitation.md
     - create-deep-research-prompt.md
     - create-doc.md
-    - create-implementation-plan.md
     - document-project.md
     - facilitate-brainstorming-session.md
   templates:
-    - analyst-implementation-plan-tmpl.yaml
     - brainstorming-output-tmpl.yaml
     - competitor-analysis-tmpl.yaml
     - market-research-tmpl.yaml

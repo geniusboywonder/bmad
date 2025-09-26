@@ -104,6 +104,57 @@ class OversightLevelUpdateRequest(BaseModel):
     level: str  # "high", "medium", "low"
 
 
+@router.get("/approvals", response_model=dict)
+async def get_hitl_approvals(
+    status: Optional[str] = None,
+    project_id: Optional[UUID] = None,
+    limit: int = 50,
+    db: Session = Depends(get_session)
+):
+    """Get HITL approval requests with status filtering for frontend polling."""
+    from app.database.models import HitlAgentApprovalDB
+
+    try:
+        query = db.query(HitlAgentApprovalDB)
+
+        if status:
+            query = query.filter(HitlAgentApprovalDB.status == status.upper())
+
+        if project_id:
+            query = query.filter(HitlAgentApprovalDB.project_id == project_id)
+
+        approvals = query.order_by(HitlAgentApprovalDB.created_at.desc()).limit(limit).all()
+
+        return {
+            "approvals": [
+                {
+                    "id": str(approval.id),
+                    "project_id": str(approval.project_id),
+                    "task_id": str(approval.task_id),
+                    "agent_type": approval.agent_type,
+                    "request_type": approval.request_type,
+                    "status": approval.status,
+                    "estimated_tokens": approval.estimated_tokens,
+                    "estimated_cost": float(approval.estimated_cost) if approval.estimated_cost else None,
+                    "expires_at": approval.expires_at.isoformat(),
+                    "created_at": approval.created_at.isoformat(),
+                    "user_response": approval.user_response,
+                    "user_comment": approval.user_comment,
+                    "responded_at": approval.responded_at.isoformat() if approval.responded_at else None,
+                    "request_data": approval.request_data
+                }
+                for approval in approvals
+            ]
+        }
+
+    except Exception as e:
+        logger.error("Failed to get HITL approvals", error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get approvals: {str(e)}"
+        )
+
+
 @router.post("/{request_id}/respond", response_model=HitlProcessResponse)
 async def respond_to_hitl_request(
     request_id: UUID,
@@ -622,3 +673,5 @@ async def get_pending_hitl_requests(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get pending requests: {str(e)}"
         )
+
+
