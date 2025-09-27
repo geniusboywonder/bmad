@@ -19,6 +19,7 @@ from app.models.task import Task, TaskStatus
 from app.models.agent import AgentType
 from app.database.models import ProjectDB, TaskDB
 
+@pytest.mark.mock_data
 class TestProjectModelValidation:
     """Test scenario 1.1-UNIT-001: Project model validation (P0)"""
     
@@ -83,6 +84,7 @@ class TestProjectModelValidation:
         project = ProjectDB(name=special_name)
         assert project.name == special_name
 
+@pytest.mark.mock_data
 class TestTaskModelValidation:
     """Test scenario 1.1-UNIT-002: Task model validation (P0)"""
     
@@ -183,6 +185,7 @@ class TestTaskModelValidation:
         assert task.output == output_data
         assert task.error_message == error_message
 
+@pytest.mark.mock_data
 class TestProjectCreationRequestValidation:
     """Test scenario 1.1-UNIT-003: Project creation request validation (P0)"""
     
@@ -238,6 +241,7 @@ class TestProjectCreationRequestValidation:
         null_description = {"name": "Project", "description": None}
         assert null_description["description"] is None
 
+@pytest.mark.mock_data
 class TestTaskStatusEnumValidation:
     """Test scenario 1.1-UNIT-004: Task status enumeration validation (P1)"""
     
@@ -286,6 +290,7 @@ class TestTaskStatusEnumValidation:
         assert TaskStatus.PENDING.value == "pending"
         assert TaskStatus.WORKING.value != "pending"
 
+@pytest.mark.mock_data
 class TestProjectNameValidationRules:
     """Test scenario 1.1-UNIT-005: Project name validation rules (P1)"""
     
@@ -352,6 +357,7 @@ class TestProjectNameValidationRules:
             project = ProjectDB(name=edge_case)
             assert project.name == edge_case
 
+@pytest.mark.mock_data
 class TestUUIDGeneration:
     """Test scenario 1.1-UNIT-006: UUID generation for project/task IDs (P2)"""
     

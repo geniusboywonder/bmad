@@ -21,6 +21,7 @@ from app.models.task import TaskStatus
 from app.services.context_store import ContextStoreService
 from tests.conftest import assert_context_artifact_matches_data
 
+@pytest.mark.mock_data
 class TestContextArtifactCRUDOperations:
     """Test scenario 1.2-INT-001: Context artifact CRUD operations (P0)"""
     
@@ -184,6 +185,7 @@ class TestContextArtifactCRUDOperations:
         assert artifact1.context_id in artifact_ids
         assert artifact2.context_id in artifact_ids
 
+@pytest.mark.mock_data
 class TestTaskStatePersistence:
     """Test scenario 1.2-INT-002: Task state persistence and retrieval (P0)"""
     
@@ -323,6 +325,7 @@ class TestTaskStatePersistence:
         assert db_task.output["deployment"]["status"] == "successful"
         assert len(db_task.output["logs"]) == 2
 
+@pytest.mark.mock_data
 class TestServiceLayerDatabaseAbstraction:
     """Test scenario 1.2-INT-003: Service layer database abstraction (P1)"""
     
@@ -403,6 +406,7 @@ class TestServiceLayerDatabaseAbstraction:
         )
         assert updated is None  # Should handle gracefully
 
+@pytest.mark.mock_data
 class TestEventLoggingForStateChanges:
     """Test scenario 1.2-INT-004: Event logging for state changes (P1)"""
     
@@ -498,6 +502,7 @@ class TestEventLoggingForStateChanges:
         assert updated is not None
         assert deleted is True
 
+@pytest.mark.mock_data
 class TestContextArtifactQueryPerformance:
     """Test scenario 1.2-INT-005: Context artifact query performance (P2)"""
     

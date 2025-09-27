@@ -360,7 +360,6 @@ class TestBaseAgent:
         assert info["reliability_features"]["retry_handler"] is True
         assert info["reliability_features"]["usage_tracker"] is True
 
-@pytest.mark.asyncio
 class TestAgentService:
     """Test cases for the AgentService class."""
     
@@ -429,8 +428,8 @@ class TestAgentService:
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
+    @pytest.mark.asyncio
     @pytest.mark.mock_data
-
     async def test_execute_task_with_agent_success(self, mock_status_service, mock_context_store, mock_task, db_session):
         """Test successful task execution with agent."""
         # Setup mocks
@@ -462,6 +461,7 @@ class TestAgentService:
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
+    @pytest.mark.asyncio
     @pytest.mark.mock_data
     async def test_execute_task_with_agent_failure(self, mock_status_service, mock_context_store, mock_task, db_session):
         """Test task execution failure handling with real database."""
@@ -493,8 +493,8 @@ class TestAgentService:
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
+    @pytest.mark.asyncio
     @pytest.mark.mock_data
-
     async def test_create_agent_handoff(self, mock_status_service, mock_context_store, mock_task, db_session):
         """Test agent handoff creation."""
         # Setup mocks
@@ -531,8 +531,8 @@ class TestAgentService:
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
+    @pytest.mark.asyncio
     @pytest.mark.mock_data
-
     async def test_get_agent_status_summary(self, mock_status_service, mock_context_store, db_session):
         """Test agent status summary retrieval."""
         # Setup mocks
@@ -552,8 +552,8 @@ class TestAgentService:
     
     @patch('app.services.agent_service.ContextStoreService')
     @patch('app.services.agent_service.AgentStatusService')
+    @pytest.mark.asyncio
     @pytest.mark.mock_data
-
     async def test_reset_agent_status(self, mock_status_service, mock_context_store, db_session):
         """Test agent status reset."""
         # Setup mocks

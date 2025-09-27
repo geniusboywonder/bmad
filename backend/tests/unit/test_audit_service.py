@@ -33,8 +33,6 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_log_event_success(self, db_manager):
         """Test successful event logging with real database."""
         # Create real project and task
@@ -100,8 +98,6 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_log_task_event(self, db_manager):
         """Test task event logging convenience method with real database."""
         # Create real project and task
@@ -140,8 +136,6 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_log_hitl_event(self, db_manager):
         """Test HITL event logging convenience method with real database."""
         # Create real project
@@ -180,8 +174,6 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_get_events_with_filters(self, db_manager):
         """Test retrieving events with filters using real database."""
         # Create real project and task
@@ -218,8 +210,6 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_get_event_by_id_found(self, db_manager):
         """Test retrieving specific event by ID when found using real database."""
         # Create real project and task
@@ -249,8 +239,6 @@ class TestAuditService:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_get_event_by_id_not_found(self, db_manager):
         """Test retrieving specific event by ID when not found using real database."""
         # Use a random UUID that doesn't exist in the database

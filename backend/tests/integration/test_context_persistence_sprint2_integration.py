@@ -21,6 +21,7 @@ from app.models.agent import AgentType
 from app.services.context_store import ContextStoreService
 from tests.conftest import assert_performance_threshold
 
+@pytest.mark.mock_data
 class TestContextArtifactCRUDOperations:
     """Test scenario 2.2-INT-001: Context artifact CRUD operations (P0)"""
     
@@ -197,6 +198,7 @@ class TestContextArtifactCRUDOperations:
         updated = context_store_service.get_artifact_by_id(artifacts[0].context_id)
         assert updated.content["status"] == "updated"
 
+@pytest.mark.mock_data
 class TestAgentContextRetrievalByIDs:
     """Test scenario 2.2-INT-002: Agent context retrieval by IDs (P0)"""
     
@@ -377,6 +379,7 @@ class TestAgentContextRetrievalByIDs:
         expected_indices = list(range(artifact_count))
         assert sorted(retrieved_indices) == sorted(expected_indices)
 
+@pytest.mark.mock_data
 class TestProjectScopedArtifactQueries:
     """Test scenario 2.2-INT-003: Project-scoped artifact queries (P1)"""
     
@@ -577,6 +580,7 @@ class TestProjectScopedArtifactQueries:
         
         assert len(high_priority_artifacts) == 3
 
+@pytest.mark.mock_data
 class TestArtifactRelationshipMaintenance:
     """Test scenario 2.2-INT-004: Artifact relationship maintenance (P1)"""
     
@@ -743,6 +747,7 @@ class TestArtifactRelationshipMaintenance:
         deleted_base = context_store_service.get_artifact_by_id(base_artifact.id)
         assert deleted_base is None
 
+@pytest.mark.mock_data
 class TestContextStorePerformanceWithVolume:
     """Test scenario 2.2-INT-005: Context store performance with volume (P2)"""
     

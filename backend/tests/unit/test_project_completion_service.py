@@ -45,8 +45,6 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_completion_detection_all_tasks_completed(self, service, db_manager):
         """Test completion detection when all tasks are completed with real database."""
         # Create real project
@@ -75,8 +73,6 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_completion_detection_mixed_task_states(self, service, db_manager):
         """Test completion detection with mixed task states using real database."""
         # Create real project
@@ -111,8 +107,6 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_completion_detection_no_tasks(self, service, db_manager):
         """Test completion detection with no tasks using real database."""
         # Create real project with no tasks
@@ -129,8 +123,6 @@ class TestCompletionDetectionLogic:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_completion_detection_project_not_found(self, service, db_manager):
         """Test completion detection with non-existent project using real database."""
         non_existent_project_id = uuid4()
@@ -200,8 +192,6 @@ class TestEdgeCaseHandling:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_completion_with_failed_tasks(self, service, db_manager):
         """Test completion detection with failed tasks using real database."""
         # Create real project and tasks

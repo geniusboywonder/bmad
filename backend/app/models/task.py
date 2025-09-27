@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, field_serializer
 from uuid import UUID, uuid4
 
 
@@ -42,13 +42,19 @@ class Task(BaseModel):
             raise ValueError(f'Invalid agent_type: {v}. Must be one of {valid_agent_types}')
         return v
 
-    model_config = ConfigDict(
-        use_enum_values=True,
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+    model_config = ConfigDict(use_enum_values=True)
+
+    @field_serializer('created_at', 'updated_at', 'started_at', 'completed_at')
+    def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
+        return dt.isoformat() if dt else None
+
+    @field_serializer('task_id', 'project_id')
+    def serialize_uuid(self, uuid_val: UUID) -> str:
+        return str(uuid_val)
+
+    @field_serializer('context_ids')
+    def serialize_context_ids(self, uuid_list: List[UUID]) -> List[str]:
+        return [str(uuid_val) for uuid_val in uuid_list]
 
     @field_validator('task_id', 'project_id', mode='before')
     @classmethod

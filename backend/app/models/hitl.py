@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from uuid import UUID, uuid4
 
 
@@ -48,13 +48,16 @@ class HitlRequest(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Request creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
     expires_at: Optional[datetime] = Field(default=None, description="Request expiration timestamp")
-    
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+
+    model_config = ConfigDict()
+
+    @field_serializer('created_at', 'updated_at', 'expires_at')
+    def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
+        return dt.isoformat() if dt else None
+
+    @field_serializer('request_id', 'project_id', 'task_id')
+    def serialize_uuid(self, uuid_val: UUID) -> str:
+        return str(uuid_val)
 
 
 class HitlResponse(BaseModel):
@@ -68,12 +71,15 @@ class HitlResponse(BaseModel):
     user_id: Optional[str] = Field(default=None, description="User who provided the response")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
 
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+    model_config = ConfigDict()
+
+    @field_serializer('timestamp')
+    def serialize_datetime(self, dt: datetime) -> str:
+        return dt.isoformat()
+
+    @field_serializer('request_id')
+    def serialize_uuid(self, uuid_val: UUID) -> str:
+        return str(uuid_val)
 
 
 class HitlRequestResponse(BaseModel):
@@ -94,9 +100,4 @@ class HitlRequestResponse(BaseModel):
     expires_at: Optional[str] = Field(default=None, description="Request expiration timestamp (ISO format)")
     responded_at: Optional[str] = Field(default=None, description="Response timestamp (ISO format)")
 
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+    model_config = ConfigDict()

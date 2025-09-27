@@ -35,12 +35,7 @@ class ContextArtifact(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Creation timestamp")
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Last update timestamp")
     
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat(),
-            UUID: lambda v: str(v),
-        }
-    )
+    model_config = ConfigDict()
     
     @field_serializer('context_id', 'project_id')
     def serialize_uuid(self, value: UUID) -> str:
@@ -60,13 +55,8 @@ class ContextArtifactCreate(BaseModel):
     content: Dict[str, Any] = Field(description="Artifact content data")
     artifact_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
     
-    model_config = ConfigDict(
-        json_encoders={
-            UUID: lambda v: str(v),
-        }
-    )
+    model_config = ConfigDict()
     
     @field_serializer('project_id')
     def serialize_uuid(self, value: UUID) -> str:
         return str(value)
-        return value.isoformat()

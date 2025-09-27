@@ -117,8 +117,6 @@ class TestArtifactGeneration:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_generate_project_artifacts_creates_correct_files(self, service, db_manager):
         """Test that artifact generation creates correct ProjectArtifact objects with real database."""
         # Create real project and context artifacts
@@ -160,10 +158,8 @@ class TestArtifactGeneration:
             assert "README.md" in artifact_names
             assert "project_summary.txt" in artifact_names
     
-    @pytest.mark.asyncio 
+    @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_generate_project_artifacts_project_not_found(self, service, db_manager):
         """Test artifact generation with non-existent project using real database."""
         project_id = uuid4()
@@ -174,8 +170,6 @@ class TestArtifactGeneration:
     
     @pytest.mark.asyncio
     @pytest.mark.real_data
-    @pytest.mark.mock_data
-
     async def test_generate_project_artifacts_empty_context(self, service, db_manager):
         """Test artifact generation with no context artifacts using real database."""
         # Create real project with no context artifacts
