@@ -277,7 +277,11 @@ function ProjectCard({ project, onSelect, onUpdate, onDelete, isSelected = false
   );
 }
 
-export function ProjectDashboard() {
+interface ProjectDashboardProps {
+  onSelectProject?: (projectId: string) => void;
+}
+
+export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
   const {
     fetchProjects,
     updateProject,
@@ -310,7 +314,12 @@ export function ProjectDashboard() {
   }, [error, clearError]);
 
   const handleProjectSelect = (project: Project) => {
-    selectProject(project.id);
+    // Use provided onSelectProject callback if available, otherwise use store method
+    if (onSelectProject) {
+      onSelectProject(project.id);
+    } else {
+      selectProject(project.id);
+    }
   };
 
   const handleProjectDelete = async (projectId: string) => {

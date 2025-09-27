@@ -13,7 +13,7 @@ export type AgentType = 'analyst' | 'architect' | 'developer' | 'tester' | 'depl
  * Returns color and border classes to be applied via className
  */
 export const getStatusBadgeClasses = (status: BadgeStatus | string): string => {
-  switch (status.toLowerCase()) {
+  switch ((status || '').toLowerCase()) {
     case 'done':
     case 'completed':
     case 'finished':
@@ -52,7 +52,7 @@ export const getStatusBadgeClasses = (status: BadgeStatus | string): string => {
  * NEW STAGE COLOR SYSTEM (2025) - Separated from status colors
  */
 export const getAgentBadgeClasses = (agent: AgentType | string): string => {
-  const agentLower = agent.toLowerCase();
+  const agentLower = (agent || '').toLowerCase();
   
   // NEW STAGE COLORS - No overlap with status colors
   if (agentLower.includes('analyst')) {
@@ -91,7 +91,7 @@ export const getAgentBadgeClasses = (agent: AgentType | string): string => {
  * These use the destructive variant for high visibility
  */
 export const getSeverityBadgeClasses = (severity: 'critical' | 'warning' | 'info' | string): string => {
-  switch (severity.toLowerCase()) {
+  switch ((severity || '').toLowerCase()) {
     case 'critical':
     case 'error':
       return 'bg-destructive text-destructive-foreground';

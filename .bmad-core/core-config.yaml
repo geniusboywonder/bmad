@@ -9,13 +9,14 @@ prd:
   prdShardedLocation: docs/prd
   epicFilePattern: epic-{n}*.md
 architecture:
-  architectureFile: docs/architecture.md
+  architectureFile: docs/architecture/architecture.md
   architectureVersion: v4
   architectureSharded: true
   architectureShardedLocation: docs/architecture
 customTechnicalDocuments: null
 devLoadAlwaysFiles:
-  - docs/architecture/coding-standards.md
+  - docs/CODEPROTOCOL.md
+  - docs/SOLID.md
   - docs/architecture/tech-stack.md
   - docs/architecture/source-tree.md
 devDebugLog: .ai/debug-log.md

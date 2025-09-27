@@ -2,16 +2,43 @@
 
 import { useAppStore } from "@/lib/stores/app-store"
 import { useProjectStore } from "@/lib/stores/project-store"
+import { useNavigationStore } from "@/lib/stores/navigation-store"
 import { MainLayout } from "@/components/main-layout"
 import { ProjectDashboard } from "@/components/projects/project-dashboard"
-import { EnhancedChatInterface } from "@/components/chat/enhanced-chat-interface"
+import { ProjectWorkspace } from "@/components/projects/project-workspace"
 import { RecentActivities } from "@/components/mockups/recent-activities"
-import CopilotChat from "@/components/chat/copilot-chat"
+import { Button } from "@/components/ui/button"
 import { useEffect } from "react"
+import { cn } from "@/lib/utils"
+
+function ProjectHeader() {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">BotArmy Agentic Builder</h1>
+          <p className="text-lg text-muted-foreground">
+            Multi-agent orchestration platform with real-time monitoring and HITL safety controls.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const { addMessage } = useAppStore()
-  const { currentProject } = useProjectStore()
+  const { projects } = useProjectStore()
+  const {
+    currentView,
+    selectedProjectId,
+    isTransitioning,
+    navigateToProject,
+    navigateToDashboard
+  } = useNavigationStore()
+
+  // Get selected project from store
+  const selectedProject = selectedProjectId ? projects[selectedProjectId] : null;
 
   useEffect(() => {
     // Add welcome message on first load
@@ -20,81 +47,57 @@ export default function HomePage() {
       agent: "BMAD System",
       content: "Welcome to BotArmy Agentic Builder. Create a project to begin orchestrating your AI agents."
     })
-  }, [])
+  }, [addMessage])
+
+  const handleSelectProject = (projectId: string) => {
+    navigateToProject(projectId);
+  };
+
+  const handleBackToDashboard = () => {
+    navigateToDashboard();
+  };
 
   return (
     <MainLayout>
-      <div className="p-6 space-y-8">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">BotArmy Agentic Builder</h1>
-              <p className="text-lg text-muted-foreground">
-                Multi-agent orchestration platform with real-time monitoring and HITL safety controls.
-              </p>
+      <div className={cn(
+        "transition-opacity duration-300",
+        isTransitioning && "opacity-50"
+      )}>
+        {currentView === 'dashboard' ? (
+          <div className="p-6 space-y-8">
+            <ProjectHeader />
+
+            {/* Project Management Dashboard */}
+            <div className="space-y-6">
+              <ProjectDashboard onSelectProject={handleSelectProject} />
             </div>
-          </div>
-        </div>
 
-        {/* Project Management Dashboard */}
-        <div className="space-y-6">
-          <ProjectDashboard />
-        </div>
-
-        {/* Current Project Details & Chat */}
-        {currentProject && (
-          <div className="grid gap-8 grid-cols-1 xl:grid-cols-2">
-            <div className="min-h-[500px]">
-              <div className="bg-card border rounded-lg p-6">
-                <h3 className="text-xl font-semibold mb-4">
-                  Project: {currentProject.name}
-                </h3>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Status:</span>
-                      <span className="ml-2 font-medium">{currentProject.status}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Progress:</span>
-                      <span className="ml-2 font-medium">{currentProject.progress || 0}%</span>
-                    </div>
-                    {currentProject.budget_limit && (
-                      <div>
-                        <span className="text-muted-foreground">Budget:</span>
-                        <span className="ml-2 font-medium">${currentProject.budget_limit}</span>
-                      </div>
-                    )}
-                    {currentProject.estimated_duration && (
-                      <div>
-                        <span className="text-muted-foreground">Duration:</span>
-                        <span className="ml-2 font-medium">{currentProject.estimated_duration}h</span>
-                      </div>
-                    )}
-                  </div>
-                  {currentProject.description && (
-                    <div>
-                      <span className="text-muted-foreground">Description:</span>
-                      <p className="mt-1 text-sm">{currentProject.description}</p>
-                    </div>
-                  )}
-                </div>
+            {/* Activity Timeline */}
+            <div className="space-y-4">
+              <div className="border-t border-border pt-8">
+                <h2 className="text-xl font-semibold text-foreground mb-4">Activity Timeline</h2>
+                <RecentActivities />
               </div>
             </div>
-
-            <div className="min-h-[500px]">
-              <CopilotChat projectId={currentProject.id} />
+          </div>
+        ) : currentView === 'project-workspace' && selectedProject ? (
+          <ProjectWorkspace
+            project={selectedProject}
+            onBack={handleBackToDashboard}
+          />
+        ) : (
+          <div className="p-6 flex items-center justify-center min-h-[400px]">
+            <div className="text-center space-y-4">
+              <h2 className="text-xl font-semibold text-muted-foreground">Project Not Found</h2>
+              <p className="text-sm text-muted-foreground">
+                The selected project could not be loaded.
+              </p>
+              <Button onClick={handleBackToDashboard} variant="outline">
+                Return to Dashboard
+              </Button>
             </div>
           </div>
         )}
-
-        {/* Activity Timeline */}
-        <div className="space-y-4">
-          <div className="border-t border-border pt-8">
-            <h2 className="text-xl font-semibold text-foreground mb-4">Activity Timeline</h2>
-            <RecentActivities />
-          </div>
-        </div>
       </div>
     </MainLayout>
   )

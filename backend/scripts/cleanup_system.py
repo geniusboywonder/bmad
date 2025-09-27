@@ -20,6 +20,7 @@ import os
 import argparse
 from datetime import datetime
 from typing import List
+import requests
 
 # Add the backend directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
@@ -198,6 +199,42 @@ class SystemCleaner:
         finally:
             db.close()
 
+    def trigger_frontend_storage_cleanup(self):
+        """Trigger frontend localStorage cleanup via API endpoint."""
+        print("\n🧹 Triggering frontend storage cleanup...")
+
+        try:
+            # Call the backend API endpoint to get cleanup instructions
+            backend_url = getattr(settings, 'api_base_url', 'http://localhost:8000')
+            cleanup_url = f"{backend_url}/api/system/clear-frontend-storage"
+
+            response = requests.post(cleanup_url, timeout=10)
+
+            if response.status_code == 200:
+                cleanup_data = response.json()
+                print(f"  ✅ Frontend cleanup API called successfully")
+                print(f"  📋 Stores to clear: {', '.join(cleanup_data.get('cleared_stores', []))}")
+                print(f"  💬 Message: {cleanup_data.get('message', 'No message')}")
+
+                # Display instructions for manual cleanup
+                print("\n📌 Frontend cleanup instructions:")
+                print("  The following localStorage stores should be cleared:")
+                for store in cleanup_data.get('cleared_stores', []):
+                    print(f"    • {store}")
+                print("\n  Note: Frontend applications should automatically clear these stores")
+                print("        when they receive the cleanup signal from this API.")
+
+            else:
+                print(f"  ⚠️  Frontend cleanup API returned status {response.status_code}")
+                print(f"      Response: {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"  ⚠️  Could not connect to backend API for frontend cleanup: {e}")
+            print("     This is normal if the backend is not running.")
+            print("     Frontend storage will need to be cleared manually or when the frontend next loads.")
+        except Exception as e:
+            print(f"  ❌ Frontend cleanup failed: {e}")
+
     def verify_cleanup(self):
         """Verify that the cleanup was successful."""
         print("\n🔍 Verifying cleanup...")
@@ -264,6 +301,9 @@ class SystemCleaner:
             if not db_only:
                 self.connect_redis()
                 self.cleanup_redis_queues()
+
+            # Trigger frontend storage cleanup
+            self.trigger_frontend_storage_cleanup()
 
             self.verify_cleanup()
 
