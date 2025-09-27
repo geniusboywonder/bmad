@@ -1,0 +1,138 @@
+version: 2
+updates:
+  # Frontend dependencies (npm)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    assignees:
+      - "bmad-team"
+    reviewers:
+      - "bmad-team"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(frontend)"
+      include: "scope"
+    groups:
+      # Group CopilotKit updates together
+      copilotkit:
+        patterns:
+          - "@copilotkit/*"
+      # Group Radix UI updates together
+      radix-ui:
+        patterns:
+          - "@radix-ui/*"
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "@testing-library/*"
+          - "@vitest/*"
+          - "vitest"
+          - "jsdom"
+      # Group dev tools
+      dev-tools:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "autoprefixer"
+          - "postcss"
+          - "tailwindcss"
+    ignore:
+      # Ignore major version updates for these packages (manual review required)
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zod"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-window"
+        update-types: ["version-update:semver-major"]
+
+  # Backend dependencies (pip)
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "America/New_York"
+    assignees:
+      - "bmad-team"
+    reviewers:
+      - "bmad-team"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps(backend)"
+      include: "scope"
+    groups:
+      # Group Google Cloud dependencies
+      google-cloud:
+        patterns:
+          - "google-*"
+      # Group FastAPI ecosystem
+      fastapi:
+        patterns:
+          - "fastapi"
+          - "uvicorn*"
+          - "starlette"
+          - "pydantic*"
+      # Group database dependencies
+      database:
+        patterns:
+          - "sqlalchemy"
+          - "alembic"
+          - "psycopg*"
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "pytest*"
+          - "httpx"
+      # Group async/worker dependencies
+      workers:
+        patterns:
+          - "celery"
+          - "redis"
+          - "billiard"
+    ignore:
+      # Ignore major version updates for these packages (manual review required)
+      - dependency-name: "redis"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "sqlalchemy"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "celery"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "1"
+      time: "09:00"
+      timezone: "America/New_York"
+    assignees:
+      - "bmad-team"
+    reviewers:
+      - "bmad-team"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(actions)"
+      include: "scope"
+
+  # Docker dependencies (if using Docker)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "15"
+      time: "09:00"
+      timezone: "America/New_York"
+    assignees:
+      - "bmad-team"
+    reviewers:
+      - "bmad-team"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(docker)"
+      include: "scope"

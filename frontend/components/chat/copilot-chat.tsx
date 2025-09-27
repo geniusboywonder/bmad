@@ -8,10 +8,12 @@ import { useHITLStore } from '@/lib/stores/hitl-store';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import ChatInput from './chat-input';
 import { websocketService } from "@/lib/services/websocket/websocket-service";
 import { AGENT_DEFINITIONS } from "@/lib/agents/agent-definitions";
 import { InlineHITLApproval } from '@/components/hitl/inline-hitl-approval';
+import { getAgentBadgeClasses, getStatusBadgeClasses } from '@/lib/utils/badge-utils';
 
 interface CopilotChatProps {
   projectId?: string;
@@ -92,24 +94,72 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
   const memoizedMessages = useMemo(() => {
     return filteredMessages.map((msg, index) => {
       const isUser = msg.type === 'user';
+      const isHITLRequest = msg.type === 'hitl_request';
 
-      // For system messages that mention "Task created", show HITL request (pending or resolved)
-      // This approach works because task creation and HITL request creation happen simultaneously
-      const isTaskCreatedMessage = msg.type === 'system' && msg.content.includes('Task created:');
-      const hitlRequest = isTaskCreatedMessage ?
-        requests.find(req => req.status === 'pending') || requests[requests.length - 1] : null;
+      // For HITL request messages, find the matching HITL request from store
+      const hitlRequest = isHITLRequest && msg.approvalId ?
+        requests.find(req => req.context?.approvalId === msg.approvalId) : null;
 
       return (
-        <div key={index} className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
-          <div className={cn('max-w-[80%] rounded-lg px-4 py-3 shadow-sm', isUser ? 'bg-primary text-primary-foreground' : 'bg-card border')}>
+        <div
+          key={index}
+          className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}
+          data-task-id={msg.taskId}
+          data-request-id={msg.requestId}
+          data-approval-id={msg.approvalId}
+        >
+          <div className={cn(
+            'max-w-[80%] rounded-lg px-4 py-3 shadow-sm border transition-all duration-150',
+            isUser
+              ? 'bg-primary text-primary-foreground border-primary/20'
+              : isHITLRequest
+                ? 'bg-amber/5 border-amber/20 text-foreground'
+                : 'bg-card border-border text-foreground'
+          )}>
             <div className="flex items-center gap-2 mb-2">
               {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-              <span className="text-xs font-medium">{msg.agent}</span>
+
+              {/* Agent Badge using centralized system */}
+              <Badge
+                variant="muted"
+                size="sm"
+                className={cn(
+                  "text-[10px] px-1 py-0.5 h-4",
+                  isUser ? "bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20" :
+                  getAgentBadgeClasses(msg.agent)
+                )}
+              >
+                {msg.agent}
+              </Badge>
+
+              {msg.taskId && (
+                <Badge variant="outline" size="sm" className="text-[10px] px-1 py-0.5 h-4 font-mono">
+                  Task: {msg.taskId.slice(-8)}
+                </Badge>
+              )}
+
+              {/* HITL Status Badge using centralized system */}
+              {isHITLRequest && msg.hitlStatus && (
+                <Badge
+                  variant="muted"
+                  size="sm"
+                  className={cn(
+                    "text-[10px] px-1 py-0.5 h-4 font-mono",
+                    getStatusBadgeClasses(
+                      msg.hitlStatus === 'approved' ? 'completed' :
+                      msg.hitlStatus === 'rejected' ? 'error' :
+                      'pending'
+                    )
+                  )}
+                >
+                  {msg.hitlStatus.toUpperCase()}
+                </Badge>
+              )}
             </div>
             <div className="text-sm leading-relaxed">{msg.content}</div>
 
-            {/* Show HITL approval component if there's a matching request */}
-            {hitlRequest && (
+            {/* Show HITL approval component only for pending HITL request messages */}
+            {isHITLRequest && hitlRequest && msg.hitlStatus === 'pending' && (
               <InlineHITLApproval
                 request={hitlRequest}
                 className="mt-3"
@@ -138,7 +188,7 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
         </div>
       </div>
 
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b bg-gradient-to-r from-card/50 to-card">
         <div className="flex items-center gap-4">
           {AGENT_DEFINITIONS.map((agent) => {
             const isSelected = agentFilter === agent.name;
@@ -147,16 +197,33 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
                 key={agent.name}
                 onClick={() => setAgentFilter(isSelected ? null : agent.name)}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-lg transition-all group",
-                  isSelected ? "bg-primary/10" : "hover:bg-secondary/50"
+                  "flex flex-col items-center p-2 rounded-lg transition-all duration-200 group hover:scale-105",
+                  isSelected ? "bg-primary/10 ring-2 ring-primary/20" : "hover:bg-secondary/50"
                 )}
               >
-                <div className={cn("w-12 h-12 rounded-full border-2 flex items-center justify-center mb-2 transition-all", isSelected ? "border-primary bg-primary/10" : "border-border")}>
-                  <agent.icon className={cn("w-6 h-6", isSelected ? "text-primary" : "text-muted-foreground")} />
+                <div className={cn(
+                  "w-12 h-12 rounded-full border-2 flex items-center justify-center mb-2 transition-all duration-200",
+                  isSelected
+                    ? cn("border-2 shadow-md", getAgentBadgeClasses(agent.name).replace('bg-', 'border-').replace('/5', '/40'))
+                    : "border-border hover:border-primary/30"
+                )}>
+                  <agent.icon className={cn(
+                    "w-6 h-6 transition-colors duration-200",
+                    isSelected
+                      ? getAgentBadgeClasses(agent.name).split(' ').find(c => c.startsWith('text-')) || "text-primary"
+                      : "text-muted-foreground group-hover:text-foreground"
+                  )} />
                 </div>
-                <div className={cn("text-xs font-medium", isSelected ? "text-primary" : "text-muted-foreground")}>
+                <Badge
+                  variant="muted"
+                  size="sm"
+                  className={cn(
+                    "text-[10px] px-1 py-0.5 h-4",
+                    isSelected ? getAgentBadgeClasses(agent.name) : "text-muted-foreground border-muted-foreground/20"
+                  )}
+                >
                   {agent.name}
-                </div>
+                </Badge>
               </button>
             );
           })}
@@ -186,7 +253,7 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
         </ScrollArea>
       </div>
 
-      <div className="border-t">
+      <div className="border-t bg-gradient-to-r from-card/30 to-card/50">
         <ChatInput onSend={handleSendMessage} isLoading={isLoading} hasActiveHITL={false} />
       </div>
     </div>

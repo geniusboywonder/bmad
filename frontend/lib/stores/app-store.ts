@@ -16,13 +16,18 @@ export interface Log {
 }
 
 export interface Message {
-  type: 'user' | 'agent' | 'system' | 'error';
+  type: 'user' | 'agent' | 'system' | 'error' | 'hitl_request';
   agent: string;
   content: string;
   timestamp?: Date;
   requiresApproval?: boolean;
   estimatedCost?: number;
   estimatedTime?: string;
+  taskId?: string;
+  requestId?: string;
+  approvalId?: string;
+  hitlStatus?: 'pending' | 'approved' | 'rejected';
+  urgency?: string;
   metadata?: {
     requestId?: string;
     priority?: 'low' | 'medium' | 'high' | 'urgent';
@@ -43,6 +48,7 @@ export interface AppState {
   updateAgent: (agent: Agent) => void;
   addLog: (log: Omit<Log, 'timestamp'>) => void;
   addMessage: (message: Message) => void;
+  updateMessage: (approvalId: string, updates: Partial<Message>) => void;
   setAgentFilter: (agentName: string | null) => void;
 }
 
@@ -78,7 +84,17 @@ export const useAppStore = create<AppState>((set) => ({
       ...state,
       conversation: [...state.conversation, message],
     })),
-  
+
+  updateMessage: (approvalId, updates) =>
+    set((state) => ({
+      ...state,
+      conversation: state.conversation.map((message) =>
+        message.approvalId === approvalId
+          ? { ...message, ...updates }
+          : message
+      ),
+    })),
+
   setAgentFilter: (agentName) =>
     set((state) => ({ ...state, agentFilter: agentName })),
 }));

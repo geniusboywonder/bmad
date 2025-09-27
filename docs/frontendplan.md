@@ -285,39 +285,548 @@ lib/websocket/
 - **Solution**: Integrated SafetyEventHandler with WebSocket client
 - **Impact**: Complete safety monitoring and emergency response capability
 
-### **📋 Recommendations for Next Phase**
+### **📋 Process Summary and Navigation Integration Plan**
 
-#### **Immediate Priorities (Sprint 1.3)**
-1. **Complete State Management Alignment**
-   - Refactor Zustand stores to match backend data models
-   - Implement real-time synchronization with WebSocket events
-   - Add optimistic updates for better UX
+## **Phase 4: Project-Focused UI and Process Summary Integration** 🎯
 
-2. **Backend Connection Testing**
-   - Test with actual backend server when available
-   - Validate API endpoint integration with real data
-   - Verify WebSocket event handling with live backend
+### **Executive Summary**
 
-3. **Error Handling Enhancement**
-   - Add offline detection and recovery
-   - Implement retry queues for failed API calls
-   - Add user notifications for connection issues
+This phase addresses the missing Process Summary component integration and creates a smooth project-focused workflow where:
+1. **Project Selection** triggers transition from Project Dashboard to focused Project Workspace
+2. **Process Summary** displays real-time agent workflow progress (1/3 screen width)
+3. **Chat Interface** provides agent interaction (2/3 screen width)
+4. **Navigation** allows seamless return to Project Dashboard
 
-#### **Phase 2 Focus Areas**
-1. **UI Component Integration**
-   - Connect existing UI components to new API services
-   - Replace mock data with real backend integration
-   - Implement loading states and error boundaries throughout UI
+### **Current State Analysis**
 
-2. **HITL Workflow Implementation**
-   - Build approval interface components
-   - Integrate with backend HITL endpoints
-   - Add emergency stop UI controls
+#### **✅ Available Components:**
+- **Process Summary Component** (`/components/dashboard/process-summary.tsx`)
+  - ✅ Integrates with artifact hook (`useArtifacts()`)
+  - ✅ Displays workflow stages with agent status
+  - ✅ Shows task progress and HITL requirements
+  - ✅ Converts artifacts to ProcessStage format for display
 
-3. **Real-time Dashboard Enhancement**
-   - Connect agent monitoring to WebSocket events
-   - Implement live project status updates
-   - Add artifact generation notifications
+- **Project Dashboard** (`/components/projects/project-dashboard.tsx`)
+  - ✅ Complete project lifecycle management
+  - ✅ Project selection with `onSelect` handler
+  - ✅ Real-time project status updates
+  - ✅ Integration with project store
+
+- **Chat Interface** (`/components/chat/copilot-chat.tsx`)
+  - ✅ Project-scoped messaging (`projectId` prop)
+  - ✅ HITL integration for task creation
+  - ✅ WebSocket communication
+  - ✅ Real-time message handling
+
+#### **🔧 Implementation Gaps:**
+1. **Missing Project Workspace Layout** - No dedicated layout for selected project
+2. **Navigation State Management** - No view state (dashboard vs. project workspace)
+3. **Process Summary Project Integration** - Not connected to selected project
+4. **Layout Proportions** - No 1:2 Process Summary to Chat split
+5. **Artifact Filtering** - Process Summary shows all artifacts, not project-specific
+
+### **Implementation Plan**
+
+#### **Sprint 4.1: Project Workspace Layout (1 week)**
+
+**4.1.1: Create Project Workspace Component**
+```typescript
+// components/projects/project-workspace.tsx
+interface ProjectWorkspaceProps {
+  project: Project;
+  onBack: () => void;
+}
+
+// Layout: 1/3 Process Summary + 2/3 Chat Interface
+// Features: Project header, navigation breadcrumb, responsive design
+```
+
+**4.1.2: Add Navigation State Management**
+```typescript
+// lib/stores/navigation-store.ts
+interface NavigationState {
+  currentView: 'dashboard' | 'project-workspace';
+  selectedProjectId: string | null;
+  setView: (view, projectId?) => void;
+}
+
+// Integration with existing project store for state synchronization
+```
+
+**4.1.3: Update Main Page Layout**
+```typescript
+// app/page.tsx modifications
+// Conditional rendering based on navigation state
+// Replace current grid layout with navigation-aware components
+```
+
+#### **Sprint 4.2: Process Summary Integration (1 week)**
+
+**4.2.1: Project-Scoped Process Summary**
+```typescript
+// components/projects/project-process-summary.tsx
+interface ProjectProcessSummaryProps {
+  projectId: string;
+  className?: string;
+}
+
+// Features:
+// - Filter artifacts by project ID
+// - Real-time updates via WebSocket
+// - Project-specific workflow stages
+// - Integration with backend artifact endpoints
+```
+
+**4.2.2: Enhanced Artifact Management**
+```typescript
+// hooks/use-project-artifacts.ts
+interface UseProjectArtifactsReturn {
+  artifacts: Artifact[];
+  stages: ProcessStage[];
+  progress: number;
+  activeStage: ProcessStage | null;
+}
+
+// Features:
+// - Project-specific artifact filtering
+// - Stage progression calculation
+// - Real-time synchronization
+// - Error handling and loading states
+```
+
+**4.2.3: Workflow Stage Tracking**
+```typescript
+// lib/services/workflow/stage-tracker.ts
+class WorkflowStageTracker {
+  // Track stage progression
+  // Calculate completion percentages
+  // Handle stage transitions
+  // Integrate with WebSocket events
+}
+```
+
+#### **Sprint 4.3: Layout and Navigation (0.5 weeks)**
+
+**4.3.1: Responsive Grid Layout**
+```css
+/* Workspace layout specifications */
+.project-workspace {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1rem;
+  height: calc(100vh - 8rem);
+}
+
+@media (max-width: 1024px) {
+  .project-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+```
+
+**4.3.2: Navigation Components**
+```typescript
+// components/navigation/project-breadcrumb.tsx
+// Back button with project context
+// Keyboard shortcuts (Escape to go back)
+// URL state management
+```
+
+### **Detailed Component Specifications**
+
+#### **Project Workspace Layout**
+
+```typescript
+// components/projects/project-workspace.tsx
+export function ProjectWorkspace({ project, onBack }: ProjectWorkspaceProps) {
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header with navigation */}
+      <header className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Projects
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">{project.name}</h1>
+            <p className="text-muted-foreground">Active workspace</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Badge variant={getStatusBadgeClasses(project.status)}>
+            {project.status.toUpperCase()}
+          </Badge>
+          <Button variant="outline" size="sm">
+            <Settings className="w-4 h-4" />
+          </Button>
+        </div>
+      </header>
+
+      {/* Main workspace: 1/3 Process Summary + 2/3 Chat */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-6 p-6">
+        <div className="space-y-4">
+          <ProjectProcessSummary projectId={project.id} />
+        </div>
+        <div className="min-h-0">
+          <CopilotChat projectId={project.id} />
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+#### **Project-Scoped Process Summary**
+
+```typescript
+// components/projects/project-process-summary.tsx
+export function ProjectProcessSummary({ projectId }: ProjectProcessSummaryProps) {
+  const { artifacts, stages, progress, loading, error } = useProjectArtifacts(projectId);
+  const { currentStage, nextStage } = useWorkflowStageTracker(projectId);
+
+  return (
+    <Card className="h-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Workflow Progress</CardTitle>
+          <Badge variant="outline">{Math.round(progress)}% Complete</Badge>
+        </div>
+        <Progress value={progress} className="w-full" />
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Current Stage Highlight */}
+        {currentStage && (
+          <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium text-sm">Current Stage</span>
+              <Badge variant="muted" size="sm" className={getAgentBadgeClasses(currentStage.agentName)}>
+                {currentStage.agentName}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">{currentStage.description}</p>
+            {currentStage.hitlRequired && (
+              <Badge variant="destructive" size="sm" className="mt-2">
+                Awaiting HITL Approval
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Stage List */}
+        <div className="space-y-2">
+          {stages.map((stage, index) => (
+            <StageCard
+              key={stage.id}
+              stage={stage}
+              isActive={currentStage?.id === stage.id}
+              isNext={nextStage?.id === stage.id}
+            />
+          ))}
+        </div>
+
+        {/* Artifacts Section */}
+        {artifacts.length > 0 && (
+          <div>
+            <h4 className="font-medium text-sm mb-2">Generated Artifacts</h4>
+            <div className="space-y-2">
+              {artifacts.map((artifact) => (
+                <ArtifactItem key={artifact.id} artifact={artifact} />
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+#### **Navigation State Management**
+
+```typescript
+// lib/stores/navigation-store.ts
+interface NavigationState {
+  currentView: 'dashboard' | 'project-workspace';
+  selectedProjectId: string | null;
+  previousView: 'dashboard' | 'project-workspace' | null;
+  breadcrumb: Array<{ label: string; path?: string }>;
+}
+
+interface NavigationActions {
+  navigateToProject: (projectId: string) => void;
+  navigateToDashboard: () => void;
+  goBack: () => void;
+  setBreadcrumb: (breadcrumb: NavigationState['breadcrumb']) => void;
+}
+
+export const useNavigationStore = create<NavigationState & NavigationActions>((set, get) => ({
+  currentView: 'dashboard',
+  selectedProjectId: null,
+  previousView: null,
+  breadcrumb: [{ label: 'Projects' }],
+
+  navigateToProject: (projectId: string) => {
+    const { currentView } = get();
+    set({
+      previousView: currentView,
+      currentView: 'project-workspace',
+      selectedProjectId: projectId,
+      breadcrumb: [
+        { label: 'Projects', path: '/' },
+        { label: 'Workspace' }
+      ]
+    });
+  },
+
+  navigateToDashboard: () => {
+    set({
+      previousView: 'project-workspace',
+      currentView: 'dashboard',
+      selectedProjectId: null,
+      breadcrumb: [{ label: 'Projects' }]
+    });
+  },
+
+  goBack: () => {
+    const { previousView } = get();
+    if (previousView) {
+      set({
+        currentView: previousView,
+        selectedProjectId: previousView === 'dashboard' ? null : get().selectedProjectId,
+        previousView: null
+      });
+    }
+  }
+}));
+```
+
+### **Integration Points**
+
+#### **Updated Main Page Logic**
+
+```typescript
+// app/page.tsx
+export default function HomePage() {
+  const { currentView, selectedProjectId, navigateToProject, navigateToDashboard } = useNavigationStore();
+  const { projects } = useProjectStore();
+  const selectedProject = selectedProjectId ? projects[selectedProjectId] : null;
+
+  return (
+    <MainLayout>
+      {currentView === 'dashboard' ? (
+        <div className="p-6 space-y-8">
+          <ProjectHeader />
+          <ProjectDashboard onSelectProject={navigateToProject} />
+          <RecentActivities />
+        </div>
+      ) : currentView === 'project-workspace' && selectedProject ? (
+        <ProjectWorkspace
+          project={selectedProject}
+          onBack={navigateToDashboard}
+        />
+      ) : (
+        <div className="p-6">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-4">Project Not Found</h2>
+            <Button onClick={navigateToDashboard}>Return to Dashboard</Button>
+          </div>
+        </div>
+      )}
+    </MainLayout>
+  );
+}
+```
+
+#### **Enhanced Project Dashboard Integration**
+
+```typescript
+// components/projects/project-dashboard.tsx modifications
+interface ProjectDashboardProps {
+  onSelectProject: (projectId: string) => void;
+}
+
+export function ProjectDashboard({ onSelectProject }: ProjectDashboardProps) {
+  // ... existing code ...
+
+  const handleProjectSelect = (project: Project) => {
+    onSelectProject(project.id); // Use navigation store instead of project store
+  };
+
+  // Remove currentProject dependency since workspace handles selection
+}
+```
+
+### **Technical Implementation Details**
+
+#### **Responsive Design Considerations**
+
+```css
+/* Enhanced responsive layout */
+@media (max-width: 1280px) {
+  .project-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .process-summary {
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .process-summary {
+    max-height: 30vh;
+  }
+}
+```
+
+#### **Performance Optimizations**
+
+```typescript
+// Memoization for large artifact lists
+const memoizedStages = useMemo(() => {
+  return artifacts.map(convertArtifactToStage);
+}, [artifacts]);
+
+// Virtualization for long stage lists
+const VirtualizedStageList = React.memo(({ stages }) => {
+  return (
+    <FixedSizeList
+      height={400}
+      itemCount={stages.length}
+      itemSize={80}
+    >
+      {({ index, style }) => (
+        <div style={style}>
+          <StageCard stage={stages[index]} />
+        </div>
+      )}
+    </FixedSizeList>
+  );
+});
+```
+
+#### **WebSocket Integration**
+
+```typescript
+// Real-time updates for project workspace
+useEffect(() => {
+  if (projectId && currentView === 'project-workspace') {
+    // Subscribe to project-specific events
+    websocketService.subscribe(`project.${projectId}.artifacts`, handleArtifactUpdate);
+    websocketService.subscribe(`project.${projectId}.stages`, handleStageUpdate);
+
+    return () => {
+      websocketService.unsubscribe(`project.${projectId}.artifacts`);
+      websocketService.unsubscribe(`project.${projectId}.stages`);
+    };
+  }
+}, [projectId, currentView]);
+```
+
+### **Testing Strategy**
+
+#### **Component Testing**
+```typescript
+// tests/project-workspace.test.tsx
+describe('ProjectWorkspace', () => {
+  it('renders with correct layout proportions', () => {
+    render(<ProjectWorkspace project={mockProject} onBack={mockOnBack} />);
+
+    const processSection = screen.getByTestId('process-summary-section');
+    const chatSection = screen.getByTestId('chat-section');
+
+    expect(processSection).toHaveClass('lg:col-span-1');
+    expect(chatSection).toHaveClass('lg:col-span-2');
+  });
+
+  it('handles navigation back to dashboard', async () => {
+    const mockOnBack = vi.fn();
+    const user = userEvent.setup();
+
+    render(<ProjectWorkspace project={mockProject} onBack={mockOnBack} />);
+
+    await user.click(screen.getByRole('button', { name: /back to projects/i }));
+    expect(mockOnBack).toHaveBeenCalled();
+  });
+});
+```
+
+#### **Integration Testing**
+```typescript
+// tests/navigation-flow.test.tsx
+describe('Navigation Flow', () => {
+  it('transitions from dashboard to project workspace', async () => {
+    const user = userEvent.setup();
+
+    render(<HomePage />);
+
+    // Should start at dashboard
+    expect(screen.getByText('Projects')).toBeInTheDocument();
+
+    // Select a project
+    await user.click(screen.getByTestId('project-card-1'));
+
+    // Should transition to workspace
+    expect(screen.getByText('Active workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('process-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-interface')).toBeInTheDocument();
+  });
+});
+```
+
+### **Implementation Timeline**
+
+#### **Week 1: Foundation**
+- ✅ Create navigation store and state management
+- ✅ Build ProjectWorkspace component with basic layout
+- ✅ Update main page routing logic
+- ✅ Add navigation breadcrumb component
+
+#### **Week 2: Process Summary Integration**
+- ✅ Create ProjectProcessSummary component
+- ✅ Implement useProjectArtifacts hook with filtering
+- ✅ Add workflow stage tracking logic
+- ✅ Integrate with WebSocket for real-time updates
+
+#### **Week 3: Polish and Testing**
+- ✅ Responsive design implementation
+- ✅ Performance optimizations and memoization
+- ✅ Comprehensive testing suite
+- ✅ Documentation and code review
+
+### **Success Metrics**
+
+#### **User Experience**
+- **Navigation Time**: <500ms transition between views
+- **Layout Responsiveness**: Proper display on mobile, tablet, desktop
+- **Real-time Updates**: <2s latency for artifact and stage updates
+- **Accessibility**: Full keyboard navigation and screen reader support
+
+#### **Technical Performance**
+- **Component Render Time**: <100ms for workspace initialization
+- **Memory Usage**: <50MB additional for workspace state
+- **WebSocket Efficiency**: Batched updates for multiple stage changes
+- **Bundle Size**: <20KB additional for navigation components
+
+### **Immediate Next Steps**
+
+1. **Create Navigation Store** - Implement view state management
+2. **Build ProjectWorkspace Component** - Core layout with 1:2 proportions
+3. **Update Main Page Logic** - Conditional rendering based on navigation state
+4. **Integrate Process Summary** - Project-specific artifact filtering
+5. **Add Navigation Components** - Back button and breadcrumb navigation
+
+This implementation creates a smooth, focused workflow where project selection naturally transitions to a dedicated workspace with real-time process monitoring and agent interaction capabilities.
 
 ### **🎯 Next Phase Priorities**
 

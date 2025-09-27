@@ -69,15 +69,40 @@ export const HITLAlertsBar: React.FC<HITLAlertsBarProps> = ({
   const handleHITLClick = (requestId: string) => {
     const request = requests.find(r => r.id === requestId);
     if (request) {
-      // Set the agent filter to show HITL for the specific agent
-      setAgentFilter(request.agentName);
-      // Navigate to the request to make it active
-      navigateToRequest(requestId);
-      // Scroll to chat section if it exists
+      // Navigate to the chat section
       const chatElement = document.querySelector('[data-testid="copilot-chat"], .copilot-chat, #chat-container');
       if (chatElement) {
         chatElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
+
+      // If the request has a task ID, try to find and highlight the specific message
+      const taskId = request.context?.taskId;
+      if (taskId) {
+        // Wait a bit for the scroll to complete, then try to find the specific message
+        setTimeout(() => {
+          // Look for chat messages that contain the task ID or approval ID
+          const messageElements = document.querySelectorAll('[data-task-id], [data-request-id]');
+          for (const element of messageElements) {
+            const elementTaskId = element.getAttribute('data-task-id');
+            const elementRequestId = element.getAttribute('data-request-id');
+
+            if (elementTaskId === taskId || elementRequestId === requestId) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              // Add a temporary highlight
+              element.classList.add('bg-yellow-100', 'ring-2', 'ring-yellow-300');
+              setTimeout(() => {
+                element.classList.remove('bg-yellow-100', 'ring-2', 'ring-yellow-300');
+              }, 2000);
+              break;
+            }
+          }
+        }, 500);
+      }
+
+      // Set the agent filter to show HITL for the specific agent
+      setAgentFilter(request.agentName);
+      // Navigate to the request to make it active
+      navigateToRequest(requestId);
     }
   };
 

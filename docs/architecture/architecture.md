@@ -97,7 +97,49 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - Emergency stop mechanisms with multiple trigger conditions
 - Comprehensive audit trails and compliance tracking
 
-### 4.2 Budget Control System
+### 4.2 HITL Request Lifecycle Management ✅ Enhanced September 2025
+
+**Frontend Store Management:**
+- **Request Creation**: HITL requests stored in persistent Zustand store with localStorage
+- **Status Tracking**: Real-time updates via WebSocket events
+- **Alert Display**: Pending requests shown in alerts bar with navigation links
+- **✅ NEW: Automatic Cleanup**: Resolved requests completely removed from store (not just status updated)
+- **✅ NEW: Manual Cleanup**: `clearAllRequests()` and `removeResolvedRequests()` methods for development
+
+**Resolution Workflow:**
+1. User approves/rejects/modifies HITL request via inline component
+2. Frontend calls backend HITL safety API endpoint
+3. Backend processes approval and notifies relevant systems
+4. **✅ CRITICAL**: Frontend removes request from store completely
+5. Alert automatically disappears from UI
+6. Safety event handler acknowledges related alerts
+
+**Store Methods (`frontend/lib/stores/hitl-store.ts`):**
+```typescript
+// Enhanced resolution - removes request completely
+resolveRequest: async (id, status, response) => {
+  // API call to backend
+  await fetch(`/api/v1/hitl-safety/approve-agent-execution/${approvalId}`, {...});
+
+  // Remove from store (not just update status)
+  set((state) => ({
+    requests: state.requests.filter((req) => req.id !== id),
+    activeRequest: state.activeRequest?.id === id ? null : state.activeRequest,
+  }));
+}
+
+// Manual cleanup methods for development
+clearAllRequests: () => void;           // Remove all requests
+removeResolvedRequests: () => void;     // Remove non-pending requests
+```
+
+**Benefits:**
+- ✅ **Clean UI**: Resolved alerts automatically disappear
+- ✅ **Memory Management**: No accumulation of resolved requests
+- ✅ **Developer Experience**: Manual cleanup tools for testing
+- ✅ **Consistency**: Store state matches backend reality after system cleanup
+
+### 4.3 Budget Control System
 
 **Control Mechanisms:**
 - Daily and session token limits per agent/project
@@ -215,11 +257,11 @@ Frontend Chat Input → HTTP API Call → Backend Task Creation → HITL Safety 
 → Celery Agent Execution → WebSocket Event Broadcast → Frontend UI Update
 ```
 
-### 7.3 Chat Message Processing Pipeline ✅ CORRECTED FLOW (September 2025)
+### 7.3 Chat Message Processing Pipeline ✅ ENHANCED (September 2025)
 
 **CRITICAL: Frontend chat messages must trigger HTTP API calls, not WebSocket messages, to activate HITL workflows.**
 
-**Corrected Message Flow Steps:**
+**Enhanced Message Flow Steps:**
 1. **Frontend Chat**: User sends message via `CopilotChat` component
 2. **HTTP API Call**: Frontend calls `POST /api/v1/projects/{project_id}/tasks` with task data
 3. **Task Creation**: Backend creates database task with status PENDING
@@ -227,6 +269,8 @@ Frontend Chat Input → HTTP API Call → Backend Task Creation → HITL Safety 
 5. **HITL Safety Check**: Celery task calls `HITLSafetyService.create_approval_request()`
 6. **WebSocket Broadcast**: HITL approval request broadcast via `HITL_REQUEST_CREATED` event
 7. **Frontend UI Update**: WebSocket event triggers HITL alerts bar display
+8. **✅ NEW: Separate HITL Messages**: Each HITL request creates a unique chat message with persistent state
+9. **✅ NEW: Alert Navigation**: Alert bar clicks navigate directly to specific HITL messages with visual highlighting
 
 **Implementation Details:**
 ```typescript
@@ -243,12 +287,22 @@ const response = await fetch(`http://localhost:8000/api/v1/projects/${projectId}
 });
 ```
 
-**Current Status: ✅ FULLY FUNCTIONAL**
+**✅ September 2025 HITL Enhancements:**
+- ✅ **Separate HITL Messages**: Each HITL request now creates a dedicated `hitl_request` message type
+- ✅ **Message Persistence**: HITL messages retain their approval state permanently (approved/rejected/pending)
+- ✅ **Navigation Integration**: Alert bar provides direct navigation to specific HITL chat messages
+- ✅ **Visual Highlighting**: Clicked HITL messages receive temporary highlighting for user feedback
+- ✅ **Status Indicators**: Visual badges show HITL approval status within chat messages
+- ✅ **Alert Lifecycle Management**: HITL alerts now properly disappear when requests are resolved
+- ✅ **Store Cleanup Integration**: Frontend HITL store removes resolved requests instead of updating status
+
+**Current Status: ✅ FULLY FUNCTIONAL WITH ENHANCEMENTS**
 - ✅ HTTP API task creation working
 - ✅ HITL approval requests created and broadcast
 - ✅ WebSocket events properly received by frontend
 - ✅ Backend HITL workflow proven functional end-to-end
 - ✅ Celery worker configuration issue resolved (September 2025)
+- ✅ **NEW**: Individual HITL message persistence and navigation system operational
 
 ### 7.4 Critical Configuration Issue Resolution (September 2025)
 
@@ -341,6 +395,58 @@ celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celer
 - Eliminates orphaned tasks and memory leaks
 - Provides clean development and production startup experience
 
+### 9.2 ✅ NEW: Comprehensive System Cleanup Script (September 2025)
+
+**Manual Cleanup Utility: `scripts/cleanup_system.py`**
+
+**Complete System Reset Capabilities:**
+- **Database Cleanup**: Removes all records from 14+ database tables in proper dependency order
+- **Redis Cleanup**: Clears both Redis databases (0: WebSocket sessions, 1: Celery queues)
+- **Celery Queue Management**: Purges all task queues and results
+- **PostgreSQL Sequence Reset**: Resets all auto-increment sequences to start from 1
+- **Verification System**: Confirms successful cleanup across all components
+
+**Usage Options:**
+```bash
+# Complete system cleanup (database + Redis + Celery)
+python scripts/cleanup_system.py --confirm
+
+# Database tables only
+python scripts/cleanup_system.py --db-only --confirm
+
+# Redis and queues only
+python scripts/cleanup_system.py --redis-only --confirm
+
+# Interactive mode with confirmation prompts
+python scripts/cleanup_system.py
+```
+
+**Tables Cleaned (Dependency Order):**
+1. Child tables: `event_log`, `response_approvals`, `recovery_sessions`, `websocket_notifications`
+2. HITL tables: `hitl_agent_approvals`, `hitl_requests`
+3. Task-related: `context_artifacts`, `tasks`, `workflow_states`
+4. Agent control: `agent_budget_controls`, `emergency_stops`, `agent_status`
+5. Parent tables: `projects` (deleted last due to foreign key constraints)
+
+**Safety Features:**
+- **Confirmation Prompts**: Interactive mode requires explicit user confirmation
+- **Error Handling**: Continues cleanup if individual table operations fail
+- **Transaction Safety**: Database operations wrapped in transactions with rollback capability
+- **Verification**: Post-cleanup verification ensures complete system reset
+- **Logging**: Comprehensive logging of all cleanup operations and results
+
+**Development Benefits:**
+- **Repeatable Clean State**: Can be run repeatedly for testing and development
+- **Targeted Cleanup**: Options for selective cleanup (database-only or Redis-only)
+- **Fresh Testing Environment**: Ensures each test cycle starts with clean data
+- **Debug Support**: Clear logging helps identify cleanup issues
+
+**Production Considerations:**
+- **Destructive Operation**: Permanently deletes ALL system data
+- **Backup Requirement**: Should only be used after confirming data backup
+- **Development/Testing Only**: Not intended for production environment usage
+- **Team Coordination**: Requires team awareness when used in shared development environments
+
 ## 10. Performance and Monitoring
 
 ### 10.1 Performance Targets
@@ -431,6 +537,7 @@ celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celer
 - ✅ Multi-component health monitoring
 - ✅ Celery task queue with retry logic
 - ✅ Startup cleanup service with queue flushing and agent reset
+- ✅ **NEW**: Comprehensive manual cleanup script for development/testing
 
 **Agent Framework:**
 - ✅ Google ADK integration with enterprise controls
@@ -443,12 +550,21 @@ celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celer
 - ✅ Budget management with emergency stops
 - ✅ Response validation and safety scoring
 - ✅ Comprehensive audit trails
+- ✅ **NEW**: Enhanced HITL chat message persistence and navigation
 
 **API and Documentation:**
 - ✅ 81 endpoints across 13 organized categories
 - ✅ OpenAPI documentation with proper grouping
 - ✅ Real-time WebSocket event system
 - ✅ Multi-tier health check endpoints
+
+**✅ September 2025 Enhancements:**
+- ✅ **HITL Message Persistence**: Individual HITL requests create dedicated persistent chat messages
+- ✅ **Alert Navigation**: Direct navigation from alert bar to specific HITL messages with highlighting
+- ✅ **System Cleanup Utility**: Comprehensive script for database and queue cleanup
+- ✅ **Development Workflow**: Enhanced tools for clean testing environments and debugging
+- ✅ **HITL Alert Lifecycle**: Resolved HITL requests completely removed from frontend store
+- ✅ **Store Cleanup Methods**: Manual cleanup utilities for development and testing workflows
 
 ### 12.2 Architecture Validation
 

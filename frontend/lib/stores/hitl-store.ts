@@ -71,6 +71,10 @@ interface HITLStore {
   // Navigation helpers
   navigateToRequest: (id: string) => void;
   filterChatByAgent: (agentName: string) => void;
+
+  // Cleanup methods
+  clearAllRequests: () => void;
+  removeResolvedRequests: () => void;
 }
 
 export const useHITLStore = create<HITLStore>()(
@@ -122,11 +126,9 @@ export const useHITLStore = create<HITLStore>()(
             console.warn(`[HITLStore] No approval ID found in request context for ${id}`);
           }
 
-          // Update local state
+          // Remove the request from the store completely when resolved
           set((state) => ({
-            requests: state.requests.map((req) =>
-              req.id === id ? { ...req, status, response } : req
-            ),
+            requests: state.requests.filter((req) => req.id !== id),
             activeRequest: state.activeRequest?.id === id ? null : state.activeRequest,
           }));
 
@@ -134,7 +136,7 @@ export const useHITLStore = create<HITLStore>()(
           const relatedAlertId = `hitl_${id}`;
           safetyEventHandler.acknowledgeAlert(relatedAlertId);
 
-          console.log(`[HITLStore] Resolved request ${id} with status: ${status}`);
+          console.log(`[HITLStore] Resolved and removed request ${id} with status: ${status}`);
         } catch (error) {
           console.error(`[HITLStore] Failed to resolve request ${id}:`, error);
           throw error;
@@ -174,6 +176,20 @@ export const useHITLStore = create<HITLStore>()(
       filterChatByAgent: (agentName) => {
         // This is handled by the chat component's useEffect that responds to activeRequest changes
         console.log(`Chat should filter by agent: ${agentName}`);
+      },
+
+      // Cleanup methods
+      clearAllRequests: () => {
+        set({ requests: [], activeRequest: null });
+        console.log('[HITLStore] Cleared all HITL requests');
+      },
+
+      removeResolvedRequests: () => {
+        set((state) => ({
+          requests: state.requests.filter((req) => req.status === 'pending'),
+          activeRequest: state.activeRequest?.status !== 'pending' ? null : state.activeRequest,
+        }));
+        console.log('[HITLStore] Removed all resolved HITL requests');
       },
     }),
     {

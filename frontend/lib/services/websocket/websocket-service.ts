@@ -64,11 +64,16 @@ class WebSocketService {
     // Subscribe to all backend event types
     this.globalConnection.on('agent_status_changed', this.handleAgentStatusChanged.bind(this));
     this.globalConnection.on('task_progress_updated', this.handleTaskProgressUpdated.bind(this));
+    this.globalConnection.on('TASK_STARTED', this.handleTaskStarted.bind(this));
+    this.globalConnection.on('task_started', this.handleTaskStarted.bind(this)); // backwards compatibility
+    this.globalConnection.on('TASK_COMPLETED', this.handleTaskCompleted.bind(this));
+    this.globalConnection.on('task_completed', this.handleTaskCompleted.bind(this)); // backwards compatibility
     this.globalConnection.on('HITL_REQUEST_CREATED', this.handleHITLRequestCreated.bind(this));
     this.globalConnection.on('hitl_request_created', this.handleHITLRequestCreated.bind(this)); // backwards compatibility
     this.globalConnection.on('artifact_generated', this.handleArtifactGenerated.bind(this));
     this.globalConnection.on('error_notification', this.handleErrorNotification.bind(this));
     this.globalConnection.on('agent_chat_message', this.handleAgentChatMessage.bind(this));
+    this.globalConnection.on('hitl_approval_response', this.handleHITLApprovalResponse.bind(this));
   }
 
   connect() {
@@ -159,6 +164,54 @@ class WebSocketService {
     console.log(`[WebSocket] Agent ${data.agent_name} status changed to ${data.status}`);
   }
 
+  private handleTaskStarted(event: any) {
+    const { data } = event;
+    const { addMessage, updateAgent } = useAppStore.getState();
+
+    // Update agent status
+    updateAgent({
+      name: data.agent_type,
+      status: "working",
+      task: data.message || "Processing task"
+    });
+
+    // Add a chat message showing task started
+    addMessage({
+      type: "agent",
+      agent: `${data.agent_type} Agent`,
+      content: `🚀 **Task Started**\n\n${data.message || "I've begun processing your request."}\n\n⏱️ Started at: ${new Date(data.timestamp).toLocaleTimeString()}`,
+      taskId: data.task_id
+    });
+
+    console.log(`[WebSocket] Task started for ${data.agent_type}: ${data.task_id}`);
+  }
+
+  private handleTaskCompleted(event: any) {
+    const { data } = event;
+    const { addMessage, updateAgent } = useAppStore.getState();
+
+    // Update agent status
+    updateAgent({
+      name: data.agent_type,
+      status: "idle",
+      task: null
+    });
+
+    // Add a chat message showing task completion
+    const outputSummary = typeof data.output?.output === 'string'
+      ? data.output.output
+      : data.output?.message || "Task completed successfully";
+
+    addMessage({
+      type: "agent",
+      agent: `${data.agent_type} Agent`,
+      content: `✅ **Task Completed**\n\n${outputSummary}\n\n⏱️ Completed at: ${new Date(data.timestamp).toLocaleTimeString()}`,
+      taskId: data.task_id
+    });
+
+    console.log(`[WebSocket] Task completed for ${data.agent_type}: ${data.task_id}`);
+  }
+
   private handleTaskProgressUpdated(event: TaskProgressUpdatedEvent) {
     const { data } = event;
     const { updateAgent, addLog } = useAppStore.getState();
@@ -204,19 +257,42 @@ class WebSocketService {
         estimatedTokens: data.estimated_tokens,
         estimatedCost: data.estimated_cost,
         expiresAt: data.expires_at,
-        requestData: data.request_data
+        requestData: data.request_data,
+        taskId: data.task_id
       },
       priority: (data.estimated_cost && data.estimated_cost > 5) ? 'high' : 'medium'
     });
 
     console.log(`[WebSocket] HITL request added to store for ${data.agent_type}: ${data.approval_id}`);
 
+    // Add a separate, dedicated HITL message - each HITL gets its own unique message
+    const taskInstructions = data.request_data?.instructions || "Execute task";
     addMessage({
-      type: "hitl",
-      agent: "HITL System",
-      content: `HITL Request: ${data.request_type} approval needed for ${data.agent_type}`,
+      type: "hitl_request",
+      agent: `${data.agent_type} Agent`,
+      content: `🚨 **HITL Approval Required**\n\nI need permission to: "${taskInstructions}"\n\n📊 **Estimated cost:** $${data.estimated_cost?.toFixed(4) || '0.0150'}\n⏱️ **Estimated tokens:** ${data.estimated_tokens || 100}\n\n⚠️ **Waiting for human approval before proceeding...**`,
       urgency: (data.estimated_cost && data.estimated_cost > 5) ? "high" : "medium",
-      requestId: data.approval_id
+      requestId: data.approval_id,
+      taskId: data.task_id,
+      approvalId: data.approval_id, // Add unique identifier for this specific HITL request
+      hitlStatus: "pending" // Track the status of this specific HITL
+    });
+  }
+
+  // Add handler for HITL approval responses
+  private handleHITLApprovalResponse(event: any) {
+    const { data } = event;
+    const { updateMessage } = useAppStore.getState();
+
+    console.log(`[WebSocket] HITL approval response:`, data);
+
+    // Update the specific HITL message with the approval result
+    const approvalResult = data.approved ? "✅ **APPROVED**" : "❌ **REJECTED**";
+    const timestamp = new Date().toLocaleTimeString();
+
+    updateMessage(data.approval_id, {
+      content: `${approvalResult}\n\nOriginal request: "${data.original_instructions || 'Execute task'}"\n\n📊 **Cost:** $${data.estimated_cost?.toFixed(4) || '0.0150'}\n⏱️ **Tokens:** ${data.estimated_tokens || 100}\n\n${data.approved ? '✓' : '✗'} **Decision made at:** ${timestamp}${data.comment ? `\n💬 **Comment:** ${data.comment}` : ''}`,
+      hitlStatus: data.approved ? "approved" : "rejected"
     });
   }
 

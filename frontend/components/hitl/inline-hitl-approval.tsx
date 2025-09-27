@@ -179,54 +179,68 @@ export const InlineHITLApproval: React.FC<InlineHITLApprovalProps> = ({
   }
 
   return (
-    <div className={cn('border rounded-lg p-4 transition-all duration-200', config.color, className)}>
+    <div className={cn(
+      'border rounded-lg p-4 transition-all duration-200 shadow-sm backdrop-blur-sm',
+      config.color,
+      className
+    )}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <PriorityIcon className={cn('w-4 h-4', config.iconColor)} />
           <span className="text-sm font-medium">HITL Approval Required</span>
-          <Badge variant="outline" className="text-xs">
+
+          {/* Agent Badge using centralized system */}
+          <Badge
+            variant="muted"
+            size="sm"
+            className={cn('text-[10px] px-1 py-0.5 h-4', getAgentBadgeClasses(request.agentName))}
+          >
             {request.agentName}
           </Badge>
+
+          {/* Priority Badge using centralized severity system */}
           <Badge
-            variant="outline"
-            className={cn('text-xs',
-              request.priority === 'urgent' ? 'border-red-300 text-red-700' :
-              request.priority === 'high' ? 'border-orange-300 text-orange-700' :
-              request.priority === 'medium' ? 'border-yellow-300 text-yellow-700' :
-              'border-green-300 text-green-700'
+            variant="muted"
+            size="sm"
+            className={cn(
+              'text-[10px] px-1 py-0.5 h-4 font-medium',
+              request.priority === 'urgent' ? getStatusBadgeClasses('error') :
+              request.priority === 'high' ? 'text-orange-600 border-orange-600/20' :
+              request.priority === 'medium' ? getStatusBadgeClasses('pending') :
+              getStatusBadgeClasses('completed')
             )}
           >
             {request.priority.toUpperCase()}
           </Badge>
         </div>
-        <div className="text-xs text-current opacity-70">
+        <div className="text-xs text-current/70 font-mono">
           {new Date(request.timestamp).toLocaleTimeString()}
         </div>
       </div>
 
       {/* Task details */}
       <div className="mb-3">
-        <p className="text-sm font-medium mb-1">Task Details:</p>
-        <p className="text-sm bg-white bg-opacity-50 rounded px-2 py-1">
+        <p className="text-sm font-medium mb-1 opacity-90">Task Details:</p>
+        <p className="text-sm bg-background/50 backdrop-blur-sm rounded px-3 py-2 border border-current/10">
           {getTaskDescription()}
         </p>
       </div>
 
       {/* Context information */}
       {(request.estimatedCost || request.estimatedTime) && (
-        <div className="flex gap-4 mb-3 text-xs">
+        <div className="flex gap-4 mb-3">
           {request.estimatedCost && (
-            <div className="flex items-center gap-1">
+            <Badge variant="muted" size="sm" className="text-[10px] px-2 py-1 h-5 gap-1">
               <DollarSign className="w-3 h-3" />
-              <span>Est. Cost: ${request.estimatedCost}</span>
-            </div>
+              Est. Cost: ${request.estimatedCost}
+            </Badge>
           )}
           {request.estimatedTime && (
-            <div className="flex items-center gap-1">
+            <Badge variant="muted" size="sm" className="text-[10px] px-2 py-1 h-5 gap-1">
               <Timer className="w-3 h-3" />
-              <span>Est. Time: {request.estimatedTime}</span>
-            </div>
+              Est. Time: {request.estimatedTime}
+            </Badge>
           )}
         </div>
       )}
@@ -237,7 +251,7 @@ export const InlineHITLApproval: React.FC<InlineHITLApprovalProps> = ({
           size="sm"
           onClick={handleApprove}
           disabled={isSubmitting}
-          className="bg-green-600 hover:bg-green-700 text-white"
+          className="bg-tester hover:bg-tester/90 text-white shadow-sm transition-all duration-150 hover:scale-105"
         >
           <CheckCircle className="w-3 h-3 mr-1" />
           Approve
@@ -248,6 +262,7 @@ export const InlineHITLApproval: React.FC<InlineHITLApprovalProps> = ({
           variant="destructive"
           onClick={handleReject}
           disabled={isSubmitting}
+          className="shadow-sm transition-all duration-150 hover:scale-105"
         >
           <XCircle className="w-3 h-3 mr-1" />
           Reject
@@ -257,7 +272,7 @@ export const InlineHITLApproval: React.FC<InlineHITLApprovalProps> = ({
           size="sm"
           variant="outline"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="border-current text-current hover:bg-current hover:bg-opacity-10"
+          className="border-current text-current hover:bg-current/10 shadow-sm transition-all duration-150 hover:scale-105"
         >
           <Edit3 className="w-3 h-3 mr-1" />
           {isExpanded ? 'Cancel' : 'Modify'}
@@ -266,22 +281,22 @@ export const InlineHITLApproval: React.FC<InlineHITLApprovalProps> = ({
 
       {/* Expanded response area */}
       {isExpanded && (
-        <div className="space-y-2 pt-2 border-t border-current border-opacity-20">
-          <label className="text-xs font-medium block">
+        <div className="space-y-3 pt-3 border-t border-current/20 animate-in slide-in-from-top-2 duration-200">
+          <label className="text-xs font-medium block opacity-90">
             Response / Modification Instructions:
           </label>
           <Textarea
             value={response}
             onChange={(e) => setResponse(e.target.value)}
             placeholder="Provide feedback, modifications, or rejection reason..."
-            className="min-h-[60px] text-sm bg-white bg-opacity-70 border-current border-opacity-30"
+            className="min-h-[60px] text-sm bg-background/70 backdrop-blur-sm border-current/30 focus:border-current/50 transition-colors duration-150"
           />
           <div className="flex gap-2">
             <Button
               size="sm"
               onClick={handleModify}
               disabled={!response.trim() || isSubmitting}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="bg-analyst hover:bg-analyst/90 text-white shadow-sm transition-all duration-150 hover:scale-105"
             >
               <Send className="w-3 h-3 mr-1" />
               Send Response
