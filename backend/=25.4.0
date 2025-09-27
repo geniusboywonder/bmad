@@ -1,2 +1,0 @@
-[0;34mRunning: pip install structlog[0m
-Requirement already satisfied: structlog in ./venv/lib/python3.13/site-packages (23.2.0)
