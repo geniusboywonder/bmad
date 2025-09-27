@@ -8,13 +8,16 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 
 ### 1.1 Core Components
 
-**Frontend (Next.js/React) ✅ Enhanced**
+**Frontend (Next.js/React) ✅ Enhanced - September 2025**
 - Responsive web application with real-time chat interface
 - Complete project management dashboard with lifecycle controls
 - Enhanced Zustand state management with backend integration
 - Comprehensive WebSocket integration with project-scoped connections
 - HITL approval components with safety event handling
 - Complete test suite with 228 test cases covering all integration layers
+- **✅ NEW**: Enhanced Process Summary with SDLC workflow visualization (50/50 layout)
+- **✅ NEW**: Interactive stage navigation with role-based icons and status overlays
+- **✅ NEW**: Expandable artifacts system with progress tracking and download functionality
 
 **Backend (FastAPI)**
 - Central orchestration hub with REST APIs and WebSocket services
@@ -502,7 +505,106 @@ python scripts/cleanup_system.py
 - Monitoring and observability platform
 - Load balancer and CDN for production traffic
 
-## 11. Quality Assurance
+## 11. ✅ NEW: Enhanced Process Summary Architecture (September 2025)
+
+### 11.1 SDLC Workflow Visualization
+
+**Component: `frontend/components/projects/project-process-summary.tsx`**
+
+**Core Features:**
+- **50/50 Layout**: Equal split between Process Summary and Chat Interface (`grid-cols-1 xl:grid-cols-2`)
+- **5-Stage SDLC Workflow**: Analyze → Design → Build → Validate → Launch
+- **Interactive Stage Navigation**: Click to switch between workflow stages with real-time content updates
+- **Role-Based Visual Design**: Agent-specific icons and color coding for each stage
+
+**Stage Mapping System:**
+```typescript
+const defaultStages = [
+  { id: "analyze", agent: "Analyst", icon: ClipboardCheck },
+  { id: "design", agent: "Architect", icon: DraftingCompass },
+  { id: "build", agent: "Developer", icon: Construction },
+  { id: "validate", agent: "Tester", icon: TestTube2 },
+  { id: "launch", agent: "Deployer", icon: Rocket }
+];
+```
+
+### 11.2 Artifacts Management System
+
+**Dynamic Artifact Filtering:**
+- **Stage-Specific Display**: Artifacts automatically filtered by stage based on name patterns and agent assignments
+- **Progress Tracking**: Real-time progress bars showing completion status (e.g., "2/3 artifacts completed")
+- **Expandable Details**: Click to expand artifact details with task breakdown and status information
+- **Download Functionality**: Working download buttons for completed artifacts
+
+**Artifact Mapping Logic:**
+```typescript
+// Smart filtering based on artifact name and agent type
+if (stage.id === "analyze" && (name.includes('requirement') || agent.includes('analyst'))) return true;
+if (stage.id === "design" && (name.includes('design') || agent.includes('architect'))) return true;
+// ... additional stage mappings
+```
+
+### 11.3 Visual Design System
+
+**Status Overlay System:**
+- **Status Icons**: CheckCircle (completed), Play (in_progress), Clock (pending), AlertTriangle (failed)
+- **Color Coding**: Dynamic background colors based on status (tester green, analyst blue, amber warnings)
+- **Visual Hierarchy**: Connecting lines between stages, proper spacing, and responsive design
+
+**Role-Based Iconography:**
+- **Analyst**: ClipboardCheck icon with slate-500 color scheme
+- **Architect**: DraftingCompass icon with pink-500 color scheme
+- **Developer**: Construction icon with lime-600 color scheme
+- **Tester**: TestTube2 icon with sky-500 color scheme
+- **Deployer**: Rocket icon with rose-600 color scheme
+
+### 11.4 Backend Integration
+
+**API Integration:**
+- **Artifacts Service**: `lib/services/api/artifacts.service.ts` with project-specific endpoints
+- **Project Artifacts Hook**: `hooks/use-project-artifacts.ts` for real-time data management
+- **Error Handling**: Comprehensive null checks and fallback values for missing data
+
+**Real-Time Updates:**
+- **30-Second Refresh**: Automatic artifact data refresh every 30 seconds
+- **Progress Calculation**: Dynamic progress percentage based on completed vs. total artifacts
+- **Status Synchronization**: Backend artifact status reflected in UI immediately
+
+### 11.5 Responsive Design Implementation
+
+**Multi-Device Support:**
+- **Desktop (1440px)**: Full 50/50 layout with all features visible
+- **Tablet (768px)**: Responsive grid maintains functionality with adjusted spacing
+- **Mobile (375px)**: Stacked layout with stage navigation preserved
+
+**Layout Adaptation:**
+```typescript
+// Responsive grid system
+<div className="flex-1 grid grid-cols-1 xl:grid-cols-2 gap-8 p-6 min-h-0">
+  <div className="min-h-[500px]" data-testid="process-summary-section">
+    <ProjectProcessSummary projectId={project.id} />
+  </div>
+  <div className="min-h-[500px]" data-testid="chat-section">
+    <CopilotChat projectId={project.id} />
+  </div>
+</div>
+```
+
+### 11.6 Implementation Benefits
+
+**User Experience Improvements:**
+- **Enhanced Visibility**: Clear visual representation of SDLC workflow progress
+- **Interactive Navigation**: Easy switching between workflow stages
+- **Progress Awareness**: Real-time progress tracking for each stage and overall project
+- **Artifact Accessibility**: Direct access to stage-specific deliverables with download capability
+
+**Technical Improvements:**
+- **Modular Design**: Clean separation between stage navigation and artifact management
+- **Type Safety**: Comprehensive TypeScript interfaces with null safety
+- **Performance**: Efficient re-rendering with React hooks and memoization
+- **Maintainability**: Well-structured component architecture following existing patterns
+
+## 12. Quality Assurance
 
 ### 11.1 Test Suite Architecture
 
@@ -565,6 +667,8 @@ python scripts/cleanup_system.py
 - ✅ **Development Workflow**: Enhanced tools for clean testing environments and debugging
 - ✅ **HITL Alert Lifecycle**: Resolved HITL requests completely removed from frontend store
 - ✅ **Store Cleanup Methods**: Manual cleanup utilities for development and testing workflows
+- ✅ **Enhanced Process Summary**: Complete redesign with SDLC workflow stages and artifact management
+- ✅ **Interactive UI Components**: Stage navigation, expandable artifacts, and progress visualization
 
 ### 12.2 Architecture Validation
 

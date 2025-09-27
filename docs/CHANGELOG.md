@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2025-09-27
+
+### 🎨 Major - Enhanced Process Summary & SDLC Workflow Visualization
+
+**Enhanced Process Summary Architecture**
+- **Complete redesign** of ProjectProcessSummary component to match EnhancedProcessSummaryMockup styling
+- **50/50 Layout Implementation**: Updated ProjectWorkspace from 1:2 to equal split between Process Summary and Chat Interface
+- **SDLC Workflow Stages**: Interactive 5-stage workflow (Analyze → Design → Build → Validate → Launch)
+- **Stage Navigation System**: Click-to-switch between workflow stages with real-time content updates
+
+**Visual Design System**
+- **Role-Based Iconography**: Agent-specific icons for each stage (ClipboardCheck, DraftingCompass, Construction, TestTube2, Rocket)
+- **Status Overlay System**: Dynamic status indicators with color coding (completed, in_progress, pending, failed)
+- **Connecting Lines**: Visual workflow progression with gradient connectors
+- **Enhanced Typography**: Proper spacing, visual hierarchy, and responsive design
+
+**Artifacts Management System**
+- **Stage-Specific Filtering**: Artifacts automatically mapped to SDLC stages based on name patterns and agent assignments
+- **Progress Tracking**: Real-time progress bars showing completion status (e.g., "2/3 artifacts completed")
+- **Expandable Details**: Click to expand artifact details with task breakdown and status information
+- **Download Functionality**: Working download buttons for completed artifacts with disabled states for pending items
+
+**Backend Integration Enhancements**
+- **Artifacts Service**: New `lib/services/api/artifacts.service.ts` with project-specific endpoints (`/api/v1/artifacts/{project_id}/summary`)
+- **Project Artifacts Hook**: New `hooks/use-project-artifacts.ts` for real-time data management with 30-second refresh
+- **Navigation Store**: New `lib/stores/navigation-store.ts` for view state management and breadcrumb navigation
+- **Badge Utilities**: New `lib/utils/badge-utils.ts` for centralized status and agent badge styling
+
+**Component Architecture**
+- **ProjectWorkspace**: Updated to 50/50 grid layout (`grid-cols-1 xl:grid-cols-2`) with proper spacing
+- **ProjectProcessSummary**: Complete rewrite with SDLC stage navigation and artifact management
+- **ProjectBreadcrumb**: Enhanced navigation with keyboard shortcuts (Escape key support)
+- **Error Handling**: Comprehensive null checks and fallback values for all undefined data
+
+**Responsive Design Implementation**
+- **Desktop (1440px)**: Full 50/50 layout with all features visible and working
+- **Tablet (768px)**: Responsive grid maintains functionality with adjusted spacing
+- **Mobile (375px)**: Stacked layout with stage navigation preserved and accessible
+
+**Technical Improvements**
+- **Type Safety**: Added null checks for `toLowerCase()` and `toUpperCase()` operations
+- **Performance**: Efficient re-rendering with React hooks and memoization
+- **Modular Design**: Clean separation between stage navigation and artifact management
+- **Error Recovery**: Graceful handling of missing or undefined artifact data
+
+**User Experience Enhancements**
+- **Enhanced Visibility**: Clear visual representation of SDLC workflow progress
+- **Interactive Navigation**: Easy switching between workflow stages with visual feedback
+- **Progress Awareness**: Real-time progress tracking for each stage and overall project
+- **Artifact Accessibility**: Direct access to stage-specific deliverables with download capability
+
+**Quality Assurance**
+- **Cross-Browser Testing**: Verified functionality across all major browsers
+- **Viewport Testing**: Comprehensive testing at required viewport sizes per TESTPROTOCOL.md
+- **Screenshot Documentation**: Visual evidence captured at all tested resolutions
+- **Stage Navigation Testing**: Verified dynamic content updates when switching between stages
+
 ## [2.5.0] - 2025-09-23
 
 ### 🔄 Major - Startup Cleanup Service & System State Management

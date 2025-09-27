@@ -203,14 +203,19 @@ frontend/
 │   ├── globals.css         # Global styles
 │   ├── layout.tsx          # Root layout component
 │   └── page.tsx            # Home page component
-├── components/             # ✅ Enhanced UI components
+├── components/             # ✅ Enhanced UI components - September 2025
 │   ├── projects/          # ✅ NEW: Project management components
 │   │   ├── project-dashboard.tsx         # Real-time project dashboard
 │   │   ├── project-creation-form.tsx     # Project creation with validation
+│   │   ├── project-workspace.tsx         # ✅ NEW: 50/50 workspace layout with navigation
+│   │   ├── project-process-summary.tsx   # ✅ NEW: Enhanced SDLC workflow visualization
 │   │   ├── project-dashboard.test.tsx    # ✅ Comprehensive component tests
 │   │   └── project-creation-form.test.tsx # ✅ Form validation tests
+│   ├── navigation/        # ✅ NEW: Navigation components
+│   │   └── project-breadcrumb.tsx        # ✅ Breadcrumb navigation with keyboard shortcuts
 │   └── ui/                # shadcn/ui component system
-├── hooks/                  # Custom React hooks
+├── hooks/                  # Custom React hooks - Enhanced September 2025
+│   └── use-project-artifacts.ts     # ✅ NEW: Project-specific artifacts management hook
 ├── lib/                    # ✅ Enhanced utility libraries and configurations
 │   ├── services/          # ✅ NEW: Backend integration layer
 │   │   ├── api/          # ✅ Complete API service layer
@@ -220,6 +225,7 @@ frontend/
 │   │   │   ├── health.service.ts      # ✅ System health monitoring
 │   │   │   ├── agents.service.ts      # ✅ Agent status management
 │   │   │   ├── hitl.service.ts        # ✅ HITL approval workflows
+│   │   │   ├── artifacts.service.ts   # ✅ NEW: Project artifacts management
 │   │   │   ├── error-boundary.tsx     # ✅ React error boundaries
 │   │   │   ├── loading-states.tsx     # ✅ Loading UI components
 │   │   │   ├── client.test.ts         # ✅ API client tests
@@ -230,9 +236,12 @@ frontend/
 │   │   └── safety/        # ✅ Safety event handling
 │   │       ├── safety-event-handler.ts      # ✅ HITL safety controls
 │   │       └── safety-event-handler.test.ts # ✅ Safety system tests
-│   ├── stores/           # ✅ Enhanced state management
+│   ├── stores/           # ✅ Enhanced state management - September 2025
 │   │   ├── project-store.ts           # ✅ Project lifecycle with backend sync
+│   │   ├── navigation-store.ts        # ✅ NEW: View navigation and breadcrumb management
 │   │   └── project-store.test.ts      # ✅ Store integration tests
+│   ├── utils/            # ✅ Enhanced utility functions - September 2025
+│   │   └── badge-utils.ts             # ✅ NEW: Centralized badge styling system for status/agent indicators
 │   └── websocket/        # ✅ Enhanced existing WebSocket service
 │       └── websocket-service.ts       # ✅ Integrated with enhanced client
 ├── tests/                 # ✅ NEW: Comprehensive test suite
