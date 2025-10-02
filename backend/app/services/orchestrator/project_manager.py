@@ -1,4 +1,8 @@
-"""Status tracking service - monitors and reports on project status, performance metrics, and time analysis."""
+"""Project management service - unified lifecycle, status tracking, and performance monitoring.
+
+This service consolidates ProjectLifecycleManager and StatusTracker to reduce over-decomposition
+while maintaining clear separation of concerns. Follows targeted cleanup from Phase 3.
+"""
 
 from typing import List, Optional, Dict, Any
 from uuid import UUID
@@ -8,16 +12,378 @@ import structlog
 
 from app.models.task import Task, TaskStatus
 from app.models.agent import AgentStatus
-from app.database.models import TaskDB, AgentStatusDB
+from app.database.models import TaskDB, ProjectDB, AgentStatusDB
+from app.websocket.manager import websocket_manager
+from app.websocket.events import WebSocketEvent, EventType
 
 logger = structlog.get_logger(__name__)
 
+# SDLC Phases configuration
+SDLC_PHASES = {
+    "discovery": {
+        "name": "Discovery",
+        "description": "Requirements gathering and initial analysis",
+        "agent_sequence": ["analyst"],
+        "completion_criteria": ["user_input_analyzed", "requirements_gathered"],
+        "estimated_duration_hours": 4,
+        "max_duration_hours": 6,
+        "time_pressure_threshold": 0.8,
+        "parallel_execution": False,
+        "time_based_decisions": {
+            "overtime_action": "escalate_to_hitl",
+            "efficiency_bonus": "reduce_analysis_depth"
+        },
+        "next_phase": "plan"
+    },
+    "plan": {
+        "name": "Plan",
+        "description": "Technical planning and architecture design",
+        "agent_sequence": ["architect"],
+        "completion_criteria": ["architecture_defined", "technical_plan_created"],
+        "estimated_duration_hours": 8,
+        "max_duration_hours": 12,
+        "time_pressure_threshold": 0.75,
+        "parallel_execution": False,
+        "time_based_decisions": {
+            "overtime_action": "simplify_architecture",
+            "efficiency_bonus": "add_performance_optimization"
+        },
+        "next_phase": "design"
+    },
+    "design": {
+        "name": "Design",
+        "description": "Detailed design and API specification",
+        "agent_sequence": ["architect", "analyst"],
+        "completion_criteria": ["api_specs_defined", "data_models_created", "design_reviewed"],
+        "estimated_duration_hours": 12,
+        "max_duration_hours": 18,
+        "time_pressure_threshold": 0.7,
+        "parallel_execution": True,
+        "time_based_decisions": {
+            "overtime_action": "prioritize_critical_components",
+            "efficiency_bonus": "enhance_design_quality"
+        },
+        "next_phase": "build"
+    },
+    "build": {
+        "name": "Build",
+        "description": "Code implementation and development",
+        "agent_sequence": ["coder"],
+        "completion_criteria": ["code_implemented", "unit_tests_passed", "code_reviewed"],
+        "estimated_duration_hours": 24,
+        "max_duration_hours": 36,
+        "time_pressure_threshold": 0.6,
+        "parallel_execution": False,
+        "time_based_decisions": {
+            "overtime_action": "focus_on_core_features",
+            "efficiency_bonus": "add_advanced_features"
+        },
+        "next_phase": "validate"
+    },
+    "validate": {
+        "name": "Validate",
+        "description": "Testing and quality assurance",
+        "agent_sequence": ["tester"],
+        "completion_criteria": ["tests_executed", "quality_gates_passed", "performance_validated"],
+        "estimated_duration_hours": 8,
+        "max_duration_hours": 12,
+        "time_pressure_threshold": 0.8,
+        "parallel_execution": False,
+        "time_based_decisions": {
+            "overtime_action": "prioritize_critical_tests",
+            "efficiency_bonus": "comprehensive_testing"
+        },
+        "next_phase": "launch"
+    },
+    "launch": {
+        "name": "Launch",
+        "description": "Deployment and production release",
+        "agent_sequence": ["deployer"],
+        "completion_criteria": ["deployment_verified", "production_tests_passed", "rollback_plan_ready"],
+        "estimated_duration_hours": 4,
+        "max_duration_hours": 8,
+        "time_pressure_threshold": 0.9,
+        "parallel_execution": False,
+        "time_based_decisions": {
+            "overtime_action": "staged_rollout",
+            "efficiency_bonus": "full_production_deployment"
+        },
+        "next_phase": None
+    }
+}
 
-class StatusTracker:
-    """Monitors project status and performance metrics."""
+
+class ProjectManager:
+    """Unified project management: lifecycle, status tracking, and performance monitoring."""
 
     def __init__(self, db: Session):
         self.db = db
+        self.current_project_phases = {}  # Track current phase per project
+
+    # ========================================================================
+    # PROJECT LIFECYCLE MANAGEMENT
+    # ========================================================================
+
+    def create_project(self, name: str, description: str = None) -> UUID:
+        """Create new project with initial state."""
+        project = ProjectDB(
+            name=name,
+            description=description,
+            status="active"
+        )
+
+        self.db.add(project)
+        self.db.commit()
+        self.db.refresh(project)
+
+        # Initialize to discovery phase
+        self.set_current_phase(project.id, "discovery")
+
+        logger.info("Project created", project_id=project.id, name=name)
+
+        return project.id
+
+    def list_projects(self) -> List[ProjectDB]:
+        """List all projects."""
+        return self.db.query(ProjectDB).all()
+
+    def get_current_phase(self, project_id: UUID) -> str:
+        """Get the current SDLC phase for a project."""
+        return self.current_project_phases.get(str(project_id), "discovery")
+
+    def set_current_phase(self, project_id: UUID, phase: str):
+        """Set the current SDLC phase for a project."""
+        if phase not in SDLC_PHASES:
+            raise ValueError(f"Invalid phase: {phase}")
+        self.current_project_phases[str(project_id)] = phase
+        logger.info("Project phase updated", project_id=project_id, phase=phase)
+
+    def validate_phase_completion(self, project_id: UUID, phase: str) -> Dict[str, Any]:
+        """
+        Validate if a phase has met its completion criteria.
+
+        Args:
+            project_id: UUID of the project
+            phase: Phase to validate
+
+        Returns:
+            Dict with validation results
+        """
+        if phase not in SDLC_PHASES:
+            return {"valid": False, "error": f"Invalid phase: {phase}"}
+
+        phase_config = SDLC_PHASES[phase]
+        completion_criteria = phase_config["completion_criteria"]
+
+        # Get project tasks for this phase
+        project_tasks = self.get_project_tasks(project_id)
+        phase_tasks = [task for task in project_tasks if task.agent_type in phase_config["agent_sequence"]]
+
+        # Check completion criteria
+        completed_criteria = []
+        missing_criteria = []
+
+        for criterion in completion_criteria:
+            if self._check_completion_criterion(project_id, phase, criterion, phase_tasks):
+                completed_criteria.append(criterion)
+            else:
+                missing_criteria.append(criterion)
+
+        all_completed = len(missing_criteria) == 0
+        completion_percentage = len(completed_criteria) / len(completion_criteria) * 100
+
+        result = {
+            "valid": all_completed,
+            "phase": phase,
+            "completion_percentage": completion_percentage,
+            "completed_criteria": completed_criteria,
+            "missing_criteria": missing_criteria,
+            "total_criteria": len(completion_criteria),
+            "project_id": str(project_id)
+        }
+
+        logger.info("Phase validation completed",
+                   project_id=project_id,
+                   phase=phase,
+                   valid=all_completed,
+                   completion_percentage=completion_percentage)
+
+        return result
+
+    def transition_to_next_phase(self, project_id: UUID) -> Dict[str, Any]:
+        """
+        Transition project to the next SDLC phase if current phase is completed.
+
+        Args:
+            project_id: UUID of the project
+
+        Returns:
+            Dict with transition results
+        """
+        current_phase = self.get_current_phase(project_id)
+
+        # Validate current phase completion
+        validation_result = self.validate_phase_completion(project_id, current_phase)
+
+        if not validation_result["valid"]:
+            return {
+                "success": False,
+                "error": "Current phase not completed",
+                "current_phase": current_phase,
+                "validation_result": validation_result
+            }
+
+        # Get next phase
+        next_phase = SDLC_PHASES[current_phase].get("next_phase")
+
+        if not next_phase:
+            return {
+                "success": False,
+                "error": "Project is in final phase",
+                "current_phase": current_phase,
+                "validation_result": validation_result
+            }
+
+        # Transition to next phase
+        self.set_current_phase(project_id, next_phase)
+
+        result = {
+            "success": True,
+            "previous_phase": current_phase,
+            "current_phase": next_phase,
+            "validation_result": validation_result
+        }
+
+        logger.info("Phase transition completed",
+                   project_id=project_id,
+                   previous_phase=current_phase,
+                   current_phase=next_phase)
+
+        return result
+
+    def get_phase_progress(self, project_id: UUID) -> Dict[str, Any]:
+        """
+        Get comprehensive progress information for all phases.
+
+        Args:
+            project_id: UUID of the project
+
+        Returns:
+            Dict with progress information
+        """
+        current_phase = self.get_current_phase(project_id)
+        all_phases_progress = {}
+
+        for phase_name in SDLC_PHASES.keys():
+            validation_result = self.validate_phase_completion(project_id, phase_name)
+            all_phases_progress[phase_name] = {
+                "completed": validation_result["valid"],
+                "completion_percentage": validation_result["completion_percentage"],
+                "is_current": phase_name == current_phase,
+                "phase_config": SDLC_PHASES[phase_name]
+            }
+
+        # Calculate overall project progress
+        total_phases = len(SDLC_PHASES)
+        completed_phases = sum(1 for phase in all_phases_progress.values() if phase["completed"])
+        overall_progress = (completed_phases / total_phases) * 100
+
+        result = {
+            "project_id": str(project_id),
+            "current_phase": current_phase,
+            "overall_progress": overall_progress,
+            "completed_phases": completed_phases,
+            "total_phases": total_phases,
+            "phases": all_phases_progress
+        }
+
+        return result
+
+    def get_project_tasks(self, project_id: UUID) -> List[Task]:
+        """Get all tasks for a project."""
+        db_tasks = self.db.query(TaskDB).filter(TaskDB.project_id == project_id).all()
+
+        tasks = []
+        for db_task in db_tasks:
+            task = Task(
+                id=db_task.id,
+                project_id=db_task.project_id,
+                agent_type=db_task.agent_type,
+                instructions=db_task.instructions,
+                status=TaskStatus(db_task.status),
+                context_ids=[UUID(cid) for cid in db_task.context_ids] if db_task.context_ids else [],
+                result=db_task.output,
+                created_at=db_task.created_at,
+                updated_at=db_task.updated_at
+            )
+            tasks.append(task)
+
+        return tasks
+
+    def get_all_recent_tasks(self, limit: int = 50) -> List[Task]:
+        """Get the most recent tasks across all projects."""
+        db_tasks = self.db.query(TaskDB).order_by(TaskDB.created_at.desc()).limit(limit).all()
+
+        tasks = []
+        for db_task in db_tasks:
+            task = Task(
+                id=db_task.id,
+                project_id=db_task.project_id,
+                agent_type=db_task.agent_type,
+                instructions=db_task.instructions,
+                status=TaskStatus(db_task.status),
+                context_ids=[UUID(cid) for cid in db_task.context_ids] if db_task.context_ids else [],
+                result=db_task.output,
+                created_at=db_task.created_at,
+                updated_at=db_task.updated_at
+            )
+            tasks.append(task)
+
+        return tasks
+
+    def _check_completion_criterion(self, project_id: UUID, phase: str, criterion: str, phase_tasks: List[Task]) -> bool:
+        """
+        Check if a specific completion criterion is met.
+
+        Args:
+            project_id: UUID of the project
+            phase: Current phase
+            criterion: Criterion to check
+            phase_tasks: Tasks for this phase
+
+        Returns:
+            Boolean indicating if criterion is met
+        """
+        # Basic completion logic - can be extended
+        criterion_checks = {
+            "user_input_analyzed": lambda t: "analyze" in t.instructions.lower(),
+            "requirements_gathered": lambda t: "requirements" in t.instructions.lower(),
+            "architecture_defined": lambda t: "architecture" in t.instructions.lower(),
+            "technical_plan_created": lambda t: "plan" in t.instructions.lower(),
+            "api_specs_defined": lambda t: "api" in t.instructions.lower(),
+            "data_models_created": lambda t: "model" in t.instructions.lower(),
+            "design_reviewed": lambda t: "review" in t.instructions.lower(),
+            "code_implemented": lambda t: "implement" in t.instructions.lower(),
+            "unit_tests_passed": lambda t: "test" in t.instructions.lower(),
+            "code_reviewed": lambda t: "review" in t.instructions.lower(),
+            "tests_executed": lambda t: "test" in t.instructions.lower(),
+            "quality_gates_passed": lambda t: "quality" in t.instructions.lower(),
+            "performance_validated": lambda t: "performance" in t.instructions.lower(),
+            "deployment_verified": lambda t: "deploy" in t.instructions.lower(),
+            "production_tests_passed": lambda t: "production" in t.instructions.lower(),
+            "rollback_plan_ready": lambda t: "rollback" in t.instructions.lower()
+        }
+
+        check_func = criterion_checks.get(criterion)
+        if check_func:
+            return any(task.status == TaskStatus.COMPLETED and check_func(task) for task in phase_tasks)
+
+        # Default: check if any related task is completed
+        return any(task.status == TaskStatus.COMPLETED for task in phase_tasks)
+
+    # ========================================================================
+    # STATUS TRACKING & PERFORMANCE MONITORING
+    # ========================================================================
 
     def get_phase_time_analysis(self, project_id: UUID) -> Dict[str, Any]:
         """
@@ -29,10 +395,7 @@ class StatusTracker:
         Returns:
             Comprehensive time analysis for all phases
         """
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager, SDLC_PHASES
-
-        project_manager = ProjectLifecycleManager(self.db)
-        current_phase = project_manager.get_current_phase(project_id)
+        current_phase = self.get_current_phase(project_id)
 
         phase_time_analysis = []
         total_estimated_time = 0
@@ -72,10 +435,7 @@ class StatusTracker:
             Time performance analysis for the phase
         """
         # Get tasks for this phase
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
-        project_tasks = project_manager.get_project_tasks(project_id)
-
+        project_tasks = self.get_project_tasks(project_id)
         phase_tasks = [task for task in project_tasks if task.agent_type in phase_config["agent_sequence"]]
 
         # Calculate time metrics
@@ -194,9 +554,7 @@ class StatusTracker:
             time_pressure = "medium"
 
         # Get selective context based on time pressure
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
-        selective_context = project_manager.get_selective_context(project_id, phase, agent_type)
+        selective_context = self.get_selective_context(project_id, phase, agent_type)
 
         # Apply time-based filtering
         filtered_context = self._apply_time_based_context_filtering(
@@ -275,10 +633,7 @@ class StatusTracker:
         Returns:
             Time-based phase transition analysis
         """
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
-        current_phase = project_manager.get_current_phase(project_id)
-
+        current_phase = self.get_current_phase(project_id)
         time_analysis = self.get_phase_time_analysis(project_id)
 
         current_phase_analysis = next(
@@ -328,9 +683,7 @@ class StatusTracker:
         time_analysis = self.get_phase_time_analysis(project_id)
 
         # Get task performance metrics
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
-        all_tasks = project_manager.get_project_tasks(project_id)
+        all_tasks = self.get_project_tasks(project_id)
 
         task_metrics = {
             "total_tasks": len(all_tasks),
@@ -365,10 +718,7 @@ class StatusTracker:
     def _get_agent_performance_metrics(self, project_id: UUID) -> Dict[str, Any]:
         """Get performance metrics for each agent type."""
 
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
-        all_tasks = project_manager.get_project_tasks(project_id)
-
+        all_tasks = self.get_project_tasks(project_id)
         agent_metrics = {}
 
         # Group tasks by agent type
@@ -440,3 +790,14 @@ class StatusTracker:
             return "poor"
         else:
             return "critical"
+
+    def get_selective_context(self, project_id: UUID, phase: str, agent_type: str) -> List[UUID]:
+        """
+        Get selective context artifacts based on phase and agent type.
+
+        This is a placeholder implementation - StatusTracker referenced this method
+        but it wasn't defined in ProjectLifecycleManager.
+        """
+        # TODO: Implement actual context selection logic based on phase and agent type
+        # For now, return empty list to maintain compatibility
+        return []

@@ -1,4 +1,8 @@
-"""Core orchestration logic - delegates to specialized managers following SOLID principles."""
+"""Core orchestration logic - delegates to specialized managers following SOLID principles.
+
+PHASE 3 TARGETED CLEANUP (October 2025):
+- Using consolidated ProjectManager (combines ProjectLifecycleManager + StatusTracker)
+"""
 
 from typing import List, Optional, Dict, Any
 from uuid import UUID
@@ -13,11 +17,10 @@ from app.services.autogen_service import AutoGenService
 from app.services.workflow_engine import WorkflowExecutionEngine
 from app.services.conflict_resolver import ConflictResolverService
 
-from .project_lifecycle_manager import ProjectLifecycleManager
+from .project_manager import ProjectManager
 from .agent_coordinator import AgentCoordinator
 from .workflow_integrator import WorkflowIntegrator
 from .handoff_manager import HandoffManager
-from .status_tracker import StatusTracker
 from .context_manager import ContextManager
 
 logger = structlog.get_logger(__name__)
@@ -37,13 +40,12 @@ class OrchestratorCore:
         self.conflict_resolver = ConflictResolverService(self.context_store, self.autogen_service)
 
         # Initialize specialized orchestrator services
-        self.project_manager = ProjectLifecycleManager(db)
+        self.project_manager = ProjectManager(db)  # Consolidated service
         self.agent_coordinator = AgentCoordinator(db)
         self.workflow_integrator = WorkflowIntegrator(
             db, self.context_store, self.workflow_engine, self.conflict_resolver
         )
         self.handoff_manager = HandoffManager(db, self.autogen_service, self.context_store)
-        self.status_tracker = StatusTracker(db)
         self.context_manager = ContextManager(db, self.context_store)
 
     # ===== PROJECT LIFECYCLE MANAGEMENT =====
@@ -195,23 +197,24 @@ class OrchestratorCore:
         return self.handoff_manager.cancel_handoff(task_id, reason)
 
     # ===== STATUS TRACKING =====
+    # Now handled by consolidated ProjectManager
 
     def get_phase_time_analysis(self, project_id: UUID) -> Dict[str, Any]:
         """Get comprehensive time analysis for all project phases."""
-        return self.status_tracker.get_phase_time_analysis(project_id)
+        return self.project_manager.get_phase_time_analysis(project_id)
 
     def get_time_conscious_context(self, project_id: UUID, phase: str, agent_type: str,
                                  time_budget_hours: float = None) -> Dict[str, Any]:
         """Get context information that is time-conscious and filtered based on current time pressure."""
-        return self.status_tracker.get_time_conscious_context(project_id, phase, agent_type, time_budget_hours)
+        return self.project_manager.get_time_conscious_context(project_id, phase, agent_type, time_budget_hours)
 
     def get_time_based_phase_transition(self, project_id: UUID) -> Dict[str, Any]:
         """Determine if phase transition should occur based on time analysis."""
-        return self.status_tracker.get_time_based_phase_transition(project_id)
+        return self.project_manager.get_time_based_phase_transition(project_id)
 
     def get_performance_metrics(self, project_id: UUID) -> Dict[str, Any]:
         """Get comprehensive performance metrics for the project."""
-        return self.status_tracker.get_performance_metrics(project_id)
+        return self.project_manager.get_performance_metrics(project_id)
 
     # ===== CONTEXT MANAGEMENT =====
 
@@ -283,11 +286,10 @@ class OrchestratorCore:
         """Perform health check on all orchestrator services."""
         health_status = {
             "orchestrator_core": "healthy",
-            "project_manager": "healthy",
+            "project_manager": "healthy",  # Consolidated service
             "agent_coordinator": "healthy",
             "workflow_integrator": "healthy",
             "handoff_manager": "healthy",
-            "status_tracker": "healthy",
             "context_manager": "healthy",
             "timestamp": datetime.now().isoformat()
         }

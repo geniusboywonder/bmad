@@ -1,10 +1,14 @@
-"""Orchestrator service - refactored to use SOLID principles with specialized services.
+"""Orchestrator service - backward compatibility layer and service exports.
 
-This module serves as the main entry point for orchestrator functionality,
-delegating to specialized services that follow Single Responsibility Principle.
+PHASE 3 TARGETED CLEANUP (October 2025):
+- Consolidated ProjectLifecycleManager + StatusTracker → ProjectManager
+- Extracted RecoveryManager to separate file
+- Maintains backward compatibility for existing API endpoints
 """
 
-from sqlalchemy.orm import Session
+import structlog
+
+logger = structlog.get_logger(__name__)
 
 # Import the refactored orchestrator core
 from .orchestrator.orchestrator_core import OrchestratorCore
@@ -12,23 +16,29 @@ from .orchestrator.orchestrator_core import OrchestratorCore
 # For backward compatibility, expose OrchestratorService as an alias to OrchestratorCore
 OrchestratorService = OrchestratorCore
 
-# Also expose individual services for direct access if needed
-from .orchestrator import (
-    ProjectLifecycleManager,
-    AgentCoordinator,
-    WorkflowIntegrator,
-    HandoffManager,
-    StatusTracker,
-    ContextManager
-)
+# Import consolidated and specialized services
+from .orchestrator.project_manager import ProjectManager
+from .orchestrator.agent_coordinator import AgentCoordinator
+from .orchestrator.workflow_integrator import WorkflowIntegrator
+from .orchestrator.handoff_manager import HandoffManager
+from .orchestrator.context_manager import ContextManager
+from .orchestrator.recovery_manager import RecoveryManager, RecoveryStrategy, RecoveryStep
+
+# Backward compatibility aliases
+ProjectLifecycleManager = ProjectManager  # Consolidated into ProjectManager
+StatusTracker = ProjectManager  # Consolidated into ProjectManager
 
 __all__ = [
     "OrchestratorService",
     "OrchestratorCore",
-    "ProjectLifecycleManager",
+    "ProjectManager",
+    "ProjectLifecycleManager",  # Backward compat alias
+    "StatusTracker",  # Backward compat alias
     "AgentCoordinator",
     "WorkflowIntegrator",
     "HandoffManager",
-    "StatusTracker",
-    "ContextManager"
+    "ContextManager",
+    "RecoveryManager",
+    "RecoveryStrategy",
+    "RecoveryStep"
 ]
