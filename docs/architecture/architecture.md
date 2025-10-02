@@ -652,6 +652,40 @@ class WorkflowStep(BaseModel):
 - ✅ **Consistent Behavior**: All workflow processing uses same model
 - ✅ **Easier Maintenance**: Changes in one place propagate everywhere
 
+### 10.3 Dead Code Elimination (October 2025)
+
+**Problem**: Unused ADK workflow templates cluttering codebase
+- `app/workflows/adk_workflow_templates.py` created during ADK migration but never integrated (507 lines)
+- Only import was in test file (self-referential, no production usage)
+- API endpoint (`/api/v1/adk/templates`) returns hardcoded data, doesn't use this file
+- Confusing for developers trying to understand ADK template system
+
+**Solution**: Delete unused files
+- Removed `backend/app/workflows/adk_workflow_templates.py` (507 lines)
+- Removed `backend/tests/unit/test_adk_workflow_templates.py` (293 lines)
+- Total: 800 lines of dead code eliminated
+
+**Analysis**:
+```python
+# File was never imported in production code
+$ grep -r "from app.workflows.adk_workflow_templates" backend/app
+# No results (only test file imported it)
+
+# API endpoint uses hardcoded data instead
+# backend/app/api/adk.py:list_adk_workflow_templates()
+templates = [
+    {"template_id": "requirements-analysis", "name": "Requirements Analysis", ...},
+    {"template_id": "system-design", "name": "System Design", ...}
+]
+# No reference to adk_workflow_templates module
+```
+
+**Benefits**:
+- ✅ **Eliminated 800 Lines**: Dead code removed
+- ✅ **Reduced Confusion**: Clear separation between active and unused ADK code
+- ✅ **Cleaner Codebase**: Simplified workflows directory (only `greenfield-fullstack.yaml` remains)
+- ✅ **Easier Navigation**: No false leads for developers
+
 ## 11. Deployment Architecture
 
 ### 11.1 Environment Configuration

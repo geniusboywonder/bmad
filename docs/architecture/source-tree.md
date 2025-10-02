@@ -62,8 +62,9 @@ backend/
 │   ├── env.py               # Alembic environment configuration
 │   └── alembic.ini          # Alembic configuration file
 ├── app/                      # Main application package
-│   ├── workflows/           # ✅ Production workflow definitions
+│   ├── workflows/           # ✅ Production workflow definitions (simplified October 2025)
 │   │   └── greenfield-fullstack.yaml  # ✅ Active SDLC workflow with 17 artifacts
+│   │   # Note: adk_workflow_templates.py removed (800 lines dead code)
 │   ├── agents/              # Agent implementations
 │   │   ├── adk_agent_with_tools.py    # ADK agent with tools support
 │   │   ├── adk_dev_tools.py           # ADK development framework

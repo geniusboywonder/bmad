@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.9.0] - 2025-10-02
 
-### 🔧 Major - Phase 1 & 2: Configuration Simplification & Workflow Consolidation
+### 🔧 Major - Phase 1-3: Configuration Simplification, Workflow Consolidation & Dead Code Removal
 
 **Phase 1: Redis Configuration Simplification**
 
@@ -75,16 +75,39 @@ class WorkflowStep(BaseModel):
 
 ---
 
+**Phase 3: Dead Code Elimination**
+
+**Problem**: Unused ADK workflow templates cluttering codebase
+- `app/workflows/adk_workflow_templates.py` created during ADK migration but never integrated
+- Only import was in test file (self-referential, no production usage)
+- API endpoint (`/api/v1/adk/templates`) returns hardcoded data, doesn't use this file
+- 800 lines of dead code confusing developers
+
+**Solution**: Delete unused template system files
+
+**Files Removed**:
+- ✅ `backend/app/workflows/adk_workflow_templates.py` - 507 lines (unused template definitions)
+- ✅ `backend/tests/unit/test_adk_workflow_templates.py` - 293 lines (orphaned test)
+
+**Benefits**:
+- ✅ **Eliminated Dead Code**: 800 lines removed
+- ✅ **Reduced Confusion**: Clear separation between active and unused ADK code
+- ✅ **Cleaner Codebase**: Simplified workflows directory
+- ✅ **Easier Navigation**: No false leads for developers
+
+---
+
 **Documentation Updates**:
 - `docs/architecture/architecture.md` - Added Section 10: Configuration Simplification (October 2025)
 - `docs/architecture/tech-stack.md` - Updated Redis and workflow model sections
 - `docs/architecture/source-tree.md` - Documented canonical workflow model location
 - `docs/CHANGELOG.md` - This entry
 
-**Total Impact**:
-- **Lines Removed**: 31 (duplicate workflow models) + configuration complexity reduction
+**Total Impact (Phases 1-3)**:
+- **Lines Removed**: 6,299 (backups) + 31 (duplicate models) + 800 (dead code) = **7,130 lines**
 - **Environment Variables Eliminated**: 3 (`REDIS_CELERY_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`)
 - **Developer Friction Reduced**: Simplified startup, eliminated #1 recurring configuration issue
+- **Dead Code Eliminated**: Unused ADK templates, backup files
 
 ## [2.8.0] - 2025-10-02
 
