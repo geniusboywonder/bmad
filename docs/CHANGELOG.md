@@ -5,6 +5,196 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2025-10-02
+
+### ✨ Feature - Dynamic Workflow Deliverables & Agile Alignment
+
+**Backend Workflow Restructuring**
+- **New Production Workflow Location**: `backend/app/workflows/greenfield-fullstack.yaml`
+- **Deprecated Reference Location**: `.bmad-core/workflows/` (reference only - DO NOT USE)
+- **17 Streamlined Artifacts**: Reduced from 30+ to 17 focused SDLC deliverables aligned with Agile methodology
+- **5 HITL-Required Plans**: Each SDLC stage (Analyze, Design, Build, Validate, Launch) starts with mandatory human-approved plan
+
+**Streamlined Artifact Structure**
+
+**Analyze Stage (4 artifacts)**
+1. Analyze Plan (HITL required)
+2. Product Requirement
+3. PRD Epic
+4. Feature Story
+
+**Design Stage (3 artifacts)**
+1. Design Plan (HITL required)
+2. Front End Spec
+3. Fullstack Architecture
+
+**Build Stage (4 artifacts)**
+1. Build Plan (HITL required)
+2. Story
+3. Implementation Files
+4. Bug Fixes
+
+**Validate Stage (3 artifacts)**
+1. Validate Plan (HITL required)
+2. Test Case
+3. Validation Report
+
+**Launch Stage (3 artifacts)**
+1. Launch Plan (HITL required)
+2. Deployment Checklist
+3. Deployment Report
+
+**Frontend Integration**
+- **New Workflows Service**: `frontend/lib/services/api/workflows.service.ts`
+- **Dynamic Loading**: Deliverables fetched from `/api/v1/workflows/greenfield-fullstack/deliverables` on component mount
+- **API Integration**: `frontend/lib/services/api/index.ts` exports workflow types and service
+- **Process Summary Enhancement**: `project-process-summary.tsx` loads artifacts from API instead of hardcoded constants
+
+**API Enhancements**
+- **Workflow Service**: `backend/app/services/workflow_service.py` reads from `app/workflows/` directory
+- **Optional Agent Fields**: WorkflowStep model supports non-agent workflow steps
+- **Error Handling**: Graceful handling of missing validate_sequence method and None agents
+
+**Benefits**
+- ✅ **Agile Alignment**: Artifacts match modern Agile/Scrum methodology (Epic → Story → Implementation)
+- ✅ **HITL Control**: Each stage requires human approval before proceeding with work artifacts
+- ✅ **Maintainability**: Single source of truth in backend YAML configuration
+- ✅ **Flexibility**: Easy to add/remove artifacts by editing YAML file
+- ✅ **Type Safety**: TypeScript interfaces generated from backend workflow definitions
+
+**Files Changed**
+- `backend/app/workflows/greenfield-fullstack.yaml` - New production workflow with 17 artifacts
+- `backend/app/api/workflows.py` - Updated path from `.bmad-core/workflows` to `app/workflows`
+- `backend/app/models/workflow.py` - Made agent field optional
+- `backend/app/utils/yaml_parser.py` - Optional agent handling
+- `backend/app/services/workflow_service.py` - Added hasattr check for validate_sequence
+- `frontend/lib/services/api/workflows.service.ts` - New service for workflow deliverables
+- `frontend/lib/services/api/index.ts` - Exported workflow service and types
+- `frontend/components/projects/project-process-summary.tsx` - Dynamic deliverable loading
+- `docs/architecture/architecture.md` - Updated workflow and artifact documentation
+- `docs/architecture/source-tree.md` - Added workflows directory and service references
+
+### 🐛 Fix - Chat Window Scrolling Behavior
+
+**Problem**
+- Chat window expanded vertically as HITL messages were added
+- Messages pushed content off screen requiring page scroll
+- Poor UX for monitoring multiple HITL approval requests
+
+**Solution**
+- **Fixed Container Height**: Replaced ScrollArea with native `overflow-y-auto` div
+- **Flex Layout**: Added `flex-1 overflow-y-auto min-h-0` to messages container
+- **Flex Shrink Prevention**: Added `flex-shrink-0` to header, agent filter, and chat input
+- **Proper Scrolling**: Messages now scroll within fixed-height container
+
+**Technical Implementation**
+- **File**: `frontend/components/chat/copilot-chat.tsx` (lines 237-321)
+- **Container**: Changed from `<ScrollArea className="flex-1">` to `<div className="flex-1 overflow-y-auto min-h-0">`
+- **Header/Footer**: Added `flex-shrink-0` to prevent compression
+- **Main Container**: Conditional `h-full` only when not expanded
+
+**Benefits**
+- ✅ **Fixed Height**: Chat window maintains consistent size
+- ✅ **Internal Scrolling**: Messages scroll up within container
+- ✅ **Better UX**: No page scroll needed to see new messages
+- ✅ **Predictable Layout**: Chat window doesn't expand unexpectedly
+
+**Files Changed**
+- `frontend/components/chat/copilot-chat.tsx` - Fixed scrolling behavior
+- `docs/architecture/architecture.md` - Documented chat scrolling fix
+- `docs/architecture/source-tree.md` - Updated chat component description
+
+## [2.7.1] - 2025-10-02
+
+### 🐛 Critical Fix - Celery Worker Database Connection
+
+**Root Cause**
+- **Issue**: Celery workers were not connecting to PostgreSQL database
+- **Symptom**: HITL approval requests created in database but not visible in frontend
+- **Cause**: Celery worker started without `DATABASE_URL` environment variable
+- **Impact**: HITL approval workflow completely broken - approvals stored but never retrieved
+
+**Technical Details**
+- **Problem**: Starting Celery with only `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` overrides .env file
+- **Missing Variable**: `DATABASE_URL` required by `get_session()` in `agent_tasks.py`
+- **Result**: Celery worker couldn't connect to PostgreSQL for HITL approval records
+
+**Fix Implementation**
+1. **Updated CLAUDE.md** (line 15-20): Added `source .env &&` before Celery command
+2. **Updated start_dev.sh** (lines 128-140): Added automatic .env sourcing with `set -a` pattern
+3. **Added Documentation**: Clear comments explaining DATABASE_URL requirement
+
+**Files Changed**
+- `CLAUDE.md` - Fixed Celery startup command documentation
+- `backend/scripts/start_dev.sh` - Added .env loading before Celery worker startup
+- `docs/CHANGELOG.md` - This entry
+
+**Testing**
+- ✅ Verified Celery worker connects to PostgreSQL successfully
+- ✅ Confirmed HITL approval records created in database
+- ✅ Validated WebSocket events broadcast correctly
+- ✅ Tested HITL alerts display in frontend
+
+**Prevention**
+- Startup script now automatically loads all environment variables before starting Celery
+- Documentation updated with clear warnings about DATABASE_URL requirement
+- Added comments explaining why each environment variable is needed
+
+## [2.7.0] - 2025-10-01
+
+### 🐛 Critical Fix - HITL Duplicate Message Prevention
+
+**Backend Workflow Optimization**
+- **Fixed duplicate HITL approval creation** in Celery task processing workflow
+- **Removed redundant RESPONSE_APPROVAL** creation that caused second HITL message for same task
+- **Added existing approval check** before creating new PRE_EXECUTION approval records
+- **Streamlined approval workflow** to use single approval per task instead of two
+
+**Technical Implementation**
+- **File**: `backend/app/tasks/agent_tasks.py` (lines 198-321)
+- **Fix 1**: Check for existing PENDING/APPROVED approval before creating new record
+- **Fix 2**: Skip RESPONSE_APPROVAL creation - pre-execution approval is sufficient for simple tasks
+- **Result**: One approval per task eliminates duplicate HITL messages in chat
+
+**Root Cause Analysis**
+- **Previous behavior**: Backend created TWO approval records per task:
+  1. PRE_EXECUTION approval (before task execution) - creates first HITL message
+  2. RESPONSE_APPROVAL (after task execution) - creates second HITL message for same task
+- **Issue**: Same task appeared twice in chat with different approval IDs but same task ID
+- **Impact**: User confusion, cluttered UI, duplicate approval requests
+
+**Benefits**
+- ✅ **Clean UI**: Only one HITL message per task appears in chat
+- ✅ **No Duplicates**: Approval/rejection doesn't trigger second message
+- ✅ **Proper Workflow**: Pre-execution approval sufficient for task authorization
+- ✅ **Better UX**: Clear one-to-one relationship between tasks and approval requests
+- ✅ **Performance**: Reduced database writes and WebSocket events
+
+**Implementation Details**
+```python
+# Check if approval already exists for this task
+existing_approval = db.query(HitlAgentApprovalDB).filter(
+    HitlAgentApprovalDB.task_id == task_uuid,
+    HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])
+).first()
+
+if existing_approval:
+    logger.info("Using existing HITL approval record")
+    approval_id = existing_approval.id
+else:
+    # Create new PRE_EXECUTION approval
+    # ...
+
+# Skip RESPONSE_APPROVAL creation - would create duplicate
+logger.info("Skipping response approval - using pre-execution approval only")
+```
+
+**Testing Validation**
+- ✅ Verified single HITL message creation per task
+- ✅ Confirmed approval/rejection doesn't create duplicate
+- ✅ Tested message persistence with status updates
+- ✅ Validated no stale approval IDs after approval
+
 ## [2.6.0] - 2025-09-27
 
 ### 🎨 Major - Enhanced Process Summary & SDLC Workflow Visualization

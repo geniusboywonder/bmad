@@ -14,6 +14,8 @@ export { projectsService } from './projects.service';
 export { healthService } from './health.service';
 export { agentsService } from './agents.service';
 export { hitlService } from './hitl.service';
+export { workflowsService } from './workflows.service';
+export type { WorkflowDeliverable, WorkflowDeliverablesResponse } from './workflows.service';
 
 // Error handling
 export { APIErrorBoundary, useAPIErrorHandler, withAPIErrorBoundary } from './error-boundary';

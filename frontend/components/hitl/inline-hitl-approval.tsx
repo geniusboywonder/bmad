@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHITLStore } from '@/lib/stores/hitl-store';
+import { getAgentBadgeClasses, getStatusBadgeClasses } from '@/lib/utils/badge-utils';
 
 interface HITLRequest {
   id: string;

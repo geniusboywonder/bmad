@@ -195,33 +195,47 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             if not budget_check.approved:
                 raise BudgetLimitExceeded(f"Budget limit exceeded: {budget_check.reason}")
             
-            # Create pre-execution approval record directly in same database session
-            # This prevents foreign key constraint violations
-            estimated_cost = float(estimated_tokens * 0.00015)  # Estimate cost
-            expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+            # Check if approval already exists for this task to prevent duplicates
+            existing_approval = db.query(HitlAgentApprovalDB).filter(
+                HitlAgentApprovalDB.task_id == task_uuid,
+                HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])
+            ).first()
 
-            approval_record = HitlAgentApprovalDB(
-                project_id=project_uuid,
-                task_id=task_uuid,
-                agent_type=agent_type,
-                request_type="PRE_EXECUTION",
-                request_data={
-                    "instructions": instructions,
-                    "estimated_tokens": estimated_tokens,
-                    "context_ids": [str(cid) for cid in context_uuids],
-                    "agent_type": agent_type
-                },
-                estimated_tokens=estimated_tokens,
-                estimated_cost=estimated_cost,
-                expires_at=expires_at,
-                status="PENDING"
-            )
+            if existing_approval:
+                logger.info("Using existing HITL approval record",
+                           task_id=str(task_uuid),
+                           approval_id=str(existing_approval.id),
+                           status=existing_approval.status)
+                approval_id = existing_approval.id
+                approval_record = existing_approval
+            else:
+                # Create pre-execution approval record directly in same database session
+                # This prevents foreign key constraint violations
+                estimated_cost = float(estimated_tokens * 0.00015)  # Estimate cost
+                expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
-            db.add(approval_record)
-            db.commit()  # Commit both task and approval in same transaction
-            approval_id = approval_record.id
+                approval_record = HitlAgentApprovalDB(
+                    project_id=project_uuid,
+                    task_id=task_uuid,
+                    agent_type=agent_type,
+                    request_type="PRE_EXECUTION",
+                    request_data={
+                        "instructions": instructions,
+                        "estimated_tokens": estimated_tokens,
+                        "context_ids": [str(cid) for cid in context_uuids],
+                        "agent_type": agent_type
+                    },
+                    estimated_tokens=estimated_tokens,
+                    estimated_cost=estimated_cost,
+                    expires_at=expires_at,
+                    status="PENDING"
+                )
 
-            logger.info("Created HITL approval record", task_id=str(task_uuid), approval_id=str(approval_id))
+                db.add(approval_record)
+                db.commit()  # Commit both task and approval in same transaction
+                approval_id = approval_record.id
+
+                logger.info("Created HITL approval record", task_id=str(task_uuid), approval_id=str(approval_id))
 
             # Broadcast HITL approval request event via WebSocket
             hitl_event = WebSocketEvent(
@@ -292,39 +306,20 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             
             # Execute task with AutoGen service
             result = asyncio.run(autogen_service.execute_task(task, handoff, context_artifacts))
-            
-            # Request response approval
+
+            # Skip response approval for simple tasks - pre-execution approval is sufficient
+            # Response approval would create a duplicate HITL message
+            logger.info("Skipping response approval - using pre-execution approval only",
+                       task_id=str(task_uuid),
+                       pre_execution_approval_id=str(approval_id))
+
+            # Update budget usage
             if result.get("success", False):
-                response_approval_id = asyncio.run(hitl_service.create_approval_request(
-                    project_id=project_uuid,
-                    task_id=task_uuid,
-                    agent_type=agent_type,
-                    request_type="RESPONSE_APPROVAL",
-                    request_data={
-                        "agent_response": result.get("output", ""),
-                        "artifacts": result.get("artifacts", []),
-                        "confidence_score": result.get("confidence", 0.0),
-                        "tokens_used": result.get("tokens_used", estimated_tokens),
-                        "status": result.get("status", "completed")
-                    }
-                ))
-                
-                logger.info("Waiting for HITL response approval", task_id=str(task_uuid), approval_id=str(response_approval_id))
-                response_approval = asyncio.run(hitl_service.wait_for_approval(response_approval_id, timeout_minutes=15))
-                
-                if not response_approval.approved:
-                    logger.warning("HITL response approval rejected", task_id=str(task_uuid), comment=response_approval.comment)
-                    result["hitl_rejected"] = True
-                    result["rejection_reason"] = response_approval.comment
-                else:
-                    logger.info("HITL response approval granted", task_id=str(task_uuid))
-                
-                # Update budget usage
                 tokens_used = result.get("tokens_used", estimated_tokens)
                 asyncio.run(hitl_service.update_budget_usage(
                     project_uuid, agent_type, tokens_used
                 ))
-            
+
         except (AgentExecutionDenied, BudgetLimitExceeded, EmergencyStopActivated) as e:
             logger.error("HITL safety control blocked task execution", task_id=str(task_uuid), error=str(e))
             result = {

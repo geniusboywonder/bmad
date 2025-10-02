@@ -25,6 +25,12 @@ import requests
 # Add the backend directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
+# Load environment variables from .env file before importing settings
+from dotenv import load_dotenv
+backend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+dotenv_path = os.path.join(backend_dir, '.env')
+load_dotenv(dotenv_path)
+
 import redis
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text

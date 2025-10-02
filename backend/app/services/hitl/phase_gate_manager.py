@@ -317,11 +317,11 @@ class PhaseGateManager:
             List of created HITL request IDs
         """
         standard_phases = [
-            {"name": "requirements", "deliverables": ["requirements_doc", "acceptance_criteria"]},
-            {"name": "design", "deliverables": ["system_design", "api_specification"]},
-            {"name": "implementation", "deliverables": ["source_code", "unit_tests"]},
-            {"name": "testing", "deliverables": ["test_results", "bug_reports"]},
-            {"name": "deployment", "deliverables": ["deployment_package", "deployment_guide"]}
+            {"name": "requirements", "deliverables": ["plan", "requirements_doc", "acceptance_criteria"]},
+            {"name": "design", "deliverables": ["plan", "system_design", "api_specification"]},
+            {"name": "implementation", "deliverables": ["plan", "source_code", "unit_tests"]},
+            {"name": "testing", "deliverables": ["plan", "test_results", "bug_reports"]},
+            {"name": "deployment", "deliverables": ["plan", "deployment_package", "deployment_guide"]}
         ]
 
         created_requests = []

@@ -80,10 +80,23 @@ export const useAppStore = create<AppState>((set) => ({
     })),
 
   addMessage: (message) =>
-    set((state) => ({
-      ...state,
-      conversation: [...state.conversation, message],
-    })),
+    set((state) => {
+      // Prevent duplicate HITL messages based on approvalId
+      if (message.approvalId) {
+        const exists = state.conversation.some(
+          (msg) => msg.approvalId === message.approvalId
+        );
+        if (exists) {
+          console.log(`[AppStore] Skipping duplicate message for approval ${message.approvalId}`);
+          return state;
+        }
+      }
+
+      return {
+        ...state,
+        conversation: [...state.conversation, message],
+      };
+    }),
 
   updateMessage: (approvalId, updates) =>
     set((state) => ({
@@ -98,3 +111,8 @@ export const useAppStore = create<AppState>((set) => ({
   setAgentFilter: (agentName) =>
     set((state) => ({ ...state, agentFilter: agentName })),
 }));
+
+// Make store globally accessible for cross-store updates
+if (typeof window !== 'undefined') {
+  (window as any).useAppStore = useAppStore;
+}

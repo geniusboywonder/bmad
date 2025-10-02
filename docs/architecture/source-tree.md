@@ -45,8 +45,8 @@ bmad/
 │   ├── tester-implementation-plan-tmpl.yaml
 │   ├── qa-gate-tmpl.yaml     # Quality gate template
 │   └── story-tmpl.yaml       # Story template
-├── workflows/                 # Workflow definitions
-│   ├── greenfield-fullstack.yaml
+├── workflows/                 # Workflow definitions (REFERENCE ONLY)
+│   ├── greenfield-fullstack.yaml  # Reference workflow - DO NOT USE
 │   ├── greenfield-service.yaml
 │   └── greenfield-ui.yaml
 ├── core-config.yaml          # Core BMAD configuration
@@ -62,6 +62,8 @@ backend/
 │   ├── env.py               # Alembic environment configuration
 │   └── alembic.ini          # Alembic configuration file
 ├── app/                      # Main application package
+│   ├── workflows/           # ✅ Production workflow definitions
+│   │   └── greenfield-fullstack.yaml  # ✅ Active SDLC workflow with 17 artifacts
 │   ├── agents/              # Agent implementations
 │   │   ├── adk_agent_with_tools.py    # ADK agent with tools support
 │   │   ├── adk_dev_tools.py           # ADK development framework
@@ -132,13 +134,13 @@ backend/
 │   │   ├── project_completion_service.py # Project lifecycle management
 │   │   ├── quality_gate_service.py       # Quality gate evaluation
 │   │   ├── response_safety_analyzer.py   # Response safety analysis
-│   │   └── startup_service.py            # Server startup cleanup and initialization
+│   │   └── startup_service.py            # ✅ ENHANCED: Server startup with HITL cleanup
 │   ├── tools/              # ADK tools integration
 │   │   ├── adk_openapi_tools.py          # OpenAPI integration tools
 │   │   ├── adk_tool_registry.py          # Tool registry and management
 │   │   └── specialized_adk_tools.py      # Specialized function tools
 │   ├── tasks/              # Celery task definitions
-│   │   ├── agent_tasks.py  # Agent execution tasks
+│   │   ├── agent_tasks.py  # ✅ ENHANCED: Agent execution with duplicate HITL prevention
 │   │   └── celery_app.py   # Celery application setup
 │   ├── websocket/          # WebSocket management
 │   │   ├── events.py       # WebSocket event handlers
@@ -203,7 +205,13 @@ frontend/
 │   ├── globals.css         # Global styles
 │   ├── layout.tsx          # Root layout component
 │   └── page.tsx            # Home page component
-├── components/             # ✅ Enhanced UI components - September 2025
+├── components/             # ✅ Enhanced UI components - September + October 2025
+│   ├── chat/              # ✅ Chat interface components
+│   │   ├── copilot-chat.tsx           # ✅ FIXED: Scrolling behavior for HITL messages
+│   │   └── chat-input.tsx             # Chat input component
+│   ├── hitl/              # ✅ HITL components with enhanced navigation
+│   │   ├── hitl-alerts-bar.tsx        # ✅ ENHANCED: Smart project navigation
+│   │   └── inline-hitl-approval.tsx   # ✅ ENHANCED: Badge utility imports
 │   ├── projects/          # ✅ NEW: Project management components
 │   │   ├── project-dashboard.tsx         # Real-time project dashboard
 │   │   ├── project-creation-form.tsx     # Project creation with validation
@@ -225,6 +233,7 @@ frontend/
 │   │   │   ├── health.service.ts      # ✅ System health monitoring
 │   │   │   ├── agents.service.ts      # ✅ Agent status management
 │   │   │   ├── hitl.service.ts        # ✅ HITL approval workflows
+│   │   │   ├── workflows.service.ts   # ✅ NEW: Workflow deliverables service
 │   │   │   ├── artifacts.service.ts   # ✅ NEW: Project artifacts management
 │   │   │   ├── error-boundary.tsx     # ✅ React error boundaries
 │   │   │   ├── loading-states.tsx     # ✅ Loading UI components
@@ -236,14 +245,15 @@ frontend/
 │   │   └── safety/        # ✅ Safety event handling
 │   │       ├── safety-event-handler.ts      # ✅ HITL safety controls
 │   │       └── safety-event-handler.test.ts # ✅ Safety system tests
-│   ├── stores/           # ✅ Enhanced state management - September 2025
+│   ├── stores/           # ✅ Enhanced state management - September + October 2025
+│   │   ├── hitl-store.ts              # ✅ ENHANCED: Expiration handling, error recovery
 │   │   ├── project-store.ts           # ✅ Project lifecycle with backend sync
 │   │   ├── navigation-store.ts        # ✅ NEW: View navigation and breadcrumb management
 │   │   └── project-store.test.ts      # ✅ Store integration tests
 │   ├── utils/            # ✅ Enhanced utility functions - September 2025
 │   │   └── badge-utils.ts             # ✅ NEW: Centralized badge styling system for status/agent indicators
 │   └── websocket/        # ✅ Enhanced existing WebSocket service
-│       └── websocket-service.ts       # ✅ Integrated with enhanced client
+│       └── websocket-service.ts       # ✅ ENHANCED: ProjectId in HITL events
 ├── tests/                 # ✅ NEW: Comprehensive test suite
 │   └── integration/      # ✅ Integration test suite
 │       └── frontend-integration.test.ts # ✅ End-to-end integration tests

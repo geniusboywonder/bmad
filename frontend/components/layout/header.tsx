@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   X,
   ChevronDown,
+  Settings,
 } from "lucide-react"
 import { useNotificationStore } from "@/lib/stores/notification-store"
 
@@ -26,7 +27,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SystemHealthIndicator } from "@/components/system-health-indicator"
-import { HITLAlertsBar } from "@/components/hitl/hitl-alerts-bar"
 import { useHITLStore } from "@/lib/stores/hitl-store"
 
 export function Header() {
@@ -103,8 +103,8 @@ export function Header() {
         <div className="flex items-center gap-2 flex-shrink-0 min-w-0">
 
             {/* Notifications Button */}
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className="flex-shrink-0"
               title="Notifications"
@@ -112,6 +112,19 @@ export function Header() {
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Notifications</span>
             </Button>
+
+            {/* Settings Button */}
+            <Link href="/settings">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="flex-shrink-0"
+                title="Settings"
+              >
+                  <Settings className="h-5 w-5" />
+                  <span className="sr-only">Settings</span>
+              </Button>
+            </Link>
 
             {/* System Health Indicator - Better responsive handling */}
             <div className="hidden md:flex items-center flex-shrink-0">
@@ -143,16 +156,6 @@ export function Header() {
             </DropdownMenu>
           </div>
         </div>
-        
-        {/* HITL Alert Bar - Using Architect thinking pattern */}
-        {/* Combined Alerts Bar - System alerts + HITL alerts */}
-        <HITLAlertsBar 
-          systemAlerts={visibleAlerts}
-          expandedAlerts={expandedAlerts}
-          toggleExpanded={toggleExpanded}
-          dismissAlert={dismissAlert}
-          isClient={isClient}
-        />
         </header>
     </>
   )

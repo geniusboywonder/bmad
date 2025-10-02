@@ -14,154 +14,94 @@ workflow:
     - mvp
 
   sequence:
+    # ANALYZE STAGE
     - agent: analyst
-      creates: project-brief.md
-      optional_steps:
-        - brainstorming_session
-        - market_research_prompt
-      notes: "Can do brainstorming first, then optional deep research before creating project brief. SAVE OUTPUT: Copy final project-brief.md to your project's docs/ folder."
+      creates: analyze-plan.md
+      notes: "HITL REQUIRED: Create analysis phase plan outlining requirements gathering approach, stakeholder interviews, and deliverables. Requires human approval before proceeding."
+
+    - agent: analyst
+      creates: product-requirement.md
+      requires: analyze-plan.md
+      notes: "Create comprehensive product requirements document outlining features, user needs, and business objectives. SAVE OUTPUT: Copy final product-requirement.md to your project's docs/ folder."
 
     - agent: pm
-      creates: prd.md
-      requires: project-brief.md
-      notes: "Creates PRD from project brief using prd-tmpl. SAVE OUTPUT: Copy final prd.md to your project's docs/ folder."
+      creates: prd-epic.md
+      requires: product-requirement.md
+      notes: "Create epic-level breakdown of product requirements into major feature themes. SAVE OUTPUT: Copy final prd-epic.md to your project's docs/ folder."
+
+    - agent: pm
+      creates: feature-story.md
+      requires: prd-epic.md
+      notes: "Create detailed user stories for each epic with acceptance criteria and story points. SAVE OUTPUT: Copy final feature-story.md to your project's docs/ folder."
+
+    # DESIGN STAGE
+    - agent: architect
+      creates: design-plan.md
+      requires: feature-story.md
+      notes: "HITL REQUIRED: Create design phase plan covering UI/UX approach, architecture decisions, and technical stack. Requires human approval before proceeding."
 
     - agent: ux-expert
       creates: front-end-spec.md
-      requires: prd.md
-      optional_steps:
-        - user_research_prompt
-      notes: "Creates UI/UX specification using front-end-spec-tmpl. SAVE OUTPUT: Copy final front-end-spec.md to your project's docs/ folder."
-
-    - agent: ux-expert
-      creates: v0_prompt (optional)
-      requires: front-end-spec.md
-      condition: user_wants_ai_generation
-      notes: "OPTIONAL BUT RECOMMENDED: Generate AI UI prompt for tools like v0, Lovable, etc. Use the generate-ai-frontend-prompt task. User can then generate UI in external tool and download project structure."
+      requires: design-plan.md
+      notes: "Create UI/UX specification with wireframes, component library, and user flows. SAVE OUTPUT: Copy final front-end-spec.md to your project's docs/ folder."
 
     - agent: architect
       creates: fullstack-architecture.md
-      requires:
-        - prd.md
-        - front-end-spec.md
-      optional_steps:
-        - technical_research_prompt
-        - review_generated_ui_structure
-      notes: "Creates comprehensive architecture using fullstack-architecture-tmpl. If user generated UI with v0/Lovable, can incorporate the project structure into architecture. May suggest changes to PRD stories or new stories. SAVE OUTPUT: Copy final fullstack-architecture.md to your project's docs/ folder."
+      requires: front-end-spec.md
+      notes: "Create comprehensive fullstack architecture including backend API design, data models, and infrastructure. SAVE OUTPUT: Copy final fullstack-architecture.md to your project's docs/ folder."
 
-    - agent: pm
-      updates: prd.md (if needed)
+    # BUILD STAGE
+    - agent: sm
+      creates: build-plan.md
       requires: fullstack-architecture.md
-      condition: architecture_suggests_prd_changes
-      notes: "If architect suggests story changes, update PRD and re-export the complete unredacted prd.md to docs/ folder."
-
-    - agent: po
-      validates: all_artifacts
-      uses: po-master-checklist
-      notes: "Validates all documents for consistency and completeness. May require updates to any document."
-
-    - agent: various
-      updates: any_flagged_documents
-      condition: po_checklist_issues
-      notes: "If PO finds issues, return to relevant agent to fix and re-export updated documents to docs/ folder."
-
-    - step: project_setup_guidance
-      action: guide_project_structure
-      condition: user_has_generated_ui
-      notes: "If user generated UI with v0/Lovable: For polyrepo setup, place downloaded project in separate frontend repo alongside backend repo. For monorepo, place in apps/web or packages/frontend directory. Review architecture document for specific guidance."
-
-    - step: development_order_guidance
-      action: guide_development_sequence
-      notes: "Based on PRD stories: If stories are frontend-heavy, start with frontend project/directory first. If backend-heavy or API-first, start with backend. For tightly coupled features, follow story sequence in monorepo setup. Reference sharded PRD epics for development order."
-
-    - agent: po
-      action: shard_documents
-      creates: sharded_docs
-      requires: all_artifacts_in_project
-      notes: |
-        Shard documents for IDE development:
-        - Option A: Use PO agent to shard: @po then ask to shard docs/prd.md
-        - Option B: Manual: Drag shard-doc task + docs/prd.md into chat
-        - Creates docs/prd/ and docs/architecture/ folders with sharded content
+      notes: "HITL REQUIRED: Create build phase plan outlining development approach, sprint structure, and implementation order. Requires human approval before proceeding."
 
     - agent: sm
-      action: create_story
       creates: story.md
-      requires: sharded_docs
-      repeats: for_each_epic
-      notes: |
-        Story creation cycle:
-        - SM Agent (New Chat): @sm → *create
-        - Creates next story from sharded docs
-        - Story starts in "Draft" status
-
-    - agent: analyst/pm
-      action: review_draft_story
-      updates: story.md
-      requires: story.md
-      optional: true
-      condition: user_wants_story_review
-      notes: |
-        OPTIONAL: Review and approve draft story
-        - NOTE: story-review task coming soon
-        - Review story completeness and alignment
-        - Update story status: Draft → Approved
+      requires: build-plan.md
+      notes: "Create development stories with technical tasks, dependencies, and acceptance criteria for implementation."
 
     - agent: dev
-      action: implement_story
-      creates: implementation_files
+      creates: implementation-files.md
       requires: story.md
-      notes: |
-        Dev Agent (New Chat): @dev
-        - Implements approved story
-        - Updates File List with all changes
-        - Marks story as "Review" when complete
+      notes: "Implement code based on approved stories. Document all created/modified files and key implementation decisions."
+
+    - agent: dev
+      creates: bug-fixes.md
+      requires: implementation-files.md
+      notes: "Document bugs discovered during development and their resolutions. Track bug fix commits and validation steps."
+
+    # VALIDATE STAGE
+    - agent: qa
+      creates: validate-plan.md
+      requires: bug-fixes.md
+      notes: "HITL REQUIRED: Create validation phase plan covering testing strategy, quality gates, and acceptance criteria. Requires human approval before proceeding."
 
     - agent: qa
-      action: review_implementation
-      updates: implementation_files
-      requires: implementation_files
-      optional: true
-      notes: |
-        OPTIONAL: QA Agent (New Chat): @qa → review-story
-        - Senior dev review with refactoring ability
-        - Fixes small issues directly
-        - Leaves checklist for remaining items
-        - Updates story status (Review → Done or stays Review)
+      creates: test-case.md
+      requires: validate-plan.md
+      notes: "Create comprehensive test cases including unit tests, integration tests, and acceptance criteria verification."
 
-    - agent: dev
-      action: address_qa_feedback
-      updates: implementation_files
-      condition: qa_left_unchecked_items
-      notes: |
-        If QA left unchecked items:
-        - Dev Agent (New Chat): Address remaining items
-        - Return to QA for final approval
+    - agent: qa
+      creates: validation-report.md
+      requires: test-case.md
+      notes: "Execute test cases and document results. Include pass/fail status, code coverage metrics, and recommendations for production readiness."
 
-    - step: repeat_development_cycle
-      action: continue_for_all_stories
-      notes: |
-        Repeat story cycle (SM → Dev → QA) for all epic stories
-        Continue until all stories in PRD are complete
+    # LAUNCH STAGE
+    - agent: deployer
+      creates: launch-plan.md
+      requires: validation-report.md
+      notes: "HITL REQUIRED: Create launch phase plan covering deployment strategy, rollback procedures, and monitoring setup. Requires human approval before proceeding."
 
-    - agent: po
-      action: epic_retrospective
-      creates: epic-retrospective.md
-      condition: epic_complete
-      optional: true
-      notes: |
-        OPTIONAL: After epic completion
-        - NOTE: epic-retrospective task coming soon
-        - Validate epic was completed correctly
-        - Document learnings and improvements
+    - agent: deployer
+      creates: deployment-checklist.md
+      requires: launch-plan.md
+      notes: "Create comprehensive deployment checklist including pre-deployment validation, deployment steps, and post-deployment verification."
 
-    - step: workflow_end
-      action: project_complete
-      notes: |
-        All stories implemented and reviewed!
-        Project development phase complete.
-
-        Reference: .bmad-core/data/bmad-kb.md#IDE Development Workflow
+    - agent: deployer
+      creates: deployment-report.md
+      requires: deployment-checklist.md
+      notes: "Execute deployment following approved plan and checklist. Document all steps, issues encountered, resolutions, and final production status."
 
   flow_diagram: |
     ```mermaid
@@ -231,11 +171,19 @@ workflow:
       - Enterprise or customer-facing applications
 
   handoff_prompts:
-    analyst_to_pm: "Project brief is complete. Save it as docs/project-brief.md in your project, then create the PRD."
-    pm_to_ux: "PRD is ready. Save it as docs/prd.md in your project, then create the UI/UX specification."
+    analyst_to_pm: "Product requirements complete. Save it as docs/product-requirement.md in your project, then create the PRD epics."
+    pm_to_stories: "PRD epics ready. Save it as docs/prd-epic.md in your project, then create detailed feature stories."
+    stories_to_design: "Feature stories complete. Save it as docs/feature-story.md in your project, then create the design plan."
+    design_to_ux: "Design plan approved. Save it as docs/design-plan.md in your project, then create the UI/UX specification."
     ux_to_architect: "UI/UX spec complete. Save it as docs/front-end-spec.md in your project, then create the fullstack architecture."
-    architect_review: "Architecture complete. Save it as docs/fullstack-architecture.md. Do you suggest any changes to the PRD stories or need new stories added?"
-    architect_to_pm: "Please update the PRD with the suggested story changes, then re-export the complete prd.md to docs/."
-    updated_to_po: "All documents ready in docs/ folder. Please validate all artifacts for consistency."
-    po_issues: "PO found issues with [document]. Please return to [agent] to fix and re-save the updated document."
-    complete: "All planning artifacts validated and saved in docs/ folder. Move to IDE environment to begin development."
+    architect_to_build: "Architecture complete. Save it as docs/fullstack-architecture.md in your project, then create the build plan."
+    build_to_dev: "Build plan approved. Save it as docs/build-plan.md in your project, then create development stories."
+    dev_to_implement: "Stories ready. Save it as docs/story.md in your project, then begin implementation."
+    implement_to_bugs: "Implementation complete. Save it as docs/implementation-files.md in your project, then document any bug fixes."
+    bugs_to_validate: "Bug fixes documented. Save it as docs/bug-fixes.md in your project, then create validation plan."
+    validate_to_test: "Validation plan approved. Save it as docs/validate-plan.md in your project, then create test cases."
+    test_to_report: "Test cases ready. Save it as docs/test-case.md in your project, then execute tests and create validation report."
+    validate_to_launch: "Validation complete. Save it as docs/validation-report.md in your project, then create launch plan."
+    launch_to_checklist: "Launch plan approved. Save it as docs/launch-plan.md in your project, then create deployment checklist."
+    checklist_to_deploy: "Deployment checklist ready. Save it as docs/deployment-checklist.md in your project, then execute deployment."
+    complete: "Deployment complete. Save final deployment report as docs/deployment-report.md. Project successfully launched!"

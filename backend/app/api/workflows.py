@@ -24,7 +24,8 @@ router = APIRouter(prefix="/api/v1/workflows", tags=["workflows"])
 
 # Initialize services
 template_service = TemplateService()
-workflow_service = WorkflowService()
+# Point to app/workflows directory
+workflow_service = WorkflowService(workflow_base_path="app/workflows")
 agent_team_service = AgentTeamService()
 yaml_parser = YAMLParser()
 
@@ -549,3 +550,94 @@ async def get_bmad_core_health():
                 "agent_team_service": "unknown"
             }
         }
+
+
+@router.get("/{workflow_id}/deliverables")
+async def get_workflow_deliverables(workflow_id: str):
+    """
+    Get expected deliverables/artifacts from workflow YAML definition.
+
+    This endpoint parses the workflow YAML file and extracts all artifacts
+    that agents are expected to create, organized by SDLC stage.
+
+    Args:
+        workflow_id: ID of the workflow (e.g., 'greenfield-fullstack')
+
+    Returns:
+        Dictionary mapping SDLC stages to expected deliverables
+    """
+    try:
+        # Load workflow definition
+        workflow = workflow_service.load_workflow(workflow_id)
+
+        # Map of SDLC stages to agents
+        stage_agents = {
+            "analyze": ["analyst", "pm"],
+            "design": ["architect", "ux-expert", "ux"],
+            "build": ["developer", "dev", "sm", "scrum"],
+            "validate": ["tester", "qa"],
+            "launch": ["deployer"]
+        }
+
+        # Extract deliverables from workflow sequence
+        deliverables_by_stage = {
+            "analyze": [],
+            "design": [],
+            "build": [],
+            "validate": [],
+            "launch": []
+        }
+
+        for step in workflow.sequence:
+            # Get deliverable name from 'creates' field
+            deliverable_name = None
+            if hasattr(step, 'creates') and step.creates:
+                # Remove file extension and clean up name
+                deliverable_name = step.creates.replace('.md', '').replace('_', ' ').replace('-', ' ').title()
+            elif hasattr(step, 'action') and step.action:
+                # Use action as deliverable for non-creation steps
+                deliverable_name = step.action.replace('_', ' ').title()
+
+            if not deliverable_name:
+                continue
+
+            # Determine which stage this deliverable belongs to
+            agent = getattr(step, 'agent', None)
+            if agent is None:
+                # Skip non-agent steps (like project_setup_guidance)
+                continue
+
+            agent_lower = agent.lower()
+            assigned_stage = None
+
+            for stage, agents in stage_agents.items():
+                if any(agent_name in agent_lower for agent_name in agents):
+                    assigned_stage = stage
+                    break
+
+            if not assigned_stage:
+                # Default to analyze if agent not recognized
+                assigned_stage = "analyze"
+
+            # Add deliverable to stage
+            notes = getattr(step, 'notes', '')
+            deliverable = {
+                "name": deliverable_name,
+                "agent": agent.title(),
+                "description": notes.split('.')[0] if notes else f"Create {deliverable_name}",
+                "optional": getattr(step, 'optional', False) or ('optional' in notes.lower() if notes else False)
+            }
+
+            deliverables_by_stage[assigned_stage].append(deliverable)
+
+        return {
+            "workflow_id": workflow_id,
+            "workflow_name": workflow.name,
+            "deliverables": deliverables_by_stage
+        }
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Workflow '{workflow_id}' not found")
+    except Exception as e:
+        logger.error(f"Failed to get deliverables for workflow '{workflow_id}': {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get workflow deliverables: {str(e)}")

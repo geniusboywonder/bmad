@@ -8,10 +8,11 @@ from typing import List
 
 from app.settings import settings
 from app.database.connection import get_session
-from app.database.models import AgentStatusDB, TaskDB
+from app.database.models import AgentStatusDB, TaskDB, HitlAgentApprovalDB
 from app.models.agent import AgentStatus, AgentType
 from app.models.task import TaskStatus
 from app.tasks.celery_app import celery_app
+from datetime import datetime, timezone
 
 logger = structlog.get_logger(__name__)
 
@@ -212,6 +213,54 @@ class StartupService:
                         exc_info=True)
             return False
 
+    async def cleanup_stale_hitl_approvals(self) -> bool:
+        """Clean up expired or pending HITL approval requests from previous sessions."""
+        try:
+            # Use generator pattern for database session
+            db_gen = get_session()
+            db = next(db_gen)
+            try:
+                now = datetime.now(timezone.utc)
+                
+                # Find all PENDING approval requests (including expired ones)
+                stale_approvals = db.query(HitlAgentApprovalDB).filter(
+                    HitlAgentApprovalDB.status == "PENDING"
+                ).all()
+
+                rejected_count = 0
+                for approval in stale_approvals:
+                    # Mark as rejected with server restart reason
+                    approval.status = "REJECTED"
+                    approval.user_response = "Cancelled due to server restart"
+                    approval.user_comment = "Server restart - approval request invalidated"
+                    approval.responded_at = now
+                    rejected_count += 1
+
+                    logger.info("Rejected stale HITL approval",
+                               approval_id=str(approval.id),
+                               project_id=str(approval.project_id),
+                               agent_type=approval.agent_type,
+                               was_expired=approval.expires_at < now if approval.expires_at else False)
+
+                db.commit()
+
+                logger.info("HITL approval cleanup completed",
+                           rejected_count=rejected_count)
+                return True
+
+            finally:
+                # Properly close the database session
+                try:
+                    next(db_gen)
+                except StopIteration:
+                    pass
+
+        except Exception as e:
+            logger.error("Failed to cleanup stale HITL approvals",
+                        error=str(e),
+                        exc_info=True)
+            return False
+
     async def perform_startup_cleanup(self) -> dict:
         """Perform complete startup cleanup sequence."""
         logger.info("🚀 Starting server startup cleanup sequence")
@@ -221,6 +270,7 @@ class StartupService:
             "celery_purge": False,
             "agent_reset": False,
             "task_reset": False,
+            "hitl_cleanup": False,
             "overall_success": False
         }
 
@@ -240,12 +290,17 @@ class StartupService:
         logger.info("🔄 Step 4: Resetting pending tasks...")
         results["task_reset"] = await self.reset_pending_tasks()
 
+        # 5. Cleanup stale HITL approvals
+        logger.info("🔄 Step 5: Cleaning up stale HITL approvals...")
+        results["hitl_cleanup"] = await self.cleanup_stale_hitl_approvals()
+
         # Determine overall success
         results["overall_success"] = all([
             results["redis_flush"],
             results["celery_purge"],
             results["agent_reset"],
-            results["task_reset"]
+            results["task_reset"],
+            results["hitl_cleanup"]
         ])
 
         if results["overall_success"]:

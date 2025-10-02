@@ -86,10 +86,11 @@ class WorkflowService:
         logger.info(f"Loading workflow '{workflow_id}' from {workflow_file}")
         workflow = self.yaml_parser.load_workflow(workflow_file)
 
-        # Validate workflow
-        validation_errors = workflow.validate_sequence()
-        if validation_errors:
-            logger.warning(f"Workflow validation warnings for '{workflow_id}': {validation_errors}")
+        # Validate workflow (if method exists - some WorkflowDefinition models may not have it)
+        if hasattr(workflow, 'validate_sequence'):
+            validation_errors = workflow.validate_sequence()
+            if validation_errors:
+                logger.warning(f"Workflow validation warnings for '{workflow_id}': {validation_errors}")
 
         # Cache workflow
         if self._cache_enabled:

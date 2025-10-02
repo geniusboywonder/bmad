@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { EnhancedSidebarMockup } from "./mockups/enhanced-sidebar"
 import { Header } from "./layout/header"
 import { ConsoleLoggerProvider } from "./console-logger-provider"
 import { RequirementsGatheringInterface } from "./chat/requirements-gathering-interface"
@@ -44,10 +43,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           dismissAlert={dismissAlert}
           isClient={isClient}
         />
-        <div className="flex flex-1">
-          <EnhancedSidebarMockup />
-          <main className="flex-1 overflow-auto">{children}</main>
-        </div>
+        <main className="flex-1 overflow-auto">{children}</main>
         <RequirementsGatheringInterface />
       </div>
     </ConsoleLoggerProvider>

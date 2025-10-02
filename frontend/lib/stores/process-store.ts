@@ -64,9 +64,78 @@ interface ProcessActions {
 type ProcessStore = ProcessState & ProcessActions
 
 
+// Default SDLC stages for initialization
+const defaultStages: ProcessStage[] = [
+  {
+    id: 'requirements',
+    name: 'Requirements',
+    description: 'Requirements analysis and planning',
+    status: 'queued',
+    agentName: 'Analyst',
+    agentType: 'analyst',
+    currentTask: '',
+    hitlRequired: false,
+    tasks: [],
+    artifacts: [],
+    progress: 0
+  },
+  {
+    id: 'design',
+    name: 'Design',
+    description: 'System architecture and design',
+    status: 'queued',
+    agentName: 'Architect',
+    agentType: 'architect',
+    currentTask: '',
+    hitlRequired: false,
+    tasks: [],
+    artifacts: [],
+    progress: 0
+  },
+  {
+    id: 'dev',
+    name: 'Development',
+    description: 'Development and implementation',
+    status: 'queued',
+    agentName: 'Developer',
+    agentType: 'developer',
+    currentTask: '',
+    hitlRequired: false,
+    tasks: [],
+    artifacts: [],
+    progress: 0
+  },
+  {
+    id: 'test',
+    name: 'Testing',
+    description: 'Testing and quality assurance',
+    status: 'queued',
+    agentName: 'Tester',
+    agentType: 'tester',
+    currentTask: '',
+    hitlRequired: false,
+    tasks: [],
+    artifacts: [],
+    progress: 0
+  },
+  {
+    id: 'deploy',
+    name: 'Deployment',
+    description: 'Deployment and launch',
+    status: 'queued',
+    agentName: 'Deployer',
+    agentType: 'deployer',
+    currentTask: '',
+    hitlRequired: false,
+    tasks: [],
+    artifacts: [],
+    progress: 0
+  }
+]
+
 const initialState: ProcessState = {
   currentFlow: null,
-  stages: [],
+  stages: defaultStages,
   currentStageId: null,
   hitlRequests: [],
   isLoading: false,
@@ -243,5 +312,5 @@ export const useProcessStore = create<ProcessStore>()(
   }))
 )
 
-// The store now starts with an empty stage list.
-// It will be populated dynamically based on the selected process.
+// The store initializes with default SDLC stages.
+// These can be updated dynamically based on the selected process or WebSocket events.

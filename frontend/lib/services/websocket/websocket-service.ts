@@ -113,8 +113,17 @@ class WebSocketService {
 
           // Add any missing requests
           for (const request of pendingRequests.approvals || []) {
-            const exists = currentRequests.find(r => r.context?.approvalId === request.id);
-            if (!exists) {
+            const existingRequest = currentRequests.find(r => r.context?.approvalId === request.id);
+
+            // Skip if request was already resolved locally (approved/rejected/modified)
+            // This prevents re-adding requests that were approved locally but backend hasn't updated yet
+            if (existingRequest && existingRequest.status !== 'pending') {
+              console.log(`[WebSocket] Skipping polling add for ${request.id} - already ${existingRequest.status} locally`);
+              continue;
+            }
+
+            // Only add if request doesn't exist
+            if (!existingRequest) {
               console.log('[WebSocket] Adding missing HITL request from API polling:', request.id);
               addRequest({
                 agentName: request.agent_type || "System",
@@ -126,9 +135,25 @@ class WebSocketService {
                   estimatedTokens: request.estimated_tokens,
                   estimatedCost: request.estimated_cost,
                   expiresAt: request.expires_at,
-                  requestData: request.request_data
+                  requestData: request.request_data,
+                  taskId: request.task_id,
+                  projectId: request.project_id
                 },
                 priority: (request.estimated_cost && request.estimated_cost > 5) ? 'high' : 'medium'
+              });
+
+              // CRITICAL FIX: Also add the chat message (was missing before)
+              const { addMessage } = useAppStore.getState();
+              const taskInstructions = request.request_data?.instructions || "Execute task";
+              addMessage({
+                type: "hitl_request",
+                agent: `${request.agent_type} Agent`,
+                content: `🚨 **HITL Approval Required**\n\nI need permission to: "${taskInstructions}"\n\n📊 **Estimated cost:** $${request.estimated_cost?.toFixed(4) || '0.0150'}\n⏱️ **Estimated tokens:** ${request.estimated_tokens || 100}\n\n⚠️ **Waiting for human approval before proceeding...**`,
+                urgency: (request.estimated_cost && request.estimated_cost > 5) ? "high" : "medium",
+                requestId: request.id,
+                taskId: request.task_id,
+                approvalId: request.id,
+                hitlStatus: "pending"
               });
             }
           }
@@ -258,7 +283,8 @@ class WebSocketService {
         estimatedCost: data.estimated_cost,
         expiresAt: data.expires_at,
         requestData: data.request_data,
-        taskId: data.task_id
+        taskId: data.task_id,
+        projectId: data.project_id // Include project ID for navigation
       },
       priority: (data.estimated_cost && data.estimated_cost > 5) ? 'high' : 'medium'
     });

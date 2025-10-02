@@ -53,6 +53,7 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 
 **Mandatory Safety Controls**
 - **Pre-execution Approval** - Human authorization required for all agent operations
+- **✅ Duplicate Prevention** - Single HITL approval per task eliminates redundant messages (October 2025)
 - **Budget Controls** - Token limits with automatic emergency stops
 - **Response Validation** - Content safety scoring and quality metrics
 - **Emergency Stop System** - Immediate agent halting with multiple trigger conditions
@@ -127,13 +128,16 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **✅ NEW: Interactive Stage Navigation** - Role-based icons and status overlays
 - **✅ NEW: Expandable Artifacts System** - Progress tracking and download functionality
 
-### State Management ✅ **ENHANCED - September 2025**
+### State Management ✅ **ENHANCED - September 2025 + October 2025**
 - **Project Store** - Complete project lifecycle with backend synchronization
+- **HITL Store** - Request lifecycle management with expiration handling and error recovery
 - **Real-time Synchronization** - WebSocket event handling with optimistic updates
 - **Error Boundary System** - Comprehensive error handling with user-friendly recovery
 - **Loading State Management** - Consistent loading patterns across all components
-- **✅ NEW: Navigation Store** - View state management with breadcrumb navigation and keyboard shortcuts
-- **✅ NEW: Artifacts Management** - Project-specific artifacts with real-time progress tracking
+- **✅ Navigation Store** - View state management with breadcrumb navigation and keyboard shortcuts
+- **✅ Artifacts Management** - Project-specific artifacts with real-time progress tracking
+- **✅ NEW: Automatic Cleanup** - 5-minute periodic cleanup of expired HITL requests
+- **✅ NEW: Error Recovery** - Graceful handling of 404/400 errors for stale approvals
 
 ### Testing Infrastructure ✅ **COMPREHENSIVE**
 - **Vitest** - Modern testing framework with jsdom environment
@@ -253,12 +257,13 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Secret Management** - Secure credential handling for production
 - **Configuration Validation** - Startup validation with clear error messages
 
-### Startup & Lifecycle Management
+### Startup & Lifecycle Management ✅ **ENHANCED - October 2025**
 - **StartupService** - Comprehensive server initialization and cleanup
 - **Redis Queue Flushing** - Automatic clearing of stale cache and queue data
 - **Celery Queue Purging** - Removal of orphaned background tasks
 - **Agent Status Reset** - All agents initialized to IDLE state
 - **Pending Task Cleanup** - Cancellation of incomplete tasks from previous sessions
+- **✅ NEW: HITL Approval Cleanup** - Automatic rejection of stale HITL approvals on startup
 - **Database Session Management** - Proper cleanup and resource management
 
 ## Technology Decisions

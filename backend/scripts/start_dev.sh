@@ -125,8 +125,19 @@ echo "   Starting Celery worker process..."
 CELERY_LOG_FILE="${BACKEND_DIR}/celery.log"
 CELERY_PID_FILE="${BACKEND_DIR}/celery.pid"
 
+# CRITICAL: Source .env to load DATABASE_URL before starting Celery
+# The Celery worker MUST have DATABASE_URL to connect to PostgreSQL for HITL approvals
+echo "   Loading environment variables from .env..."
+set -a  # Automatically export all variables
+source "${BACKEND_DIR}/.env"
+set +a  # Stop auto-exporting
+
+# Override CELERY-specific settings (these take precedence over .env)
+export CELERY_BROKER_URL="${CELERY_BROKER_URL:-redis://localhost:6379/1}"
+export CELERY_RESULT_BACKEND="${CELERY_RESULT_BACKEND:-redis://localhost:6379/1}"
+
 # Start Celery worker in background and capture output
-nohup celery -A app.tasks.celery_app worker --loglevel=info --pidfile="$CELERY_PID_FILE" > "$CELERY_LOG_FILE" 2>&1 &
+nohup celery -A app.tasks.celery_app worker --loglevel=info --pidfile="$CELERY_PID_FILE" --queues=agent_tasks,celery > "$CELERY_LOG_FILE" 2>&1 &
 CELERY_PID=$!
 
 # Give Celery time to start

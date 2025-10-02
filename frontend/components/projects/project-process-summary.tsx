@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
+import React, { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { getStatusBadgeClasses, getAgentBadgeClasses } from "@/lib/utils/badge-utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useProjectArtifacts } from "@/hooks/use-project-artifacts"
+import { workflowsService, type WorkflowDeliverablesResponse } from "@/lib/services/api"
 import { cn } from "@/lib/utils"
 
 import {
@@ -84,8 +85,8 @@ const getStatusColor = (status: string) => {
   }
 }
 
-// SDLC Stages with artifacts structure
-const generateSDLCStages = (artifacts: any[]) => {
+// SDLC Stages with artifacts structure - now uses dynamic workflow deliverables
+const generateSDLCStages = (artifacts: any[], workflowDeliverables: WorkflowDeliverablesResponse | null = null) => {
   // Create default SDLC stages
   const defaultStages = [
     {
@@ -127,41 +128,99 @@ const generateSDLCStages = (artifacts: any[]) => {
 
   // Map artifacts to stages based on name patterns or agent
   const stagesWithArtifacts = defaultStages.map(stage => {
-    const stageArtifacts = artifacts.filter(artifact => {
+    // Get expected deliverables for this stage from workflow definition
+    const expectedDeliverables = workflowDeliverables?.deliverables[stage.id as keyof typeof workflowDeliverables.deliverables] || [];
+
+    // Match actual artifacts to this stage
+    const actualArtifacts = artifacts.filter(artifact => {
       const name = (artifact.name || '').toLowerCase();
       const agent = (artifact.agent || '').toLowerCase();
 
       // Match by stage name or agent type
-      if (stage.id === "analyze" && (name.includes('requirement') || name.includes('analysis') || agent.includes('analyst'))) {
+      // ANALYZE stage: includes plans, briefs, requirements, PRDs
+      if (stage.id === "analyze" && (
+        name.includes('requirement') ||
+        name.includes('analysis') ||
+        name.includes('brief') ||
+        name.includes('prd') ||
+        name.includes('plan') ||
+        name.includes('product') ||
+        agent.includes('analyst') ||
+        agent.includes('pm')
+      )) {
         return true;
       }
-      if (stage.id === "design" && (name.includes('design') || name.includes('architecture') || agent.includes('architect'))) {
+      // DESIGN stage: includes architecture, specs, design docs
+      if (stage.id === "design" && (
+        name.includes('design') ||
+        name.includes('architecture') ||
+        name.includes('spec') ||
+        name.includes('ux') ||
+        name.includes('frontend-spec') ||
+        name.includes('fullstack') ||
+        agent.includes('architect') ||
+        agent.includes('ux')
+      )) {
         return true;
       }
-      if (stage.id === "build" && (name.includes('code') || name.includes('implementation') || agent.includes('developer'))) {
+      // BUILD stage: includes code, implementation
+      if (stage.id === "build" && (
+        name.includes('code') ||
+        name.includes('implementation') ||
+        name.includes('story') ||
+        agent.includes('developer') ||
+        agent.includes('coder') ||
+        agent.includes('scrum')
+      )) {
         return true;
       }
-      if (stage.id === "validate" && (name.includes('test') || name.includes('validation') || agent.includes('tester'))) {
+      // VALIDATE stage: includes tests, validation
+      if (stage.id === "validate" && (
+        name.includes('test') ||
+        name.includes('validation') ||
+        name.includes('qa') ||
+        agent.includes('tester')
+      )) {
         return true;
       }
-      if (stage.id === "launch" && (name.includes('deploy') || name.includes('release') || agent.includes('deployer'))) {
+      // LAUNCH stage: includes deployment, release
+      if (stage.id === "launch" && (
+        name.includes('deploy') ||
+        name.includes('release') ||
+        name.includes('launch') ||
+        agent.includes('deployer')
+      )) {
         return true;
       }
 
-      // If no specific match, assign to first stage (analyze) for now
-      return stage.id === "analyze";
-    }).map(artifact => ({
-      name: artifact.name,
-      status: artifact.status,
-      role: artifact.agent || stage.agent,
-      task: `Create ${artifact.name}`,
-      subtasks: { completed: artifact.status === 'completed' ? 1 : 0, total: 1 },
-      tasks_detail: {
-        previous: "",
-        current: artifact.status === 'in_progress' ? `Create ${artifact.name}` : "",
-        next: artifact.status === 'pending' ? `Create ${artifact.name}` : ""
-      }
-    }));
+      return false;
+    });
+
+    // Merge expected deliverables with actual artifacts
+    const stageArtifacts = expectedDeliverables.map(expected => {
+      // Find matching actual artifact
+      const actual = actualArtifacts.find(artifact =>
+        artifact.name.toLowerCase().includes(expected.name.toLowerCase()) ||
+        expected.name.toLowerCase().includes(artifact.name.toLowerCase())
+      );
+
+      return {
+        name: expected.name,
+        status: actual?.status || 'pending',
+        role: actual?.agent || expected.agent,
+        task: `Create ${expected.name}`,
+        description: expected.description,
+        subtasks: {
+          completed: actual?.status === 'completed' ? 1 : 0,
+          total: 1
+        },
+        tasks_detail: {
+          previous: "",
+          current: actual?.status === 'in_progress' ? `Create ${expected.name}` : "",
+          next: !actual || actual.status === 'pending' ? `Create ${expected.name}` : ""
+        }
+      };
+    });
 
     // Determine stage status based on artifacts
     let stageStatus = "queued";
@@ -194,11 +253,29 @@ export function ProjectProcessSummary({ projectId, className }: ProjectProcessSu
   const { artifacts, loading: artifactsLoading, error: artifactsError, progress: artifactProgress } = useProjectArtifacts(projectId);
   const [selectedStage, setSelectedStage] = useState("analyze");
   const [expandedArtifacts, setExpandedArtifacts] = useState<string[]>([]);
+  const [workflowDeliverables, setWorkflowDeliverables] = useState<WorkflowDeliverablesResponse | null>(null);
 
-  // Generate stages data from artifacts
+  // Fetch workflow deliverables on mount
+  useEffect(() => {
+    const fetchWorkflowDeliverables = async () => {
+      try {
+        // TODO: Get workflow_id from project data - for now defaulting to 'greenfield-fullstack'
+        const response = await workflowsService.getWorkflowDeliverables('greenfield-fullstack');
+        if (response.success && response.data) {
+          setWorkflowDeliverables(response.data);
+        }
+      } catch (error) {
+        console.error('[ProcessSummary] Failed to fetch workflow deliverables:', error);
+      }
+    };
+
+    fetchWorkflowDeliverables();
+  }, []);
+
+  // Generate stages data from artifacts and workflow deliverables
   const stagesData = useMemo(() => {
-    return generateSDLCStages(artifacts);
-  }, [artifacts]);
+    return generateSDLCStages(artifacts, workflowDeliverables);
+  }, [artifacts, workflowDeliverables]);
 
   const currentStage = stagesData.find(stage => stage.id === selectedStage);
   const progressPercentage = currentStage ? (parseInt(currentStage.tasks.split('/')[0]) / parseInt(currentStage.tasks.split('/')[1])) * 100 : 0;

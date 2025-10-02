@@ -100,14 +100,16 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - Emergency stop mechanisms with multiple trigger conditions
 - Comprehensive audit trails and compliance tracking
 
-### 4.2 HITL Request Lifecycle Management ✅ Enhanced September 2025
+### 4.2 HITL Request Lifecycle Management ✅ Enhanced September 2025 + October 2025 Critical Fixes
 
 **Frontend Store Management:**
 - **Request Creation**: HITL requests stored in persistent Zustand store with localStorage
 - **Status Tracking**: Real-time updates via WebSocket events
 - **Alert Display**: Pending requests shown in alerts bar with navigation links
-- **✅ NEW: Automatic Cleanup**: Resolved requests completely removed from store (not just status updated)
-- **✅ NEW: Manual Cleanup**: `clearAllRequests()` and `removeResolvedRequests()` methods for development
+- **✅ Automatic Cleanup**: Resolved requests completely removed from store (not just status updated)
+- **✅ Manual Cleanup**: `clearAllRequests()`, `removeResolvedRequests()`, `removeExpiredRequests()` methods
+- **✅ NEW: Expiration Handling**: 30-minute request expiration with automatic cleanup
+- **✅ NEW: Error Recovery**: Graceful handling of 404/400 errors for stale requests
 
 **Resolution Workflow:**
 1. User approves/rejects/modifies HITL request via inline component
@@ -116,14 +118,22 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 4. **✅ CRITICAL**: Frontend removes request from store completely
 5. Alert automatically disappears from UI
 6. Safety event handler acknowledges related alerts
+7. **✅ NEW**: Stale/expired requests gracefully handled and removed
 
 **Store Methods (`frontend/lib/stores/hitl-store.ts`):**
 ```typescript
-// Enhanced resolution - removes request completely
+// Enhanced resolution with error handling
 resolveRequest: async (id, status, response) => {
-  // API call to backend
-  await fetch(`/api/v1/hitl-safety/approve-agent-execution/${approvalId}`, {...});
-
+  // API call to backend with 404/400 error handling
+  if (!apiResponse.ok) {
+    if (apiResponse.status === 404) {
+      console.warn('Approval not found (likely expired), removing from store');
+      // Still remove from store even if backend doesn't have it
+    } else if (apiResponse.status === 400 && errorText.includes('expired')) {
+      console.warn('Approval expired, removing from store');
+    }
+  }
+  
   // Remove from store (not just update status)
   set((state) => ({
     requests: state.requests.filter((req) => req.id !== id),
@@ -131,18 +141,112 @@ resolveRequest: async (id, status, response) => {
   }));
 }
 
-// Manual cleanup methods for development
+// Enhanced pending count with expiration filtering
+getPendingCount: () => {
+  const now = new Date();
+  return get().requests.filter((req) => {
+    if (req.status !== 'pending') return false;
+    const requestAge = now.getTime() - new Date(req.timestamp).getTime();
+    return requestAge <= THIRTY_MINUTES; // 30 minute expiration
+  }).length;
+}
+
+// Cleanup methods
 clearAllRequests: () => void;           // Remove all requests
 removeResolvedRequests: () => void;     // Remove non-pending requests
+removeExpiredRequests: () => void;      // Remove requests older than 30 minutes
+
+// Automatic periodic cleanup (runs every 5 minutes)
+setInterval(() => {
+  useHITLStore.getState().removeExpiredRequests();
+}, 5 * 60 * 1000);
+```
+
+**Alert Bar Navigation (`frontend/components/hitl/hitl-alerts-bar.tsx`):**
+```typescript
+// Enhanced navigation with project routing
+const handleHITLClick = (requestId: string) => {
+  // 1. Check expiration (30-minute timeout)
+  if (requestAge > THIRTY_MINUTES) {
+    resolveRequest(requestId, 'rejected', 'Request expired');
+    return;
+  }
+  
+  // 2. Navigate to project workspace
+  const projectId = request.context?.projectId;
+  if (currentView !== 'project-workspace' || currentProject?.id !== projectId) {
+    navigateToProject(projectId);
+  }
+  
+  // 3. Scroll to and highlight specific HITL message
+  const selectors = [
+    `[data-approval-id="${approvalId}"]`,
+    `[data-request-id="${requestId}"]`,
+    `[data-task-id="${taskId}"]`
+  ];
+  targetElement.scrollIntoView({ behavior: 'smooth' });
+  targetElement.classList.add('bg-yellow-100', 'ring-2', 'ring-yellow-300');
+};
 ```
 
 **Benefits:**
-- ✅ **Clean UI**: Resolved alerts automatically disappear
-- ✅ **Memory Management**: No accumulation of resolved requests
+- ✅ **Clean UI**: Resolved and expired alerts automatically disappear
+- ✅ **Memory Management**: No accumulation of resolved/expired requests
+- ✅ **Error Recovery**: Graceful handling of backend sync issues
 - ✅ **Developer Experience**: Manual cleanup tools for testing
+- ✅ **Smart Navigation**: Direct routing to specific project and HITL message
+- ✅ **Visual Feedback**: Temporary highlighting for navigated messages
 - ✅ **Consistency**: Store state matches backend reality after system cleanup
 
-### 4.3 Budget Control System
+### 4.3 HITL Approval Workflow ✅ Fixed October 2025
+
+**Single Approval Per Task Architecture:**
+- **PRE_EXECUTION Approval Only**: Tasks require single approval before execution
+- **No Duplicate Approvals**: Removed redundant RESPONSE_APPROVAL that created duplicate messages
+- **Existing Approval Check**: Backend verifies no PENDING/APPROVED approval exists before creating new one
+- **Simplified Workflow**: One task → one approval → one chat message
+
+**Implementation** (`backend/app/tasks/agent_tasks.py:198-321`):
+```python
+# Check if approval already exists for this task to prevent duplicates
+existing_approval = db.query(HitlAgentApprovalDB).filter(
+    HitlAgentApprovalDB.task_id == task_uuid,
+    HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])
+).first()
+
+if existing_approval:
+    logger.info("Using existing HITL approval record",
+               task_id=str(task_uuid),
+               approval_id=str(existing_approval.id))
+    approval_id = existing_approval.id
+else:
+    # Create new PRE_EXECUTION approval
+    approval_record = HitlAgentApprovalDB(
+        project_id=project_uuid,
+        task_id=task_uuid,
+        agent_type=agent_type,
+        request_type="PRE_EXECUTION",
+        # ... other fields
+    )
+    db.add(approval_record)
+    db.commit()
+
+# Execute task after approval
+result = asyncio.run(autogen_service.execute_task(task, handoff, context_artifacts))
+
+# Skip response approval - pre-execution approval is sufficient
+logger.info("Skipping response approval - using pre-execution approval only",
+           task_id=str(task_uuid),
+           pre_execution_approval_id=str(approval_id))
+```
+
+**Benefits:**
+- ✅ **No Duplicates**: Single HITL message per task in chat interface
+- ✅ **Clean UX**: Clear one-to-one mapping between tasks and approvals
+- ✅ **Performance**: Reduced database writes and WebSocket events
+- ✅ **Simplified Logic**: Easier to track approval status and workflow state
+
+### 4.4 Budget Control System
 
 **Control Mechanisms:**
 - Daily and session token limits per agent/project
@@ -383,19 +487,23 @@ celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celer
 - **Celery Queue Purging**: Purges all Celery task queues to prevent orphaned tasks
 - **Agent Status Reset**: Resets all agent statuses to `IDLE` and creates missing standard agent records
 - **Pending Task Cleanup**: Cancels all `PENDING` and `WORKING` tasks from previous sessions
+- **✅ NEW: HITL Approval Cleanup**: Rejects all pending HITL approval requests on startup
 
 **Execution Sequence:**
 1. Server startup triggers `lifespan` context manager
-2. StartupService performs 4-step cleanup sequence
+2. StartupService performs 5-step cleanup sequence
 3. Redis and Celery queues are flushed
 4. Database agent statuses reset to clean state
 5. Orphaned tasks are cancelled with proper error messages
-6. System starts with guaranteed clean slate
+6. **✅ NEW**: Stale HITL approvals marked as REJECTED
+7. System starts with guaranteed clean slate
 
 **Benefits:**
 - Prevents task queue buildup across server restarts
 - Ensures consistent agent state initialization
 - Eliminates orphaned tasks and memory leaks
+- **✅ NEW**: Prevents 404 errors from stale HITL approval IDs
+- **✅ NEW**: Maintains frontend/backend HITL state consistency
 - Provides clean development and production startup experience
 
 ### 9.2 ✅ NEW: Comprehensive System Cleanup Script (September 2025)
@@ -528,20 +636,48 @@ const defaultStages = [
 ];
 ```
 
-### 11.2 Artifacts Management System
+### 11.2 Artifacts Management System ✅ Enhanced October 2025
 
-**Dynamic Artifact Filtering:**
-- **Stage-Specific Display**: Artifacts automatically filtered by stage based on name patterns and agent assignments
-- **Progress Tracking**: Real-time progress bars showing completion status (e.g., "2/3 artifacts completed")
-- **Expandable Details**: Click to expand artifact details with task breakdown and status information
-- **Download Functionality**: Working download buttons for completed artifacts
+**Dynamic Workflow Deliverables:**
+- **API-Driven Artifacts**: Deliverables loaded from `backend/app/workflows/greenfield-fullstack.yaml` via `/api/v1/workflows/{workflow_id}/deliverables` endpoint
+- **17 Total Artifacts**: Streamlined SDLC deliverables aligned with Agile methodology
+- **Stage Distribution**: Analyze (4), Design (3), Build (4), Validate (3), Launch (3)
+- **HITL-Required Plans**: Each stage starts with mandatory human-approved plan artifact
+
+**Streamlined Artifact List:**
+
+**Analyze Stage:**
+1. Analyze Plan (HITL required)
+2. Product Requirement
+3. PRD Epic
+4. Feature Story
+
+**Design Stage:**
+1. Design Plan (HITL required)
+2. Front End Spec
+3. Fullstack Architecture
+
+**Build Stage:**
+1. Build Plan (HITL required)
+2. Story
+3. Implementation Files
+4. Bug Fixes
+
+**Validate Stage:**
+1. Validate Plan (HITL required)
+2. Test Case
+3. Validation Report
+
+**Launch Stage:**
+1. Launch Plan (HITL required)
+2. Deployment Checklist
+3. Deployment Report
 
 **Artifact Mapping Logic:**
 ```typescript
-// Smart filtering based on artifact name and agent type
-if (stage.id === "analyze" && (name.includes('requirement') || agent.includes('analyst'))) return true;
-if (stage.id === "design" && (name.includes('design') || agent.includes('architect'))) return true;
-// ... additional stage mappings
+// Dynamic loading from workflow YAML via API
+const response = await workflowsService.getWorkflowDeliverables('greenfield-fullstack');
+// Stage-specific filtering based on agent assignments from YAML
 ```
 
 ### 11.3 Visual Design System
@@ -558,17 +694,25 @@ if (stage.id === "design" && (name.includes('design') || agent.includes('archite
 - **Tester**: TestTube2 icon with sky-500 color scheme
 - **Deployer**: Rocket icon with rose-600 color scheme
 
-### 11.4 Backend Integration
+### 11.4 Backend Integration ✅ Enhanced October 2025
 
-**API Integration:**
+**Workflow API Integration:**
+- **Workflows Service**: `lib/services/api/workflows.service.ts` for dynamic deliverable loading
 - **Artifacts Service**: `lib/services/api/artifacts.service.ts` with project-specific endpoints
+- **Workflow Endpoint**: `GET /api/v1/workflows/{workflow_id}/deliverables` returns structured deliverables by stage
 - **Project Artifacts Hook**: `hooks/use-project-artifacts.ts` for real-time data management
 - **Error Handling**: Comprehensive null checks and fallback values for missing data
+
+**Workflow Definition Source:**
+- **Production Workflow**: `backend/app/workflows/greenfield-fullstack.yaml` (active workflow used by system)
+- **Reference Workflows**: `.bmad-core/workflows/*.yaml` (reference only - DO NOT USE)
+- **Dynamic Loading**: WorkflowService loads YAML from `app/workflows/` directory at startup with caching
 
 **Real-Time Updates:**
 - **30-Second Refresh**: Automatic artifact data refresh every 30 seconds
 - **Progress Calculation**: Dynamic progress percentage based on completed vs. total artifacts
 - **Status Synchronization**: Backend artifact status reflected in UI immediately
+- **On-Mount Loading**: Workflow deliverables fetched from API when component mounts
 
 ### 11.5 Responsive Design Implementation
 
@@ -597,12 +741,15 @@ if (stage.id === "design" && (name.includes('design') || agent.includes('archite
 - **Interactive Navigation**: Easy switching between workflow stages
 - **Progress Awareness**: Real-time progress tracking for each stage and overall project
 - **Artifact Accessibility**: Direct access to stage-specific deliverables with download capability
+- **Fixed Chat Scrolling**: Chat window maintains fixed height with internal message scrolling (October 2025)
 
 **Technical Improvements:**
 - **Modular Design**: Clean separation between stage navigation and artifact management
 - **Type Safety**: Comprehensive TypeScript interfaces with null safety
 - **Performance**: Efficient re-rendering with React hooks and memoization
 - **Maintainability**: Well-structured component architecture following existing patterns
+- **Dynamic Workflows**: Backend-driven artifact definitions via YAML configuration
+- **Agile Alignment**: 17 streamlined deliverables matching modern Agile methodology
 
 ## 12. Quality Assurance
 
@@ -669,6 +816,17 @@ if (stage.id === "design" && (name.includes('design') || agent.includes('archite
 - ✅ **Store Cleanup Methods**: Manual cleanup utilities for development and testing workflows
 - ✅ **Enhanced Process Summary**: Complete redesign with SDLC workflow stages and artifact management
 - ✅ **Interactive UI Components**: Stage navigation, expandable artifacts, and progress visualization
+
+**✅ October 2025 HITL Fixes:**
+- ✅ **Expiration Handling**: 30-minute request timeout with automatic cleanup every 5 minutes
+- ✅ **Error Recovery**: Graceful 404/400 error handling for expired/missing approvals
+- ✅ **Smart Navigation**: Direct routing from alert bar to specific project workspace and HITL message
+- ✅ **Visual Highlighting**: 3-second yellow highlight on navigated messages with dark mode support
+- ✅ **Backend Startup Cleanup**: Automatic rejection of stale HITL approvals on server restart
+- ✅ **Project Context**: WebSocket events include projectId for proper navigation routing
+- ✅ **Badge Utilities**: Centralized badge styling system for consistent UI across components
+- ✅ **Debug Logging**: Comprehensive logging for tracking HITL request lifecycle and troubleshooting
+- ✅ **Duplicate Prevention**: Fixed backend workflow to create only one approval per task (removed redundant RESPONSE_APPROVAL)
 
 ### 12.2 Architecture Validation
 

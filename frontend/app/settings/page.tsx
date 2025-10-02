@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { 
-  Save, 
-  RefreshCw, 
-  Eye, 
-  EyeOff, 
+import Link from "next/link"
+import {
+  Save,
+  RefreshCw,
+  Eye,
+  EyeOff,
   AlertTriangle,
   CheckCircle,
   Settings as SettingsIcon,
@@ -20,7 +21,8 @@ import {
   Server,
   Globe,
   Zap,
-  TestTube
+  TestTube,
+  FileText
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -309,11 +311,21 @@ export default function SettingsPage() {
     <MainLayout>
       <div className="p-6 space-y-8">
         {/* Page Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Environment Settings</h1>
-          <p className="text-lg text-muted-foreground">
-            Configure environment variables and application settings for the BotArmy platform.
-          </p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">Environment Settings</h1>
+              <p className="text-lg text-muted-foreground">
+                Configure environment variables and application settings for the BotArmy platform.
+              </p>
+            </div>
+            <Link href="/logs">
+              <Button variant="outline" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                View Logs
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Status Messages */}

@@ -408,7 +408,7 @@ class YAMLParser:
         sequence = []
         for step_data in workflow_data.get('sequence', []):
             step = WorkflowStep(
-                agent=step_data['agent'],
+                agent=step_data.get('agent'),  # Make agent optional for non-agent steps
                 creates=step_data.get('creates'),
                 requires=step_data.get('requires', []),
                 condition=step_data.get('condition'),
@@ -488,7 +488,7 @@ class YAMLParser:
 # Forward declarations for type hints
 class WorkflowStep(BaseModel):
     """Represents a single step in a workflow."""
-    agent: str
+    agent: Optional[str] = None  # Make optional for non-agent workflow steps
     creates: Optional[str] = None
     requires: Union[str, List[str]] = Field(default_factory=list)
     condition: Optional[str] = None

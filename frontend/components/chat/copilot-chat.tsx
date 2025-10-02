@@ -20,6 +20,7 @@ interface CopilotChatProps {
 }
 
 const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
+  console.log('[CopilotChat] Component rendered with projectId:', projectId);
   const { conversation, addMessage, agentFilter, setAgentFilter } = useAppStore();
   const { requests } = useHITLStore();
   const isLoading = false; // Temporarily disable CopilotKit
@@ -30,11 +31,47 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
 
+  // Initialize HITL messages from persisted store on mount
+  useEffect(() => {
+    if (!projectId) return;
+
+    // Get pending HITL requests for this project
+    const projectRequests = requests.filter(req =>
+      req.status === 'pending' &&
+      (!req.context?.projectId || req.context.projectId === projectId)
+    );
+
+    // Check which ones don't have messages in conversation yet
+    for (const request of projectRequests) {
+      const approvalId = request.context?.approvalId;
+      if (!approvalId) continue;
+
+      // Check if message already exists
+      const messageExists = conversation.some(msg => msg.approvalId === approvalId);
+      if (!messageExists) {
+        console.log(`[CopilotChat] Restoring HITL message for ${approvalId}`);
+        const taskInstructions = request.context?.requestData?.instructions || "Execute task";
+        addMessage({
+          type: "hitl_request",
+          agent: `${request.agentName} Agent`,
+          content: `🚨 **HITL Approval Required**\n\nI need permission to: "${taskInstructions}"\n\n📊 **Estimated cost:** $${request.context?.estimatedCost?.toFixed(4) || '0.0150'}\n⏱️ **Estimated tokens:** ${request.context?.estimatedTokens || 100}\n\n⚠️ **Waiting for human approval before proceeding...**`,
+          urgency: (request.context?.estimatedCost && request.context.estimatedCost > 5) ? "high" : "medium",
+          requestId: approvalId,
+          taskId: request.context?.taskId,
+          approvalId: approvalId,
+          hitlStatus: "pending"
+        });
+      }
+    }
+  }, [projectId]); // Only run when projectId changes
+
   const handleSendMessage = async (content: string) => {
+    console.log('[CopilotChat] handleSendMessage called with projectId:', projectId, 'content:', content);
     addMessage({ type: 'user', agent: 'User', content });
 
     // Create a task through API to trigger HITL workflow
     if (projectId) {
+      console.log('[CopilotChat] Creating task for project:', projectId);
       try {
         const response = await fetch(`http://localhost:8000/api/v1/projects/${projectId}/tasks`, {
           method: 'POST',
@@ -97,8 +134,26 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
       const isHITLRequest = msg.type === 'hitl_request';
 
       // For HITL request messages, find the matching HITL request from store
-      const hitlRequest = isHITLRequest && msg.approvalId ?
-        requests.find(req => req.context?.approvalId === msg.approvalId) : null;
+      let hitlRequest = null;
+      if (isHITLRequest && msg.approvalId) {
+        hitlRequest = requests.find(req => req.context?.approvalId === msg.approvalId);
+
+        // Debug logging for HITL request matching
+        if (!hitlRequest) {
+          console.log(`[CopilotChat] Could not find HITL request for approvalId: ${msg.approvalId}`);
+          console.log(`[CopilotChat] Available requests:`, requests.map(r => ({
+            id: r.id,
+            approvalId: r.context?.approvalId,
+            status: r.status
+          })));
+        } else {
+          console.log(`[CopilotChat] Found HITL request:`, {
+            id: hitlRequest.id,
+            approvalId: hitlRequest.context?.approvalId,
+            status: hitlRequest.status
+          });
+        }
+      }
 
       return (
         <div
@@ -158,12 +213,20 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
             </div>
             <div className="text-sm leading-relaxed">{msg.content}</div>
 
-            {/* Show HITL approval component only for pending HITL request messages */}
-            {isHITLRequest && hitlRequest && msg.hitlStatus === 'pending' && (
-              <InlineHITLApproval
-                request={hitlRequest}
-                className="mt-3"
-              />
+            {/* Show HITL approval component for HITL request messages */}
+            {isHITLRequest && (
+              msg.hitlStatus === 'pending' ? (
+                hitlRequest ? (
+                  <InlineHITLApproval
+                    request={hitlRequest}
+                    className="mt-3"
+                  />
+                ) : (
+                  <div className="mt-3 p-3 bg-muted/50 border border-border rounded-lg text-sm text-muted-foreground">
+                    ⚠️ This HITL request has expired or been resolved elsewhere.
+                  </div>
+                )
+              ) : null
             )}
           </div>
         </div>
@@ -173,10 +236,10 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
 
   return (
     <div className={cn(
-      "flex flex-col transition-all duration-300 rounded-lg border bg-card h-full",
-      isExpanded && "fixed inset-4 z-50 shadow-2xl"
+      "flex flex-col transition-all duration-300 rounded-lg border bg-card",
+      isExpanded ? "fixed inset-4 z-50 shadow-2xl" : "h-full"
     )}>
-      <div className="px-6 py-4 border-b">
+      <div className="px-6 py-4 border-b flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-primary" />
@@ -188,7 +251,7 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
         </div>
       </div>
 
-      <div className="px-6 py-4 border-b bg-gradient-to-r from-card/50 to-card">
+      <div className="px-6 py-4 border-b bg-gradient-to-r from-card/50 to-card flex-shrink-0">
         <div className="flex items-center gap-4">
           {AGENT_DEFINITIONS.map((agent) => {
             const isSelected = agentFilter === agent.name;
@@ -229,12 +292,11 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
           })}
         </div>
       </div>
-      
-      <div className="flex-grow overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-6 space-y-4">
-            {memoizedMessages}
-            {isLoading && (
+
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="p-6 space-y-4">
+          {memoizedMessages}
+          {isLoading && (
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-lg px-4 py-3 bg-card border">
                   <div className="flex items-center gap-2 mb-2">
@@ -248,12 +310,11 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
-        </ScrollArea>
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      <div className="border-t bg-gradient-to-r from-card/30 to-card/50">
+      <div className="border-t bg-gradient-to-r from-card/30 to-card/50 flex-shrink-0">
         <ChatInput onSend={handleSendMessage} isLoading={isLoading} hasActiveHITL={false} />
       </div>
     </div>

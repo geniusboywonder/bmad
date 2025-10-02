@@ -38,7 +38,7 @@ class WorkflowStep(BaseModel):
     This model defines the structure of individual workflow steps including
     agent assignments, dependencies, conditions, and metadata.
     """
-    agent: str = Field(..., description="The agent responsible for this step")
+    agent: Optional[str] = Field(None, description="The agent responsible for this step (None for non-agent workflow steps)")
     creates: Optional[str] = Field(None, description="Output artifact created by this step")
     requires: Union[str, List[str]] = Field(default_factory=list, description="Required inputs or prerequisites")
     condition: Optional[str] = Field(None, description="Conditional execution criteria")
