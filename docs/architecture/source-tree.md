@@ -93,7 +93,8 @@ backend/
 │   │   ├── hitl_request.py # HITL request models
 │   │   ├── quality_gate.py # Quality gate models
 │   │   ├── task.py         # Task execution models
-│   │   └── workflow.py     # Workflow execution models
+│   │   ├── workflow.py     # ✅ Canonical workflow models (WorkflowStep, WorkflowDefinition)
+│   │   └── workflow_state.py # Workflow execution runtime state
 │   ├── services/           # Business logic services (SOLID architecture)
 │   │   ├── orchestrator/   # Orchestrator service components
 │   │   │   ├── orchestrator_core.py      # Main coordination logic

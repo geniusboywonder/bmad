@@ -5,6 +5,87 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2025-10-02
+
+### 🔧 Major - Phase 1 & 2: Configuration Simplification & Workflow Consolidation
+
+**Phase 1: Redis Configuration Simplification**
+
+**Problem**: Dual Redis database architecture caused persistent configuration mismatches
+- Database 0 for WebSocket sessions, Database 1 for Celery task queue
+- #1 recurring issue: Tasks queued in DB1, workers polling DB0 → tasks stuck PENDING
+- 4 environment variables (`REDIS_URL`, `REDIS_CELERY_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`)
+- Developer confusion during Celery worker startup
+
+**Solution**: Single Redis database (DB0) for all services
+- **Simplified Configuration**: Single `REDIS_URL` environment variable
+- **Logical Separation**: Key prefixes instead of separate databases (`celery:*`, `websocket:*`, `cache:*`)
+- **Eliminated 3 Variables**: Removed `REDIS_CELERY_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
+- **Simplified Worker Startup**: No environment variable juggling required
+
+**Files Changed**:
+- `backend/app/settings.py` - Removed 3 Redis configuration fields
+- `backend/app/tasks/celery_app.py` - Use single `settings.redis_url`
+- `backend/.env` - Consolidated to single `REDIS_URL`
+- `CLAUDE.md` - Simplified Celery worker startup command
+
+**Benefits**:
+- ✅ **Eliminated Configuration Drift**: Single source of truth
+- ✅ **No More DB Mismatches**: Workers and tasks always aligned
+- ✅ **Simpler Developer Onboarding**: One variable instead of four
+- ✅ **Reduced Troubleshooting**: No more "tasks stuck in PENDING" debugging
+
+---
+
+**Phase 2: Workflow Model Consolidation**
+
+**Problem**: Duplicate WorkflowStep classes across codebase
+- 5 separate WorkflowStep definitions with inconsistent field names
+- `utils/yaml_parser.py` defined own WorkflowStep (31 lines duplicate code)
+- `workflows/adk_workflow_templates.py` uses dataclass version (different structure)
+- Maintenance burden keeping models synchronized
+
+**Solution**: Canonical WorkflowStep in `models/workflow.py`
+```python
+class WorkflowStep(BaseModel):
+    agent: Optional[str] = Field(None, description="Agent responsible")
+    creates: Optional[str] = Field(None, description="Output artifact")
+    requires: Union[str, List[str]] = Field(default_factory=list)
+    condition: Optional[str] = Field(None, description="Conditional execution")
+    notes: Optional[str] = Field(None)
+    optional_steps: List[str] = Field(default_factory=list)
+    action: Optional[str] = Field(None)
+    repeatable: bool = Field(False)
+```
+
+**Files Consolidated**:
+- ✅ `utils/yaml_parser.py` - Removed duplicate class (31 lines), imports canonical model
+- ✅ `services/workflow_step_processor.py` - Already using canonical model
+- ✅ `models/workflow_state.py` - Different class (runtime state vs definition)
+- ⚠️ `workflows/adk_workflow_templates.py` - Flagged for Phase 3 cleanup (unused dead code)
+
+**Files Changed**:
+- `backend/app/utils/yaml_parser.py` - Removed duplicate WorkflowStep/WorkflowDefinition classes, added import
+
+**Benefits**:
+- ✅ **Single Source of Truth**: One canonical model definition
+- ✅ **Eliminated 31 Lines**: Removed duplicate code
+- ✅ **Consistent Behavior**: All workflow processing uses same model
+- ✅ **Easier Maintenance**: Changes propagate from single location
+
+---
+
+**Documentation Updates**:
+- `docs/architecture/architecture.md` - Added Section 10: Configuration Simplification (October 2025)
+- `docs/architecture/tech-stack.md` - Updated Redis and workflow model sections
+- `docs/architecture/source-tree.md` - Documented canonical workflow model location
+- `docs/CHANGELOG.md` - This entry
+
+**Total Impact**:
+- **Lines Removed**: 31 (duplicate workflow models) + configuration complexity reduction
+- **Environment Variables Eliminated**: 3 (`REDIS_CELERY_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`)
+- **Developer Friction Reduced**: Simplified startup, eliminated #1 recurring configuration issue
+
 ## [2.8.0] - 2025-10-02
 
 ### ✨ Feature - Dynamic Workflow Deliverables & Agile Alignment

@@ -19,10 +19,11 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **SQLAlchemy 2.0.43** - Modern async ORM with connection pooling
 - **Alembic 1.13.1** - Database migration management with version control
 
-**Caching & Queue**
-- **Redis 6+** - High-performance in-memory caching and session management
+**Caching & Queue** ✅ Simplified October 2025
+- **Redis 6+** - High-performance in-memory caching and session management (single DB0 for all services)
 - **Celery 5.3.4** - Distributed task queue for asynchronous agent processing
 - **Startup Cleanup Service** - Automatic queue flushing and state reset on server restart
+- **✅ NEW: Simplified Configuration** - Single `REDIS_URL` replaces 4 separate environment variables
 
 **Database Schema**
 - **Core Tables**: projects, tasks, agent_status, context_artifacts, hitl_requests, event_log
@@ -295,5 +296,6 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Celery Integration** - Seamless task queue broker functionality
 - **Simple Operations** - Straightforward deployment and scaling
 - **Data Structures** - Rich data types for complex caching scenarios
+- **✅ Simplified Architecture** - Single database with key prefixes eliminates configuration drift (October 2025)
 
 This technology stack provides a robust foundation for enterprise-grade multi-agent orchestration with comprehensive safety controls, real-time communication, and production-ready scalability.

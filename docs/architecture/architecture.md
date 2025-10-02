@@ -582,9 +582,79 @@ python scripts/cleanup_system.py
 - **Degraded**: Some performance issues but functional
 - **Unhealthy**: Critical components down or severely impacted
 
-## 10. Deployment Architecture
+## 10. Configuration Simplification (October 2025)
 
-### 10.1 Environment Configuration
+### 10.1 Redis Configuration Consolidation
+
+**Problem**: Dual Redis database architecture caused persistent configuration mismatches
+- Database 0 for WebSocket sessions
+- Database 1 for Celery task queue
+- #1 recurring issue: Tasks queued in DB1, workers polling DB0
+
+**Solution**: Single Redis database (DB0) for all services
+- **Simplified Configuration**: Single `REDIS_URL` environment variable
+- **Logical Separation**: Key prefixes instead of separate databases (`celery:*`, `websocket:*`, `cache:*`)
+- **Eliminated Variables**: Removed `REDIS_CELERY_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`
+- **Developer Experience**: Simplified Celery worker startup (no environment variable juggling)
+
+**Implementation** (October 2025):
+```python
+# backend/app/settings.py (simplified)
+redis_url: str = Field(default="redis://localhost:6379/0")  # Single Redis DB
+
+# backend/app/tasks/celery_app.py
+celery_app.conf.broker_url = settings.redis_url
+celery_app.conf.result_backend = settings.redis_url
+
+# .env (simplified)
+REDIS_URL=redis://localhost:6379/0
+# Celery uses REDIS_URL automatically (no separate config)
+
+# Celery worker startup (simplified)
+celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celery
+```
+
+**Benefits**:
+- ✅ **Eliminated Configuration Drift**: Single source of truth for Redis connection
+- ✅ **No More DB Mismatches**: Workers and tasks always use same database
+- ✅ **Simpler Developer Onboarding**: One variable instead of four
+- ✅ **Reduced Troubleshooting**: No more "tasks stuck in PENDING" debugging
+
+### 10.2 Workflow Model Consolidation (October 2025)
+
+**Problem**: Duplicate WorkflowStep classes across codebase
+- 5 separate WorkflowStep definitions with inconsistent fields
+- Maintenance burden keeping models in sync
+- Potential for bugs due to model inconsistencies
+
+**Solution**: Canonical WorkflowStep in `models/workflow.py`
+```python
+# backend/app/models/workflow.py (canonical)
+class WorkflowStep(BaseModel):
+    agent: Optional[str] = Field(None, description="Agent responsible for this step")
+    creates: Optional[str] = Field(None, description="Output artifact created")
+    requires: Union[str, List[str]] = Field(default_factory=list, description="Required inputs")
+    condition: Optional[str] = Field(None, description="Conditional execution criteria")
+    notes: Optional[str] = Field(None, description="Additional notes and guidance")
+    optional_steps: List[str] = Field(default_factory=list, description="Optional sub-steps")
+    action: Optional[str] = Field(None, description="Specific action to perform")
+    repeatable: bool = Field(False, description="Whether this step can be repeated")
+```
+
+**Files Consolidated**:
+- ✅ `utils/yaml_parser.py`: Removed duplicate, imports canonical model
+- ✅ `services/workflow_step_processor.py`: Already using canonical model
+- ⚠️ `workflows/adk_workflow_templates.py`: Flagged for Phase 3 cleanup (unused dead code)
+
+**Benefits**:
+- ✅ **Single Source of Truth**: One canonical model definition
+- ✅ **Eliminated 31 Lines**: Removed duplicate code from yaml_parser.py
+- ✅ **Consistent Behavior**: All workflow processing uses same model
+- ✅ **Easier Maintenance**: Changes in one place propagate everywhere
+
+## 11. Deployment Architecture
+
+### 11.1 Environment Configuration
 
 **Development:**
 - Local PostgreSQL and Redis instances
