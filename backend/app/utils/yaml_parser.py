@@ -16,6 +16,7 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic_core import PydanticCustomError
+from app.models.workflow import WorkflowStep, WorkflowDefinition
 
 
 class ParserError(Exception):
@@ -486,36 +487,6 @@ class YAMLParser:
 
 
 # Forward declarations for type hints
-class WorkflowStep(BaseModel):
-    """Represents a single step in a workflow."""
-    agent: Optional[str] = None  # Make optional for non-agent workflow steps
-    creates: Optional[str] = None
-    requires: Union[str, List[str]] = Field(default_factory=list)
-    condition: Optional[str] = None
-    notes: Optional[str] = None
-    optional_steps: List[str] = Field(default_factory=list)
-    action: Optional[str] = None
-    repeatable: bool = False
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-class WorkflowDefinition(BaseModel):
-    """Complete workflow definition."""
-    id: str
-    name: str
-    description: str = ""
-    type: str = "generic"
-    project_types: List[str] = Field(default_factory=list)
-    sequence: List[WorkflowStep] = Field(default_factory=list)
-    flow_diagram: str = ""
-    decision_guidance: Dict[str, Any] = Field(default_factory=dict)
-    handoff_prompts: Dict[str, str] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
 class TemplateSection(BaseModel):
     """Represents a section in a template."""
     id: str = ""
