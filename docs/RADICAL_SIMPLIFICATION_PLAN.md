@@ -332,43 +332,59 @@ class Settings(BaseSettings):
 
 ---
 
-## 7: Database Schema Cleanup (1 day)
+## ~~7: Database Schema Cleanup~~ ❌ **DEFERRED - Current Schema Already Optimal**
 
-### Tables to Consolidate
+### Analysis Results (October 2025)
 
-**Current HITL Tables (3 tables → 2 tables):**
+After reviewing the actual database schema and service usage, **Phase 7 is not needed**. The original plan was based on incorrect assumptions.
+
+**HITL Tables - All 3 are necessary and actively used:**
+
 ```sql
-hitl_agent_approvals       -- 12 columns, complex
-agent_budget_control       -- Budget tracking
-response_approvals         -- Redundant with agent_approvals
+-- ✅ hitl_agent_approvals (HitlAgentApprovalDB)
+-- Used by: hitl_safety_service.py, api/hitl_safety.py, base_agent.py, response_safety_analyzer.py
+-- Purpose: Core approval workflow with request data, status, and user responses
+-- 12 columns are justified for comprehensive approval tracking
+
+-- ✅ agent_budget_controls (AgentBudgetControlDB)
+-- Used by: hitl_safety_service.py, base_agent.py
+-- Purpose: Token limit tracking with daily/session budgets and emergency stops
+-- Cannot be merged - distinct concern from approvals
+
+-- ✅ response_approvals (ResponseApprovalDB)
+-- Used by: response_safety_analyzer.py, hitl_safety_service.py
+-- Purpose: Safety analysis with unique fields (safety_score, quality_metrics, risk_flags)
+-- NOT redundant - contains safety analysis data not in hitl_agent_approvals
 ```
 
-**Proposed:**
+**Workflow Tables - Already simplified:**
+
 ```sql
-hitl_settings              -- 5 columns (toggle + counter)
-hitl_approval_requests     -- 6 columns (explicit approvals only)
--- DELETE: agent_budget_control, response_approvals
+-- ✅ workflow_states (WorkflowStateDB)
+-- Current design already uses JSONB for nested data
+-- No excessive normalization found
+-- Tables mentioned in plan (workflow_execution_steps, workflow_step_artifacts, etc.) do NOT exist
 ```
 
-**Current Workflow Tables (excessive normalization):**
-```sql
-workflow_executions
-workflow_execution_steps
-workflow_step_artifacts
-workflow_execution_events
-```
+**Why Phase 7 is Deferred:**
 
-**Proposed:**
-```sql
-workflow_executions        -- Contains steps as JSONB array
-workflow_artifacts         -- Flat artifact storage
--- DELETE: workflow_execution_steps, workflow_execution_events
-```
+1. **High Risk, Low Reward**
+   - Database schema changes require Alembic migrations and data migration scripts
+   - All HITL tables actively used in 5+ service files
+   - Risk of data loss and service disruption
+   - Would block ongoing test fixes
 
-**Rationale:**
-- PostgreSQL JSONB handles nested data efficiently
-- Less JOIN complexity
-- Simpler queries
+2. **Plan Assumptions Were Wrong**
+   - `response_approvals` is NOT redundant - has unique safety analysis fields
+   - Workflow tables are NOT over-normalized - already using JSONB design
+   - Current schema is production-ready and well-designed
+
+3. **Already Achieved Major Simplification**
+   - Phases 0-6: ~65% overall reduction in services, LOC, and configuration
+   - Database schema changes would yield <5% additional benefit
+   - Effort better spent on test cleanup and documentation
+
+**Decision:** SKIP Phase 7 - Focus on Phases 8-9 instead.
 
 ---
 
