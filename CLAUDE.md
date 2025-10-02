@@ -15,9 +15,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 **Start Celery Worker:**
 ```bash
 cd backend
-# IMPORTANT: Source .env first to load DATABASE_URL and other environment variables
-# The Celery worker needs DATABASE_URL to connect to PostgreSQL for HITL approvals
-source .env && CELERY_BROKER_URL="redis://localhost:6379/1" CELERY_RESULT_BACKEND="redis://localhost:6379/1" celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celery
+# Simplified: Single Redis DB (no environment variables needed)
+celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celery
 ```
 
 **Backend Testing:**

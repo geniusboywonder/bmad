@@ -9,9 +9,9 @@ celery_app = Celery(
     include=["app.tasks.agent_tasks"]
 )
 
-# Configure broker and backend URLs
-celery_app.conf.broker_url = settings.redis_celery_url
-celery_app.conf.result_backend = settings.redis_celery_url
+# Configure broker and backend URLs (Single Redis DB)
+celery_app.conf.broker_url = settings.redis_url
+celery_app.conf.result_backend = settings.redis_url
 
 # Celery configuration
 celery_app.conf.update(

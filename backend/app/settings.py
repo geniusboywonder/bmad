@@ -21,13 +21,8 @@ class Settings(BaseSettings):
     database_max_overflow: int = Field(default=20)  # Reads DATABASE_MAX_OVERFLOW env var automatically
     database_pool_timeout: int = Field(default=30)  # Reads DATABASE_POOL_TIMEOUT env var automatically
     
-    # Redis Configuration
-    redis_url: str  # Reads REDIS_URL env var automatically
-    redis_celery_url: str  # Reads REDIS_CELERY_URL env var automatically
-
-    # Celery Configuration
-    celery_broker_url: str  # Reads CELERY_BROKER_URL env var automatically
-    celery_result_backend: str  # Reads CELERY_RESULT_BACKEND env var automatically
+    # Redis Configuration (Single URL for all services)
+    redis_url: str = Field(default="redis://localhost:6379/0")  # Single Redis DB for WebSocket, Celery, and cache
     
     # API Configuration
     api_v1_prefix: str = Field(default="/api/v1")  # Reads API_V1_PREFIX env var automatically
