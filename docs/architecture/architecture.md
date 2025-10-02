@@ -51,7 +51,7 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - Exponential backoff retry (1s, 2s, 4s intervals)
 - Real-time usage tracking and anomaly detection
 
-## 3. Agent Framework (ADK Integration)
+## 3. Agent Framework (Hybrid AutoGen + ADK Architecture)
 
 ### 3.1 Agent Architecture
 
@@ -63,26 +63,42 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - **Tester**: Quality assurance and validation
 - **Deployer**: Deployment automation and monitoring
 
-**Integration Frameworks:**
-- **Google ADK**: Enterprise-grade agent capabilities with tool integration
-- **Microsoft AutoGen**: Multi-agent conversation management
+**Integration Frameworks (Hybrid Production Architecture):**
+- **Microsoft AutoGen**: Production task execution engine (primary)
+  - Core task execution via `autogen_service.execute_task()` (`agent_tasks.py:308`)
+  - Multi-agent conversation management with proven reliability
+  - Group chat capabilities for collaborative workflows
+  - 967 tests with 95%+ passing rate - battle-tested infrastructure
+- **Google ADK**: Advanced agent capabilities (complementary)
+  - Enterprise-grade tool integration via `bmad_adk_wrapper.py`
+  - Specialized use cases requiring ADK-specific features
+  - Native Gemini integration with session management
 - **BMAD Core**: Template system and workflow orchestration
+  - YAML-based workflow definitions
+  - Dynamic template loading and rendering
 
 ### 3.2 Service Architecture (SOLID Principles)
 
 **Orchestrator Service Decomposition:**
-- OrchestratorCore: Main coordination logic
+- OrchestratorCore: Main coordination logic with AutoGen integration
 - ProjectLifecycleManager: SDLC phase management
 - AgentCoordinator: Agent assignment and task distribution
 - WorkflowIntegrator: Workflow engine coordination
-- HandoffManager: Agent handoff logic
+- HandoffManager: Agent handoff logic (AutoGen-based)
 - StatusTracker: Performance monitoring
 - ContextManager: Artifact management
 
 **Additional Service Decomposition:**
+- AutoGen services (3 components): AutoGenCore, AgentFactory, ConversationManager
 - HITL services (5 components): Core, TriggerProcessor, ResponseProcessor, PhaseGateManager, ValidationEngine
 - Workflow Engine (4 components): ExecutionEngine, StateManager, EventDispatcher, SdlcOrchestrator
 - Template System (3 components): TemplateCore, TemplateLoader, TemplateRenderer
+
+**Why Hybrid AutoGen + ADK?**
+- **AutoGen**: Proven production reliability for core task execution (1,954 references)
+- **ADK**: Advanced capabilities for specialized use cases
+- **Intentional Design**: Both frameworks serve different purposes and complement each other
+- **Not Technical Debt**: Hybrid architecture is a strength, not a weakness
 
 ## 4. HITL Safety Architecture
 

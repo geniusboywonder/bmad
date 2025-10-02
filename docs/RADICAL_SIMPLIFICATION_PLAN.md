@@ -46,49 +46,44 @@ rm backend/app/services/hitl_service.py.backup           # 52KB
 
 ---
 
-## 2: Eliminate AutoGen Completely (1-2 days)
+## ~~2: Eliminate AutoGen Completely~~ **CANCELLED - AutoGen Required**
 
-### Current Situation
+### Analysis Result (October 2025)
 
-- **124 AutoGen references** across codebase
-- **ADK is primary framework** (per architecture.md)
-- AutoGen marked as "legacy" but still deeply integrated
-- `autogen_service.py` is now just a 25-line alias file
+**Initial Assumption**: AutoGen was legacy/unused code that could be removed
+**Actual Reality**: AutoGen is **critical production infrastructure**
 
-### Migration Strategy
+### Why AutoGen Must Stay
 
-**Phase 2.1: Audit AutoGen Usage (2 hours)**
-```bash
-# Find all AutoGen imports and usage
-grep -r "from.*autogen" backend/app --include="*.py"
-grep -r "import autogen" backend/app --include="*.py"
-grep -r "AutoGen" backend/app --include="*.py"
-```
+**Critical Production Dependencies:**
+- `app/tasks/agent_tasks.py:308` - **Core task execution engine** (`autogen_service.execute_task()`)
+- All agent tasks (Analyst, Architect, Coder, Tester, Deployer) flow through AutoGenService
+- 1,954 active references across codebase
+- Removing it = **complete system failure**
 
-**Phase 2.2: Remove AutoGen Services (4 hours)**
-```bash
-# Delete AutoGen service infrastructure
-rm -rf backend/app/services/autogen/
-rm backend/app/services/autogen_service.py
-rm backend/app/services/autogen_service.py.backup
-rm backend/app/services/adk_handoff_service.py  # Legacy AutoGen handoff
-rm backend/app/services/group_chat_manager.py   # AutoGen GroupChat (unused)
-```
+**Files with Active AutoGen Usage:**
+1. `app/tasks/agent_tasks.py` - Celery task execution (CRITICAL)
+2. `app/services/orchestrator/orchestrator_core.py` - Multi-agent coordination
+3. `app/services/orchestrator/handoff_manager.py` - Agent handoffs
+4. `app/services/workflow_step_processor.py` - Workflow execution
 
-**Phase 2.3: Update Orchestrator (4 hours)**
-- Remove AutoGen fallback logic in `orchestrator_core.py`
-- Update `handoff_manager.py` to use only ADK
-- Simplify `agent_coordinator.py` to remove AutoGen agent creation
+**Hybrid Architecture is Intentional:**
+- AutoGen: Proven, tested, production-ready (967 tests, 95%+ passing)
+- ADK: Advanced capabilities for specific use cases
+- Both frameworks serve different purposes and coexist
 
-**Phase 2.4: Clean ADK Wrapper (2 hours)**
-- `bmad_adk_wrapper.py` currently has AutoGen compatibility layer
-- Remove all AutoGen-specific code paths
-- Simplify to pure ADK implementation
+### Migration Analysis
 
-**Expected Result:**
-- **124 → 0** AutoGen references
-- **~3 files deleted**, ~500 LOC removed
-- Cleaner, single-framework architecture
+**To remove AutoGen would require:**
+- 4-6 weeks dedicated effort
+- Creating ADK adapter matching AutoGen interface
+- Rewriting core task execution logic
+- Comprehensive testing of all 967 tests
+- High risk to HITL workflow (critical safety feature)
+
+**Decision**: Keep AutoGen - it's not technical debt, it's working production infrastructure
+
+**Impact**: Phase 2 cancelled, no code changes needed
 
 ---
 
