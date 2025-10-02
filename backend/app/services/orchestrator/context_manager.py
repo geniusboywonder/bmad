@@ -140,16 +140,15 @@ class ContextManager:
                    phase=phase)
 
         # Get project progress
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
+        from app.services.orchestrator.project_manager import ProjectManager
+        project_manager = ProjectManager(self.db)
         phase_progress = project_manager.get_phase_progress(project_id)
 
         # Get time-conscious context if time analysis is requested
+        # ProjectManager now handles both lifecycle and status tracking
         time_conscious_context = {}
         if include_time_analysis:
-            from app.services.orchestrator.status_tracker import StatusTracker
-            status_tracker = StatusTracker(self.db)
-            time_conscious_context = status_tracker.get_time_conscious_context(
+            time_conscious_context = project_manager.get_time_conscious_context(
                 project_id, phase, agent_type, time_budget_hours
             )
 
@@ -467,8 +466,8 @@ class ContextManager:
 
     def _analyze_context_usage_patterns(self, project_id: UUID) -> Dict[str, Any]:
         """Analyze how context is being used across the project."""
-        from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-        project_manager = ProjectLifecycleManager(self.db)
+        from app.services.orchestrator.project_manager import ProjectManager
+        project_manager = ProjectManager(self.db)
 
         # Get project tasks to analyze context usage
         all_tasks = project_manager.get_project_tasks(project_id)

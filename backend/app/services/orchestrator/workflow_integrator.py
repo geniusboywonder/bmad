@@ -145,8 +145,8 @@ class WorkflowIntegrator:
         try:
             # Get project artifacts and tasks
             artifacts = self.context_store.get_artifacts_by_project(project_id)
-            from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-            project_manager = ProjectLifecycleManager(self.db)
+            from app.services.orchestrator.project_manager import ProjectManager
+            project_manager = ProjectManager(self.db)
             tasks = project_manager.get_project_tasks(project_id)
 
             # Detect conflicts
@@ -228,8 +228,8 @@ class WorkflowIntegrator:
 
         try:
             # Get phase configuration from project lifecycle manager
-            from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager, SDLC_PHASES
-            project_manager = ProjectLifecycleManager(self.db)
+            from app.services.orchestrator.project_manager import ProjectManager, SDLC_PHASES
+            project_manager = ProjectManager(self.db)
 
             if phase not in SDLC_PHASES:
                 return {"success": False, "error": f"Invalid phase: {phase}"}
@@ -286,8 +286,8 @@ class WorkflowIntegrator:
 
         try:
             # Validate current phase completion
-            from app.services.orchestrator.project_lifecycle_manager import ProjectLifecycleManager
-            project_manager = ProjectLifecycleManager(self.db)
+            from app.services.orchestrator.project_manager import ProjectManager
+            project_manager = ProjectManager(self.db)
 
             validation_result = project_manager.validate_phase_completion(project_id, from_phase)
 
