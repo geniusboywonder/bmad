@@ -17,7 +17,7 @@ BMad is a full-stack application with:
 ## Development Standards
 
 ### Code Quality
-- Maximum 500 lines per file
+- Maximum 600 lines per file
 - Single responsibility principle
 - Strict TypeScript - avoid `any` types
 - Comprehensive error handling and recovery

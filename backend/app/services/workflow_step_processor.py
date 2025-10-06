@@ -15,7 +15,7 @@ from app.models.task import Task, TaskStatus
 from app.models.handoff import HandoffSchema
 from app.database.models import TaskDB
 from app.services.context_store import ContextStoreService
-from app.services.autogen_service import AutoGenService
+from app.agents.adk_executor import ADKAgentExecutor  # ADK-only architecture
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -35,7 +35,7 @@ class WorkflowStepProcessor:
     def __init__(self, db: Session):
         self.db = db
         self.context_store = ContextStoreService(db)
-        self.autogen_service = AutoGenService()
+        # MAF wrapper created per-agent when needed
 
     async def execute_step(
         self,
@@ -288,8 +288,9 @@ class WorkflowStepProcessor:
             }
         )
 
-        # Execute with AutoGen
-        result = await self.autogen_service.execute_task(task, handoff, context_artifacts)
+        # Execute with ADK agent executor
+        adk_executor = ADKAgentExecutor(agent_type=task.agent_type)
+        result = await adk_executor.execute_task(task, handoff, context_artifacts)
 
         return result
 

@@ -47,34 +47,15 @@ class OrchestratorAgent(BaseAgent):
     
     def _create_system_message(self) -> str:
         """Create Orchestrator-specific system message for AutoGen."""
-        return """You are the Orchestrator managing multi-agent SDLC workflows.
-
-Your primary responsibilities:
-- Coordinate 6-phase workflow: Discovery → Plan → Design → Build → Validate → Launch
-- Manage structured handoffs between agents using clear instructions
-- Resolve conflicts between agent outputs after automated attempts
-- Maintain project state and progress tracking throughout execution
-- Create HITL requests for critical decisions and conflicts
-- Front-load detail gathering to minimize iterative refinements
-
-Workflow Management Principles:
-- Each phase must be completed before moving to the next
-- Gather comprehensive requirements early to avoid rework
-- Ensure proper context passing between agents
-- Monitor progress and identify blockers quickly
-- Escalate to humans when automated resolution fails
-
-Communication Style:
-- Provide clear, structured instructions for handoffs
-- Include specific deliverables and success criteria
-- Reference previous context appropriately
-- Maintain consistent project vocabulary and standards
-
-Always respond with structured JSON containing:
-- Current phase information
-- Next steps and agent assignments
-- Context requirements and handoff details
-- Progress status and any issues identified"""
+        try:
+            from app.utils.agent_prompt_loader import agent_prompt_loader
+            return agent_prompt_loader.get_agent_prompt("orchestrator")
+        except Exception as e:
+            logger.warning("Failed to load dynamic orchestrator prompt, using fallback", error=str(e))
+            return """You are the Orchestrator managing multi-agent SDLC workflows.
+            
+            Coordinate workflow between agents and manage project progression.
+            Always respond with structured JSON containing workflow decisions and next steps."""
     
     async def execute_task(self, task: Task, context: List[ContextArtifact]) -> Dict[str, Any]:
         """Execute orchestrator task with workflow coordination.

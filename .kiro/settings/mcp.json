@@ -1,4 +1,28 @@
 {
   "mcpServers": {
+    "context7-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@upstash/context7-mcp",
+        "--key",
+        "5c3d3bd6-fb07-4924-a8f8-72827d36a9f7"
+      ],
+      "eager": false
+    },
+    "playwright-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@latest",
+        "run",
+        "@microsoft/playwright-mcp",
+        "--key",
+        "5c3d3bd6-fb07-4924-a8f8-72827d36a9f7"
+      ],
+      "eager": false
+    }
   }
 }

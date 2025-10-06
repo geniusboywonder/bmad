@@ -65,24 +65,29 @@ backend/
 │   ├── workflows/           # ✅ Production workflow definitions (simplified October 2025)
 │   │   └── greenfield-fullstack.yaml  # ✅ Active SDLC workflow with 17 artifacts
 │   │   # Note: adk_workflow_templates.py removed (800 lines dead code)
-│   ├── agents/              # Agent implementations
+│   ├── agents/              # Agent implementations with dynamic prompt loading
 │   │   ├── adk_agent_with_tools.py    # ADK agent with tools support
 │   │   ├── adk_dev_tools.py           # ADK development framework
 │   │   ├── bmad_adk_wrapper.py        # BMAD-ADK integration wrapper
 │   │   ├── base_agent.py              # Base agent class (legacy)
-│   │   ├── factory.py                 # Agent factory with ADK support
+│   │   ├── factory.py                 # ✅ Agent factory with dynamic prompt loading
+│   │   ├── [analyst|architect|coder|tester|deployer|orchestrator].md # ✅ Agent persona definitions (YAML in markdown)
 │   │   └── [analyst|architect|coder|tester|deployer].py # Legacy agents
-│   ├── api/                 # REST API endpoints (81 endpoints, 13 groups)
+│   ├── api/                 # ✅ SIMPLIFIED: REST API endpoints (87 endpoints, 13 groups)
 │   │   ├── adk.py          # ADK endpoints (26 endpoints)
 │   │   ├── agents.py       # Agent management (4 endpoints)
 │   │   ├── artifacts.py    # Artifact management (5 endpoints)
 │   │   ├── audit.py        # Audit trail (4 endpoints)
 │   │   ├── health.py       # Health monitoring (5 endpoints)
-│   │   ├── hitl.py         # Human-in-the-loop (12 endpoints)
-│   │   ├── hitl_safety.py  # HITL safety controls (10 endpoints)
+│   │   ├── hitl_simplified.py # ✅ SIMPLIFIED: Human-in-the-loop (8 essential endpoints, 71% reduction)
 │   │   ├── projects.py     # Project management (6 endpoints)
+│   │   ├── system.py       # System administration (4 endpoints)
 │   │   ├── websocket.py    # WebSocket handlers
-│   │   └── workflows.py    # Workflow management (17 endpoints)
+│   │   ├── workflows.py    # Workflow management (17 endpoints)
+│   │   # ✅ ELIMINATED (October 2025): 3 over-engineered HITL API files
+│   │   # - hitl.py (14 endpoints) → consolidated into hitl_simplified.py
+│   │   # - hitl_safety.py (10 endpoints) → consolidated into hitl_simplified.py
+│   │   # - hitl_request_endpoints.py (5 endpoints) → consolidated into hitl_simplified.py
 │   ├── database/           # Database layer
 │   │   ├── connection.py   # Database connection and session management
 │   │   └── models.py       # SQLAlchemy ORM models
@@ -96,8 +101,8 @@ backend/
 │   │   ├── task.py         # Task execution models
 │   │   ├── workflow.py     # ✅ Canonical workflow models (WorkflowStep, WorkflowDefinition)
 │   │   └── workflow_state.py # Workflow execution runtime state
-│   ├── services/           # Business logic services (SOLID architecture)
-│   │   ├── orchestrator/   # Orchestrator service components
+│   ├── services/           # ✅ BMAD RADICAL SIMPLIFICATION: Business logic services (October 2025)
+│   │   ├── orchestrator/   # Orchestrator service components (7 files - unchanged)
 │   │   │   ├── orchestrator_core.py      # Main coordination logic
 │   │   │   ├── project_lifecycle_manager.py # SDLC phase management
 │   │   │   ├── agent_coordinator.py       # Agent assignment and distribution
@@ -105,26 +110,28 @@ backend/
 │   │   │   ├── handoff_manager.py         # Agent handoff coordination
 │   │   │   ├── status_tracker.py          # Project status monitoring
 │   │   │   └── context_manager.py         # Context artifact management
-│   │   ├── hitl/           # HITL service components
-│   │   │   ├── hitl_core.py              # Core HITL coordination
-│   │   │   ├── trigger_processor.py      # Trigger evaluation
-│   │   │   ├── response_processor.py     # Response handling
-│   │   │   ├── phase_gate_manager.py     # Phase gate validation
-│   │   │   └── validation_engine.py      # Quality validation
-│   │   ├── workflow/       # Workflow service components
-│   │   │   ├── execution_engine.py       # Workflow execution logic
-│   │   │   ├── state_manager.py          # State persistence
-│   │   │   ├── event_dispatcher.py       # Event broadcasting
-│   │   │   └── sdlc_orchestrator.py      # SDLC workflow logic
-│   │   ├── template/       # Template service components
-│   │   │   ├── template_core.py          # Template coordination
-│   │   │   ├── template_loader.py        # Template loading and caching
-│   │   │   └── template_renderer.py      # Template rendering
-│   │   ├── autogen/        # AutoGen service components
+│   │   ├── autogen/        # AutoGen service components (4 files - unchanged)
 │   │   │   ├── autogen_core.py           # AutoGen coordination
 │   │   │   ├── agent_factory.py          # Agent instantiation
 │   │   │   ├── conversation_manager.py   # Conversation management
 │   │   │   └── group_chat_manager.py     # Multi-agent collaboration
+│   │   ├── template/       # Template service components (3 files - unchanged)
+│   │   │   ├── template_core.py          # Template coordination
+│   │   │   ├── template_loader.py        # Template loading and caching
+│   │   │   └── template_renderer.py      # Template rendering
+│   │   # ✅ PHASE 2A: HITL CONSOLIDATION (6 files → 2 files, 83% reduction)
+│   │   ├── hitl_approval_service.py      # ✅ CONSOLIDATED: Core + trigger + response processing
+│   │   ├── hitl_validation_service.py    # ✅ CONSOLIDATED: Phase gate + validation engine
+│   │   # ✅ PHASE 2B: WORKFLOW CONSOLIDATION (11 files → 3 files, 73% reduction)
+│   │   ├── workflow_service_consolidated.py # ✅ CONSOLIDATED: Execution + state + events
+│   │   ├── workflow_executor.py          # ✅ CONSOLIDATED: SDLC orchestration + integration
+│   │   ├── workflow_step_processor.py    # ✅ PRESERVED: AutoGen dependencies maintained
+│   │   # ✅ PHASE 4: UTILITY CONSOLIDATION (7 files → 4 files, 67% code reduction)
+│   │   ├── document_service.py           # ✅ CONSOLIDATED: Assembly + sectioning + analysis (446 LOC)
+│   │   ├── llm_service.py                # ✅ CONSOLIDATED: Monitoring + retry + metrics (521 LOC)
+│   │   ├── llm_validation.py             # ✅ KEPT SEPARATE: Independent validation (324 LOC)
+│   │   ├── orchestrator.py               # ✅ ENHANCED: Recovery management integrated (enhanced)
+│   │   # ✅ UNCHANGED SERVICES (Core business logic preserved)
 │   │   ├── adk_orchestration_service.py  # ADK multi-agent orchestration
 │   │   ├── adk_handoff_service.py        # ADK agent handoff management
 │   │   ├── agent_status_service.py       # Agent status management
@@ -137,6 +144,16 @@ backend/
 │   │   ├── quality_gate_service.py       # Quality gate evaluation
 │   │   ├── response_safety_analyzer.py   # Response safety analysis
 │   │   └── startup_service.py            # ✅ ENHANCED: Server startup with HITL cleanup
+│   │   
+│   │   # ✅ ELIMINATED SERVICES (October 2025 Consolidation):
+│   │   # HITL (6 → 2): hitl_core.py, trigger_processor.py, response_processor.py, 
+│   │   #               phase_gate_manager.py, validation_engine.py → 2 consolidated
+│   │   # WORKFLOW (11 → 3): execution_engine.py, state_manager.py, event_dispatcher.py,
+│   │   #                   sdlc_orchestrator.py, workflow_integrator.py → 2 consolidated
+│   │   # UTILITY (7 → 4): document_assembler.py, document_sectioner.py, granularity_analyzer.py,
+│   │   #                  llm_monitoring.py, llm_retry.py, recovery_procedure_manager.py,
+│   │   #                  mixed_granularity_service.py → 4 consolidated/enhanced
+│   │   # TOTAL REDUCTION: 24 service files → 9 consolidated files (62.5% reduction)
 │   ├── tools/              # ADK tools integration
 │   │   ├── adk_openapi_tools.py          # OpenAPI integration tools
 │   │   ├── adk_tool_registry.py          # Tool registry and management
@@ -144,10 +161,14 @@ backend/
 │   ├── tasks/              # Celery task definitions
 │   │   ├── agent_tasks.py  # ✅ ENHANCED: Agent execution with duplicate HITL prevention
 │   │   └── celery_app.py   # Celery application setup
+│   ├── utils/              # Utility modules
+│   │   └── agent_prompt_loader.py # ✅ NEW: Dynamic agent prompt loading from markdown files
 │   ├── websocket/          # WebSocket management
 │   │   ├── events.py       # WebSocket event handlers
 │   │   └── manager.py      # WebSocket connection management
-│   ├── settings.py         # Application configuration
+│   ├── settings.py         # ✅ SIMPLIFIED: Application configuration (60% reduction - 50+ → ~20 settings)
+│   ├── utils/              # Utility modules
+│   │   └── agent_prompt_loader.py # ✅ NEW: Dynamic agent prompt loading system
 │   └── main.py            # FastAPI application entry point
 ├── tests/                  # Comprehensive test suite (967 tests, 95%+ success)
 │   ├── conftest.py        # Test configuration with DatabaseTestManager
@@ -182,6 +203,7 @@ backend/
 ├── celery.log            # Celery worker log file
 ├── celery.pid            # Celery worker PID file
 ├── pyproject.toml        # Python project configuration
+├── .env                  # ✅ RADICAL SIMPLIFICATION: 50+ variables → ~20 core settings (60% reduction)
 └── README.md             # Backend documentation
 ```
 
@@ -192,8 +214,12 @@ frontend/
 ├── app/                      # Next.js App Router structure
 │   ├── analytics/           # Analytics and metrics pages
 │   ├── api/                # API route handlers
+│   │   ├── copilotkit/    # ✅ PHASE 3 (Oct 2025): CopilotKit API proxy with dynamic agent switching
+│   │   │   └── route.ts   # Fresh CopilotRuntime per request, 6-agent support
 │   ├── artifacts/          # Project artifacts management
 │   ├── bot-army-ux-review/ # UX review components
+│   ├── copilot-demo/       # ✅ NEW (Oct 2025): CopilotKit integration demo page
+│   │   └── page.tsx        # Demo page with AgentProgressCard + CopilotSidebar
 │   ├── deploy/             # Deployment management
 │   ├── design/             # Design system pages
 │   ├── dev/                # Development tools
@@ -208,9 +234,16 @@ frontend/
 │   ├── layout.tsx          # Root layout component
 │   └── page.tsx            # Home page component
 ├── components/             # ✅ Enhanced UI components - September + October 2025
-│   ├── chat/              # ✅ Chat interface components
-│   │   ├── copilot-chat.tsx           # ✅ FIXED: Scrolling behavior for HITL messages
+│   ├── chat/              # ✅ SIMPLIFIED: Chat interface components (October 2025)
+│   │   ├── copilot-chat.tsx           # ✅ CANONICAL: Main chat implementation (scrolling fixed)
+│   │   ├── copilot-agent-status.tsx   # Agent status display component
 │   │   └── chat-input.tsx             # Chat input component
+│   │   # ✅ ELIMINATED (October 2025): 3 broken/experimental components removed
+│   │   # - copilot-chat-broken.tsx → deleted (broken implementation)
+│   │   # - copilot-chat-hybrid.tsx → deleted (experimental approach)
+│   │   # - client-provider_broken.tsx → deleted (broken variant)
+│   ├── copilot/           # ✅ PHASE 3 (Oct 2025): CopilotKit agent progress components
+│   │   └── agent-progress-ui.tsx      # Real-time agent state with useCoAgent hook
 │   ├── hitl/              # ✅ HITL components with enhanced navigation
 │   │   ├── hitl-alerts-bar.tsx        # ✅ ENHANCED: Smart project navigation
 │   │   └── inline-hitl-approval.tsx   # ✅ ENHANCED: Badge utility imports
@@ -227,6 +260,8 @@ frontend/
 ├── hooks/                  # Custom React hooks - Enhanced September 2025
 │   └── use-project-artifacts.ts     # ✅ NEW: Project-specific artifacts management hook
 ├── lib/                    # ✅ Enhanced utility libraries and configurations
+│   ├── context/          # ✅ PHASE 3 (Oct 2025): React Context for agent state
+│   │   └── agent-context.tsx          # AgentProvider for dynamic agent switching
 │   ├── services/          # ✅ NEW: Backend integration layer
 │   │   ├── api/          # ✅ Complete API service layer
 │   │   │   ├── types.ts               # ✅ Complete backend type definitions
@@ -377,10 +412,10 @@ docs/
 - SDLC phase coordination
 - Multi-agent collaboration patterns
 
-**Human-in-the-Loop (HITL)**
-- Approval workflows and safety controls
-- Budget management and emergency stops
-- Response validation and quality gates
+**Human-in-the-Loop (HITL) - ✅ SIMPLIFIED (October 2025)**
+- Toggle + counter system for approval control
+- Emergency stop capabilities
+- Approval workflow management (8 essential endpoints)
 
 **Context Management**
 - Artifact storage and retrieval
@@ -411,6 +446,7 @@ docs/
 - Real database integration with `DatabaseTestManager`
 - Service integration with proper dependency injection
 - Complete API endpoint coverage
+- **✅ Updated for Consolidation**: All tests updated for new service structure
 
 **Test Categories**
 - **Unit Tests**: Service-level testing with mocking
@@ -431,8 +467,8 @@ docs/
 
 **Single Responsibility**
 - Each module serves one clear purpose
-- Service decomposition following SOLID principles
-- Clear separation of concerns
+- Service decomposition following SOLID principles with intelligent consolidation
+- Clear separation of concerns with reduced utility service fragmentation
 
 **Type Safety**
 - Comprehensive type hints throughout codebase

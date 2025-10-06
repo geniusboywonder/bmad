@@ -18,7 +18,7 @@ import structlog
 
 # BMAD enterprise services
 from app.services.hitl_safety_service import HITLSafetyService
-from app.services.llm_monitoring import LLMUsageTracker
+from app.services.llm_service import LLMService
 from app.settings import settings
 
 logger = structlog.get_logger(__name__)
@@ -68,7 +68,7 @@ class ADKDevUI:
 
     def __init__(self):
         self.hitl_service = HITLSafetyService()
-        self.usage_tracker = LLMUsageTracker(enable_tracking=settings.llm_enable_usage_tracking)
+        self.llm_service = LLMService({"enable_monitoring": getattr(settings, 'llm_enable_usage_tracking', True)})
         self.test_scenarios: Dict[str, TestScenario] = {}
         self.benchmark_results: List[AgentBenchmarkResult] = []
         self.hitl_simulation_mode = False  # Initialize HITL simulation mode

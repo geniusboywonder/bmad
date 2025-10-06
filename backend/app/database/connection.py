@@ -24,9 +24,9 @@ def get_engine():
             _engine = create_engine(
                 settings.database_url.replace("postgresql://", "postgresql+psycopg://"),
                 poolclass=QueuePool,
-                pool_size=settings.database_pool_size,  # Maximum number of connections in pool
-                max_overflow=settings.database_max_overflow,  # Maximum overflow connections
-                pool_timeout=settings.database_pool_timeout,  # Timeout for getting connection from pool
+                pool_size=10,  # Default connection pool size
+                max_overflow=20,  # Default overflow connections
+                pool_timeout=30,  # Default timeout for getting connection from pool
                 pool_recycle=3600,  # Recycle connections after 1 hour
                 pool_pre_ping=True,  # Test connections before use
                 echo=settings.debug,

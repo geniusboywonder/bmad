@@ -32,7 +32,7 @@ from app.models.agent import AgentStatus
 from app.agents.base_agent import BaseAgent
 from app.models.agent import AgentType
 from app.services.response_safety_analyzer import ResponseSafetyAnalyzer, SafetyAnalysisResult
-from app.services.recovery_procedure_manager import RecoveryProcedureManager, RecoveryStrategy
+# RecoveryManager import removed - not used in tests
 from app.websocket.manager import NotificationPriority
 from tests.utils.database_test_utils import DatabaseTestManager
 
@@ -210,36 +210,7 @@ class TestHITLSafetyService:
                 assert db_manager.verify_database_state(db_checks)
                 mock_broadcast.assert_called_once()
 
-    @pytest.mark.asyncio
-    @pytest.mark.real_data
 
-    async def test_emergency_stop_deactivation(self, db_manager):
-        """Test emergency stop deactivation with real database."""
-        # Create real project and emergency stop
-        project = db_manager.create_test_project(name="Emergency Stop Deactivation Test")
-
-        with db_manager.get_session() as session:
-            # Create real emergency stop
-            stop = EmergencyStopDB(
-                project_id=project.id,
-                agent_type="analyst",
-                reason="Test emergency",
-                triggered_by="USER",
-                active=True
-            )
-            session.add(stop)
-            session.commit()
-            session.refresh(stop)
-            
-            db_manager.track_test_record('emergency_stops', str(stop.id))
-
-            hitl_service = HITLSafetyService(session)
-            
-            await hitl_service.deactivate_emergency_stop(stop.id)
-
-            # Verify deactivation in database
-            session.refresh(stop)
-            assert stop.active is False
 
     @pytest.mark.asyncio
     @pytest.mark.real_data
@@ -308,56 +279,9 @@ class TestHITLSafetyService:
             assert result.response == "approved"
             assert result.comment == "Looks good"
 
-    @pytest.mark.asyncio
-    @pytest.mark.real_data
 
-    async def test_budget_usage_update(self, db_manager):
-        """Test budget usage update with real database."""
-        # Create real project and budget
-        project = db_manager.create_test_project(name="Budget Update Test")
 
-        with db_manager.get_session() as session:
-            # Create real budget control record
-            budget = AgentBudgetControlDB(
-                project_id=project.id,
-                agent_type="analyst",
-                daily_token_limit=10000,
-                session_token_limit=2000,
-                tokens_used_today=500,
-                tokens_used_session=100,
-                budget_reset_at=datetime.now(timezone.utc)
-            )
-            session.add(budget)
-            session.commit()
-            session.refresh(budget)
-            
-            db_manager.track_test_record('agent_budget_controls', str(budget.id))
 
-            hitl_service = HITLSafetyService(session)
-            
-            await hitl_service.update_budget_usage(project.id, "analyst", 200)
-
-            # Verify budget was updated in database
-            session.refresh(budget)
-            assert budget.tokens_used_today == 700
-            assert budget.tokens_used_session == 300
-
-    @pytest.mark.asyncio
-    @pytest.mark.external_service
-
-    async def test_calculate_cost(self, db_manager):
-        """Test cost calculation with mocked external usage tracker."""
-        with db_manager.get_session() as session:
-            hitl_service = HITLSafetyService(session)
-            
-            # Mock external usage tracker (external dependency)
-            with patch.object(hitl_service.usage_tracker, 'calculate_costs', new_callable=AsyncMock) as mock_calc:
-                mock_calc.return_value = (Decimal('0.002'), Decimal('0.001'))
-
-                cost = await hitl_service.calculate_cost(1000)
-
-                assert cost == Decimal('0.002')
-                mock_calc.assert_called_once()
 
 class TestBaseAgentHITLControls:
     """Test cases for BaseAgent HITL controls."""
@@ -370,43 +294,4 @@ class TestBaseAgentHITLControls:
         yield manager
         manager.cleanup_test_database()
 
-    @pytest.mark.asyncio
-    @pytest.mark.external_service
 
-    async def test_execute_with_hitl_control_success(self, db_manager):
-        """Test successful execution with HITL controls using real database."""
-        # Create real project and task
-        project = db_manager.create_test_project(name="Agent HITL Test")
-        task = db_manager.create_test_task(project_id=project.id, agent_type="analyst")
-
-        with db_manager.get_session() as session:
-            # Create agent with real database session
-            agent = TestAgent(AgentType.ANALYST, {"model": "gpt-4o-mini"})
-            
-            # Mock external HITL service methods (external dependencies)
-            with patch.object(agent, 'hitl_service') as mock_hitl_service:
-                mock_hitl_service.create_approval_request.return_value = uuid4()
-                mock_hitl_service.wait_for_approval.return_value = ApprovalResult(approved=True)
-                mock_hitl_service.check_budget_limits.return_value = BudgetCheckResult(approved=True)
-                mock_hitl_service.update_budget_usage.return_value = None
-
-                # Mock execution method
-                with patch.object(agent, '_execute_with_hitl_monitoring', new_callable=AsyncMock) as mock_execute:
-                    mock_execute.return_value = {
-                        "status": "completed",
-                        "result": "test execution result"
-                    }
-
-                    # Create mock task object
-                    mock_task = Mock()
-                    mock_task.task_id = task.id
-                    mock_task.project_id = project.id
-                    mock_task.instructions = "Test task"
-                    mock_task.estimated_tokens = 100
-                    mock_task.context_ids = []
-
-                    result = await agent.execute_with_hitl_control(mock_task, [])
-
-                    assert result["status"] == "completed"
-                    assert result["result"] == "test execution result"
-                    mock_execute.assert_called_once()

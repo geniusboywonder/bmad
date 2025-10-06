@@ -1,86 +1,66 @@
-"""Application configuration using Pydantic Settings."""
+"""Application configuration using Pydantic Settings - SIMPLIFIED."""
 
-from typing import List, Optional, Literal # Added Literal
+from typing import List, Optional, Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings with environment variable support."""
+    """Simplified application settings with consolidated configuration."""
     
-    # Application Configuration
-    app_name: str = Field(default="BotArmy Backend")  # Reads APP_NAME env var automatically
-    app_version: str = Field(default="0.1.0")  # Reads APP_VERSION env var automatically
-    debug: bool = Field(default=False)  # Reads DEBUG env var automatically
-    log_level: str = Field(default="INFO")  # Reads LOG_LEVEL env var automatically
+    # Core Configuration
+    app_name: str = Field(default="BMAD Backend")
+    app_version: str = Field(default="0.1.0")
+    environment: str = Field(default="development")
+    debug: bool = Field(default=False)
+    log_level: str = Field(default="INFO")
     
-    # Database Configuration
-    database_url: str  # Reads DATABASE_URL env var automatically
-    database_test_url: Optional[str] = Field(default=None)  # Reads DATABASE_TEST_URL env var automatically
-    database_pool_size: int = Field(default=10)  # Reads DATABASE_POOL_SIZE env var automatically
-    database_max_overflow: int = Field(default=20)  # Reads DATABASE_MAX_OVERFLOW env var automatically
-    database_pool_timeout: int = Field(default=30)  # Reads DATABASE_POOL_TIMEOUT env var automatically
+    # Database
+    database_url: str
     
-    # Redis Configuration (Single URL for all services)
-    redis_url: str = Field(default="redis://localhost:6379/0")  # Single Redis DB for WebSocket, Celery, and cache
+    # Redis (SINGLE URL for all services)
+    redis_url: str = Field(default="redis://localhost:6379/0")
     
-    # API Configuration
-    api_v1_prefix: str = Field(default="/api/v1")  # Reads API_V1_PREFIX env var automatically
-    api_host: str = Field(default="0.0.0.0")  # Reads API_HOST env var automatically
-    api_port: int = Field(default=8000)  # Reads API_PORT env var automatically
-    cors_origins: List[str] = Field(
-        default=["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
-        # Reads CORS_ORIGINS env var automatically
-    )
+    # LLM Provider-Agnostic Configuration
+    llm_provider: Literal["anthropic", "openai", "google"] = Field(default="anthropic")
+    llm_api_key: str  # Primary API key based on llm_provider
+    llm_model: str = Field(default="claude-3-5-sonnet-20241022")
     
-    # WebSocket Configuration
-    ws_heartbeat_interval: int = Field(default=30)  # Reads WS_HEARTBEAT_INTERVAL env var automatically
-    ws_max_connections: int = Field(default=100)  # Reads WS_MAX_CONNECTIONS env var automatically
+    # Additional LLM API Keys (optional)
+    openai_api_key: Optional[str] = Field(default=None)
+    anthropic_api_key: Optional[str] = Field(default=None)
+    google_api_key: Optional[str] = Field(default=None)
     
-    # LLM Configuration
-    openai_api_key: Optional[str] = Field(default=None)  # Reads OPENAI_API_KEY env var automatically
-    anthropic_api_key: Optional[str] = Field(default=None)  # Reads ANTHROPIC_API_KEY env var automatically
-    google_api_key: Optional[str] = Field(default=None)  # Reads GOOGLE_API_KEY env var automatically
-    gemini_key_key: Optional[str] = Field(default=None)  # Reads GEMINI_KEY_KEY env var automatically
-    google_genai_api_key: Optional[str] = Field(default=None)  # Reads GOOGLE_GENAI_API_KEY env var automatically
-    google_application_credentials: Optional[str] = Field(default=None)  # Reads GOOGLE_APPLICATION_CREDENTIALS env var automatically
-    
-    # Agent-to-LLM Mapping (New section)
-    analyst_agent_provider: Literal["openai", "anthropic", "gemini"]  # Reads ANALYST_AGENT_PROVIDER env var automatically
-    analyst_agent_model: str  # Reads ANALYST_AGENT_MODEL env var automatically
-    architect_agent_provider: Literal["openai", "anthropic", "gemini"]  # Reads ARCHITECT_AGENT_PROVIDER env var automatically
-    architect_agent_model: str  # Reads ARCHITECT_AGENT_MODEL env var automatically
-    coder_agent_provider: Literal["openai", "anthropic", "gemini"]  # Reads CODER_AGENT_PROVIDER env var automatically
-    coder_agent_model: str  # Reads CODER_AGENT_MODEL env var automatically
-    tester_agent_provider: Literal["openai", "anthropic", "gemini"]  # Reads TESTER_AGENT_PROVIDER env var automatically
-    tester_agent_model: str  # Reads TESTER_AGENT_MODEL env var automatically
-    deployer_agent_provider: Literal["openai", "anthropic", "gemini"]  # Reads DEPLOYER_AGENT_PROVIDER env var automatically
-    deployer_agent_model: str  # Reads DEPLOYER_AGENT_MODEL env var automatically
-    
-    # LLM Reliability Configuration
-    llm_retry_max_attempts: int = Field(default=3)  # Reads LLM_RETRY_MAX_ATTEMPTS env var automatically
-    llm_retry_base_delay: float = Field(default=1.0)  # Reads LLM_RETRY_BASE_DELAY env var automatically
-    llm_response_timeout: int = Field(default=30)  # Reads LLM_RESPONSE_TIMEOUT env var automatically
-    llm_max_response_size: int = Field(default=50000)  # Reads LLM_MAX_RESPONSE_SIZE env var automatically
-    llm_enable_usage_tracking: bool = Field(default=True)  # Reads LLM_ENABLE_USAGE_TRACKING env var automatically
-
-    # HITL Safety Configuration
-    hitl_enabled: bool = Field(default=True)  # Reads HITL_ENABLED env var automatically
-    hitl_approval_timeout_minutes: int = Field(default=30)  # Reads HITL_APPROVAL_TIMEOUT_MINUTES env var automatically
-    hitl_budget_daily_limit: int = Field(default=10000)  # Reads HITL_BUDGET_DAILY_LIMIT env var automatically
-    hitl_budget_session_limit: int = Field(default=2000)  # Reads HITL_BUDGET_SESSION_LIMIT env var automatically
-    hitl_emergency_stop_enabled: bool = Field(default=True)  # Reads HITL_EMERGENCY_STOP_ENABLED env var automatically
-    hitl_websocket_notifications: bool = Field(default=True)  # Reads HITL_WEBSOCKET_NOTIFICATIONS env var automatically
+    # HITL Safety (Simplified)
+    hitl_default_enabled: bool = Field(default=True)
+    hitl_default_counter: int = Field(default=10)
+    hitl_approval_timeout_minutes: int = Field(default=30)
     
     # Security
-    secret_key: str  # Reads SECRET_KEY env var automatically
-    algorithm: str = Field(default="HS256")  # Reads ALGORITHM env var automatically
-    access_token_expire_minutes: int = Field(default=30)  # Reads ACCESS_TOKEN_EXPIRE_MINUTES env var automatically
+    secret_key: str
+    
+    # API Configuration (Essential only)
+    api_v1_prefix: str = Field(default="/api/v1")
+    api_host: str = Field(default="0.0.0.0")
+    api_port: int = Field(default=8000)
+    cors_origins: List[str] = Field(default=["http://localhost:3000"])
+    
+    # Agent-to-LLM Mapping (Simplified - use defaults with override capability)
+    analyst_agent_provider: Literal["openai", "anthropic", "google"] = Field(default="anthropic")
+    analyst_agent_model: str = Field(default="claude-3-5-sonnet-20241022")
+    architect_agent_provider: Literal["openai", "anthropic", "google"] = Field(default="openai")
+    architect_agent_model: str = Field(default="gpt-4o")
+    coder_agent_provider: Literal["openai", "anthropic", "google"] = Field(default="openai")
+    coder_agent_model: str = Field(default="gpt-4o")
+    tester_agent_provider: Literal["openai", "anthropic", "google"] = Field(default="google")
+    tester_agent_model: str = Field(default="gemini-1.5-pro")
+    deployer_agent_provider: Literal["openai", "anthropic", "google"] = Field(default="openai")
+    deployer_agent_model: str = Field(default="gpt-4o")
     
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
-        extra="ignore"  # Allow extra environment variables not explicitly defined
+        extra="ignore"
     )
 
 

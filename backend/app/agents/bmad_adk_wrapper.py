@@ -14,7 +14,7 @@ from google.genai import types
 # BMAD enterprise services - handle import errors gracefully for testing
 try:
     from app.services.hitl_safety_service import HITLSafetyService
-    from app.services.llm_monitoring import LLMUsageTracker
+    from app.services.llm_service import LLMService
     from app.services.audit_trail_service import AuditTrailService
     from app.services.context_store import ContextStoreService
     from app.settings import settings
@@ -28,9 +28,9 @@ except ImportError:
             self.create_approval_request = AsyncMock(return_value="mock_approval_id")
             self.wait_for_approval = AsyncMock(return_value=type('MockApproval', (), {'approved': True})())
 
-    class MockLLMUsageTracker:
+    class MockLLMService:
         def __init__(self, enable_tracking=False):
-            self.track_request = AsyncMock()
+            self.track_usage = AsyncMock()
 
     class MockAuditTrailService:
         def __init__(self):
@@ -47,7 +47,7 @@ except ImportError:
         llm_enable_usage_tracking = False
 
     HITLSafetyService = MockHITLSafetyService
-    LLMUsageTracker = MockLLMUsageTracker
+    LLMService = MockLLMService
     AuditTrailService = MockAuditTrailService
     ContextStoreService = MockContextStoreService
     settings = MockSettings()
@@ -79,7 +79,7 @@ class BMADADKWrapper:
 
         # BMAD enterprise services
         self.hitl_service = HITLSafetyService()
-        self.usage_tracker = LLMUsageTracker(enable_tracking=settings.llm_enable_usage_tracking)
+        self.llm_service = LLMService({"enable_monitoring": getattr(settings, 'llm_enable_usage_tracking', True)})
         self.audit_service = AuditTrailService()
         self.context_store = context_store or ContextStoreService()
 
@@ -190,17 +190,17 @@ class BMADADKWrapper:
                     execution_time=execution_time
                 )
 
-                await self.usage_tracker.track_request(
+                self.llm_service.track_usage(
                     agent_type=self.agent_type,
-                    tokens_used=0,
-                    response_time=execution_time,
-                    cost=0.0,
+                    provider="google",
+                    model=self.model or "gemini-2.0-flash",
+                    input_tokens=0,
+                    output_tokens=0,
+                    response_time_ms=execution_time * 1000,
                     success=False,
+                    error_type="ADKExecutionError",
                     project_id=project_id,
-                    task_id=task_id,
-                    provider="google_adk",
-                    model=self.model,
-                    error_type="ADKExecutionError"
+                    task_id=task_id
                 )
 
                 return {
@@ -212,16 +212,17 @@ class BMADADKWrapper:
 
             # 4. Usage Tracking
             response_text = adk_result.get("response", "")
-            await self.usage_tracker.track_request(
+            estimated_tokens = self._estimate_tokens(message, response_text)
+            self.llm_service.track_usage(
                 agent_type=self.agent_type,
-                tokens_used=self._estimate_tokens(message, response_text),
-                response_time=execution_time,
-                cost=self._estimate_cost(message, response_text),
+                provider="google",
+                model=self.model or "gemini-2.0-flash",
+                input_tokens=estimated_tokens // 2,  # Rough split
+                output_tokens=estimated_tokens // 2,
+                response_time_ms=1000,  # Default
                 success=True,
                 project_id=project_id,
-                task_id=task_id,
-                provider="google_adk",
-                model=self.model
+                task_id=task_id
             )
 
             # 5. Audit Trail - Complete
@@ -255,17 +256,17 @@ class BMADADKWrapper:
                 execution_time=0
             )
 
-            await self.usage_tracker.track_request(
+            self.llm_service.track_usage(
                 agent_type=self.agent_type,
-                tokens_used=0,
-                response_time=0,
-                cost=0.0,
+                provider="google",
+                model=self.model or "gemini-2.0-flash",
+                input_tokens=0,
+                output_tokens=0,
+                response_time_ms=0,
                 success=False,
+                error_type=type(e).__name__,
                 project_id=project_id,
-                task_id=task_id,
-                provider="google_adk",
-                model=self.model,
-                error_type=type(e).__name__
+                task_id=task_id
             )
 
             logger.error("BMAD-ADK message processing failed",

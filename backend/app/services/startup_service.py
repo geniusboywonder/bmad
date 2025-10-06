@@ -27,8 +27,8 @@ class StartupService:
     def _get_redis_client(self) -> redis.Redis:
         """Get Redis client instance."""
         if not self.redis_client:
-            # Parse Redis URL from settings
-            redis_url = settings.redis_celery_url
+            # Use single Redis URL for all services
+            redis_url = settings.redis_url
             self.redis_client = redis.from_url(redis_url, decode_responses=True)
         return self.redis_client
 

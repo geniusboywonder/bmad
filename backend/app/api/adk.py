@@ -8,7 +8,6 @@ from datetime import datetime
 import structlog
 
 from app.database.connection import get_session
-from app.services.workflow_persistence_manager import WorkflowPersistenceManager
 from adk_agent_factory import ADKAgentFactory
 from app.services.adk_orchestration_service import ADKOrchestrationService
 from app.tools.adk_tool_registry import ADKToolRegistry

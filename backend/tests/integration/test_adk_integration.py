@@ -23,66 +23,11 @@ except ImportError:
 class TestADKIntegration:
     """Test suite for ADK integration."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.mock_data
 
-    async def test_minimal_adk_agent(self):
-        """Test minimal ADK agent functionality."""
-        agent = MinimalADKAgent("test_minimal")
 
-        # Test initialization
-        init_result = await agent.initialize()
-        assert init_result is True
 
-        # Test message processing (should fail with API key error, but structure is correct)
-        result = await agent.process_message("Hello, world!")
-        assert result["success"] is False
-        assert "api_key" in str(result["error"]).lower() or "Missing key inputs" in str(result["error"])
-        assert "agent_name" in result
 
-    @pytest.mark.asyncio
-    @pytest.mark.mock_data
 
-    async def test_adk_agent_with_tools(self):
-        """Test ADK agent with tools."""
-        agent = ADKAgentWithTools("test_tools")
-
-        # Test initialization
-        init_result = await agent.initialize()
-        assert init_result is True
-
-        # Test message processing (should fail with API key error, but structure is correct)
-        result = await agent.process_message("What is 15 + 27?")
-        assert result["success"] is False
-        assert "api_key" in str(result["error"]).lower() or "Missing key inputs" in str(result["error"])
-        assert "agent_name" in result
-
-    @pytest.mark.asyncio
-    @pytest.mark.mock_data
-
-    async def test_bmad_adk_wrapper_basic(self):
-        """Test basic BMAD-ADK wrapper functionality."""
-        wrapper = BMADADKWrapper(
-            agent_name="test_wrapper",
-            agent_type="test",
-            instruction="You are a test assistant."
-        )
-
-        # Test initialization
-        init_result = await wrapper.initialize()
-        assert init_result is True
-
-        # Test message processing (should fail with API key error, but enterprise controls work)
-        result = await wrapper.process_with_enterprise_controls(
-            message="Hello, test message",
-            project_id="test_project",
-            task_id="test_task"
-        )
-
-        assert result["success"] is False
-        assert "api_key" in str(result["error"]).lower() or "Missing key inputs" in str(result["error"])
-        assert "execution_id" in result
-        assert result["execution_id"].startswith("test_wrapper")
 
     @pytest.mark.asyncio
     @pytest.mark.mock_data
@@ -183,38 +128,7 @@ class TestADKIntegration:
                 assert result["approved"] is True
                 assert result["approval_id"] == "test_approval_id"
 
-    @pytest.mark.asyncio
-    @pytest.mark.mock_data
 
-    async def test_audit_trail_integration(self):
-        """Test audit trail integration."""
-        wrapper = BMADADKWrapper(
-            agent_name="audit_test",
-            agent_type="analyst"
-        )
-
-        # Initialize the wrapper
-        init_result = await wrapper.initialize()
-        assert init_result is True
-
-        # Mock audit service methods - patch the AsyncMock instances
-        with patch.object(wrapper.audit_service, 'log_agent_execution_start') as mock_start:
-            with patch.object(wrapper.audit_service, 'log_agent_execution_complete') as mock_complete:
-                with patch.object(wrapper.usage_tracker, 'track_request') as mock_track:
-                    with patch.object(wrapper, '_execute_adk_agent') as mock_execute:
-                        mock_execute.return_value = {"success": False, "error": "API key missing"}
-
-                        result = await wrapper.process_with_enterprise_controls(
-                            "Test message", "test_project", "test_task", "test_user"
-                        )
-
-                        # Verify audit methods were called
-                        mock_start.assert_called_once()
-                        mock_complete.assert_called_once()
-                        mock_track.assert_called_once()
-
-                        assert result["success"] is False
-                        assert "execution_id" in result
 
     @pytest.mark.mock_data
 

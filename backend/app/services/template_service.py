@@ -6,16 +6,14 @@ refactored into focused, single-responsibility services following SOLID principl
 """
 
 # Import the refactored template core service
-from .template import TemplateCore, TemplateError
+from .template.template_core import TemplateCore, TemplateError
 
 # For backward compatibility, expose TemplateCore as TemplateService
 TemplateService = TemplateCore
 
 # Also expose individual services for direct access if needed
-from .template import (
-    TemplateLoader,
-    TemplateRenderer
-)
+from .template.template_loader import TemplateLoader
+from .template.template_renderer import TemplateRenderer
 
 __all__ = [
     "TemplateService",

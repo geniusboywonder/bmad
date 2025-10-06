@@ -11,8 +11,7 @@ from app.models.context import ContextArtifact
 from app.models.handoff import HandoffSchema
 from app.models.agent import AgentType
 from app.services.llm_validation import LLMResponseValidator
-from app.services.llm_retry import LLMRetryHandler, RetryConfig
-from app.services.llm_monitoring import LLMUsageTracker
+from app.services.llm_service import LLMService, RetryConfig
 from app.services.hitl_safety_service import HITLSafetyService, ApprovalTimeoutError
 from app.database.models import ResponseApprovalDB
 from app.services.response_safety_analyzer import ResponseSafetyAnalyzer
@@ -41,24 +40,33 @@ class BaseAgent(ABC):
         self.agent_type = agent_type
         self.llm_config = llm_config
         
-        # LLM Reliability Components from Task 1
+        # LLM Reliability Components with defaults
         self.response_validator = LLMResponseValidator(
-            max_response_size=settings.llm_max_response_size
+            max_response_size=getattr(settings, 'llm_max_response_size', 50000)
         )
         
         retry_config = RetryConfig(
-            max_retries=settings.llm_retry_max_attempts,
-            base_delay=settings.llm_retry_base_delay,
+            max_retries=getattr(settings, 'llm_retry_max_attempts', 3),
+            base_delay=getattr(settings, 'llm_retry_base_delay', 1.0),
             max_delay=8.0
         )
-        self.retry_handler = LLMRetryHandler(retry_config)
-        
-        self.usage_tracker = LLMUsageTracker(
-            enable_tracking=settings.llm_enable_usage_tracking
-        )
+        self.llm_service = LLMService({
+            "enable_monitoring": getattr(settings, 'llm_enable_usage_tracking', True),
+            "retry_config": {
+                "max_retries": retry_config.max_retries,
+                "base_delay": retry_config.base_delay,
+                "max_delay": retry_config.max_delay
+            }
+        })
         
         # HITL Safety Service for mandatory controls
         self.hitl_service = HITLSafetyService()
+
+        # Usage tracking for monitoring
+        from app.services.autogen.conversation_manager import LLMUsageTracker
+        self.usage_tracker = LLMUsageTracker(
+            enable_tracking=getattr(settings, 'llm_enable_usage_tracking', True)
+        )
 
         # AutoGen agent instance (initialized by subclasses)
         self.autogen_agent: Optional[AssistantAgent] = None
@@ -309,7 +317,7 @@ class BaseAgent(ABC):
                         response_time_ms=response_time,
                         **context)
             
-            await self.usage_tracker.track_request(
+            self.llm_service.track_usage(
                 agent_type=self.agent_type.value,
                 tokens_used=0,
                 response_time=response_time,
@@ -352,19 +360,17 @@ class BaseAgent(ABC):
         )
         
         # Track the request
-        await self.usage_tracker.track_request(
+        self.llm_service.track_usage(
             agent_type=self.agent_type.value,
-            tokens_used=total_tokens,
-            response_time=response_time,
-            cost=cost,
-            success=True,
-            project_id=task.project_id,
-            task_id=task.task_id,
-            provider="openai",
+            provider="openai",  # Default provider
             model=self.llm_config.get("model", "gpt-4o-mini"),
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            retry_count=retry_result.total_attempts - 1
+            response_time_ms=response_time * 1000,
+            success=True,
+            retry_count=retry_result.total_attempts - 1 if hasattr(retry_result, 'total_attempts') else 0,
+            project_id=task.project_id,
+            task_id=task.task_id
         )
     
     async def _track_failed_request(self, task: Task, message: str, response_time: float, retry_result):
@@ -373,20 +379,18 @@ class BaseAgent(ABC):
         input_tokens = self.usage_tracker.estimate_tokens(message, is_input=True)
         error_type = type(retry_result.final_error).__name__ if retry_result.final_error else "unknown"
         
-        await self.usage_tracker.track_request(
+        self.llm_service.track_usage(
             agent_type=self.agent_type.value,
-            tokens_used=input_tokens,
-            response_time=response_time,
-            cost=0.0,
-            success=False,
-            project_id=task.project_id,
-            task_id=task.task_id,
-            provider="openai",
+            provider="openai",  # Default provider
             model=self.llm_config.get("model", "gpt-4o-mini"),
             input_tokens=input_tokens,
-            output_tokens=0,
+            output_tokens=0,  # Failed request
+            response_time_ms=0,
+            success=False,
             error_type=error_type,
-            retry_count=retry_result.total_attempts - 1
+            retry_count=retry_result.total_attempts - 1 if hasattr(retry_result, 'total_attempts') else 0,
+            project_id=task.project_id,
+            task_id=task.task_id
         )
     
     def prepare_context_message(self, context_artifacts: List[ContextArtifact], 
@@ -650,7 +654,7 @@ class BaseAgent(ABC):
             "autogen_initialized": self.autogen_agent is not None,
             "reliability_features": {
                 "validator": self.response_validator is not None,
-                "retry_handler": self.retry_handler is not None,
+                "llm_service": self.llm_service is not None,
                 "usage_tracker": self.usage_tracker is not None,
                 "hitl_service": self.hitl_service is not None
             }

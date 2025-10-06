@@ -20,7 +20,7 @@ from app.database.models import (
 from app.database.connection import get_session
 from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
-from app.services.llm_monitoring import LLMUsageTracker
+from app.services.llm_service import LLMService
 from app.services.response_safety_analyzer import ResponseSafetyAnalyzer
 from app.settings import settings
 from app.models.agent import AgentStatus
@@ -71,7 +71,8 @@ class HITLSafetyService:
     def __init__(self, db_session: Optional[Session] = None):
         self.active_monitors = {}
         self.emergency_stops = set()
-        self.usage_tracker = LLMUsageTracker(enable_tracking=settings.llm_enable_usage_tracking)
+        self.llm_service = LLMService({"enable_monitoring": getattr(settings, 'llm_enable_usage_tracking', True)})
+        self.usage_tracker = self.llm_service  # LLMService has calculate_costs method
         self.response_analyzer = ResponseSafetyAnalyzer()
         self._db_session = db_session
 

@@ -15,7 +15,7 @@ from app.models.agent import AgentType
 from app.models.context import ContextArtifact
 from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
-from app.services.autogen_service import AutoGenService
+from app.agents.adk_executor import ADKAgentExecutor  # ADK-only architecture
 from app.services.context_store import ContextStoreService
 from app.database.connection import get_session
 from app.database.models import TaskDB, HitlAgentApprovalDB
@@ -166,7 +166,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
         )
 
         # Initialize services
-        autogen_service = AutoGenService()
+        adk_executor = ADKAgentExecutor(agent_type=agent_type)
         context_store = ContextStoreService(db)
 
         # Get context artifacts
@@ -303,9 +303,9 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                     raise AgentExecutionDenied("HITL approval timed out after 30 minutes")
 
             logger.info("HITL pre-execution approval granted", task_id=str(task_uuid), comment=approval_comment)
-            
-            # Execute task with AutoGen service
-            result = asyncio.run(autogen_service.execute_task(task, handoff, context_artifacts))
+
+            # Execute task with ADK agent executor
+            result = asyncio.run(adk_executor.execute_task(task, handoff, context_artifacts))
 
             # Skip response approval for simple tasks - pre-execution approval is sufficient
             # Response approval would create a duplicate HITL message

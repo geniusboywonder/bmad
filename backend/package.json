@@ -1,5 +1,9 @@
 {
   "dependencies": {
+    "@copilotkit/react-core": "^1.10.5",
+    "@copilotkit/react-textarea": "^1.10.5",
+    "@copilotkit/react-ui": "^1.10.5",
+    "@copilotkit/runtime": "^1.10.5",
     "jq": "^1.7.2"
   }
 }

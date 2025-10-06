@@ -338,7 +338,7 @@ class ExternalServiceTester:
             import redis
             from app.settings import settings
 
-            redis_client = redis.from_url(settings.redis_celery_url)
+            redis_client = redis.from_url(settings.redis_url)
             redis_client.ping()
 
             api_results["redis_celery"] = {

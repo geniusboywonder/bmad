@@ -349,7 +349,7 @@ class TestExternalAPIs:
         try:
             import redis
 
-            redis_client = redis.from_url(settings.redis_celery_url)
+            redis_client = redis.from_url(settings.redis_url)
             redis_client.ping()
 
         except Exception as e:

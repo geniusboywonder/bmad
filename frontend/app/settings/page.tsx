@@ -94,74 +94,30 @@ const getDefaultEnvVariables = (): EnvVariable[] => [
     required: false,
     type: "boolean"
   },
-  // HITL Configuration - Core Settings
+  // HITL Configuration - Simplified Toggle + Counter System
   {
-    key: "ENABLE_HITL",
-    value: false,
-    description: "Enable Human-in-the-Loop functionality",
+    key: "HITL_ENABLED",
+    value: true,
+    description: "Enable HITL approval requirement (when enabled, all agent actions require approval)",
     category: "HITL Configuration",
     required: false,
     type: "boolean"
   },
   {
-    key: "AUTO_ACTION",
-    value: "none",
-    description: "Default auto action (approve/reject/none)",
+    key: "HITL_AUTO_COUNTER",
+    value: "10",
+    description: "Number of automated actions before HITL approval required again",
     category: "HITL Configuration",
     required: false,
     type: "string"
   },
-  
-  // HITL Configuration - Timing & Thresholds
   {
-    key: "HITL_TIMEOUT",
+    key: "HITL_APPROVAL_TIMEOUT_MINUTES",
     value: "30",
-    description: "Timeout in seconds for HITL decisions",
+    description: "Timeout in minutes for HITL approval requests",
     category: "HITL Configuration",
     required: false,
     type: "string"
-  },
-  {
-    key: "HITL_APPROVAL_THRESHOLD",
-    value: "0.8",
-    description: "Confidence threshold for automatic approval (0.0-1.0)",
-    category: "HITL Configuration",
-    required: false,
-    type: "string"
-  },
-  {
-    key: "HITL_RETRY_ATTEMPTS",
-    value: "3",
-    description: "Number of retry attempts for failed HITL operations",
-    category: "HITL Configuration",
-    required: false,
-    type: "string"
-  },
-  
-  // HITL Configuration - Notifications & Queue Management
-  {
-    key: "HITL_NOTIFICATION_EMAIL",
-    value: "",
-    description: "Email address for HITL notifications",
-    category: "HITL Configuration",
-    required: false,
-    type: "string"
-  },
-  {
-    key: "HITL_QUEUE_SIZE",
-    value: "100",
-    description: "Maximum size of HITL decision queue",
-    category: "HITL Configuration",
-    required: false,
-    type: "string"
-  },
-  {
-    key: "HITL_AUTO_ESCALATION",
-    value: false,
-    description: "Enable automatic escalation of timed-out HITL requests",
-    category: "HITL Configuration",
-    required: false,
-    type: "boolean"
   }
 ]
 

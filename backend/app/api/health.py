@@ -311,7 +311,7 @@ async def detailed_health_check(db: Session = Depends(get_session)):
     
     # Check Celery connectivity
     try:
-        redis_celery = redis.from_url(settings.redis_celery_url)
+        redis_celery = redis.from_url(settings.redis_url)
         redis_celery.ping()
         health_status["components"]["celery"] = {
             "status": "healthy",
@@ -545,7 +545,7 @@ async def healthz_endpoint(db: Session = Depends(get_session)):
         
         # Celery broker check
         try:
-            redis_celery = redis.from_url(settings.redis_celery_url)
+            redis_celery = redis.from_url(settings.redis_url)
             redis_celery.ping()
             checks["celery"] = True
         except Exception as e:

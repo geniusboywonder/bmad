@@ -1,16 +1,35 @@
 #!/bin/bash
 
-# BotArmy Backend Process Killer Script
+# BotArmy Full-Stack Process Killer Script
 
 echo "🔪 Killing existing BotArmy processes..."
 
-# Kill processes on port 8000 (FastAPI)
-echo "  - Killing processes on port 8000..."
-lsof -ti:8000 | xargs kill -9 2>/dev/null || echo "    No processes found on port 8000"
+# Kill frontend processes on common ports
+echo "  - Killing frontend processes..."
+echo "    - Port 3000 (Next.js dev server)..."
+lsof -ti:3000 | xargs kill -9 2>/dev/null || echo "      No processes found on port 3000"
+echo "    - Port 3001 (alternate frontend)..."
+lsof -ti:3001 | xargs kill -9 2>/dev/null || echo "      No processes found on port 3001"
+echo "    - Port 5173 (Vite dev server)..."
+lsof -ti:5173 | xargs kill -9 2>/dev/null || echo "      No processes found on port 5173"
+echo "    - Port 4173 (Vite preview)..."
+lsof -ti:4173 | xargs kill -9 2>/dev/null || echo "      No processes found on port 4173"
 
-# Kill processes on port 5555 (Celery Flower)
-echo "  - Killing processes on port 5555..."
-lsof -ti:5555 | xargs kill -9 2>/dev/null || echo "    No processes found on port 5555"
+# Kill backend processes
+echo "  - Killing backend processes..."
+echo "    - Port 8000 (FastAPI)..."
+lsof -ti:8000 | xargs kill -9 2>/dev/null || echo "      No processes found on port 8000"
+echo "    - Port 5555 (Celery Flower)..."
+lsof -ti:5555 | xargs kill -9 2>/dev/null || echo "      No processes found on port 5555"
+
+# Kill frontend Node.js processes
+echo "  - Killing frontend Node.js processes..."
+pkill -f "next.*dev" 2>/dev/null || echo "    No Next.js dev processes found"
+pkill -f "npm.*dev" 2>/dev/null || echo "    No npm dev processes found"
+pkill -f "yarn.*dev" 2>/dev/null || echo "    No yarn dev processes found"
+pkill -f "pnpm.*dev" 2>/dev/null || echo "    No pnpm dev processes found"
+pkill -f "vite" 2>/dev/null || echo "    No Vite processes found"
+pkill -f "webpack.*serve" 2>/dev/null || echo "    No webpack dev server processes found"
 
 # Kill any remaining uvicorn processes
 echo "  - Killing uvicorn processes..."
@@ -38,6 +57,7 @@ else
 fi
 
 echo "✅ Complete process cleanup finished!"
+echo "   - Frontend servers stopped (Next.js, Vite, etc.)"
 echo "   - FastAPI server stopped"
 echo "   - Celery workers stopped"
 echo "   - Redis server stopped"

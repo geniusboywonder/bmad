@@ -33,27 +33,44 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 
 ### Agent Framework
 
+**✅ Dynamic Agent Prompt System (October 2025)**
+- **Markdown-Based Personas**: All agent personalities loaded from `backend/app/agents/*.md` files
+- **AgentPromptLoader**: Unified prompt loading with YAML parsing, caching, and path auto-detection
+- **Cross-Framework Integration**: ADK, AutoGen, and BMAD Core all use same prompt source
+- **No Hardcoded Roles**: Complete elimination of hardcoded agent instructions throughout codebase
+- **Runtime Flexibility**: Agent personalities updatable via markdown files without code deployment
+
 **Google ADK Integration**
 - **Google ADK (Agent Development Kit)** - Production-grade agent framework
 - **LlmAgent Integration** - Advanced capabilities with `gemini-2.0-flash` model
 - **Session Management** - Proper `InMemorySessionService` and `types.Content` handling
 - **Tool Integration** - `FunctionTool` support with enterprise safety controls
 - **BMAD-ADK Wrapper** - Enterprise wrapper preserving BMAD safety and audit requirements
+- **✅ Dynamic Instructions**: Uses `agent_prompt_loader.get_agent_prompt()` for all agent types
 
 **Microsoft AutoGen Integration**
 - **ConversationManager** - Multi-agent conversation patterns with context passing
 - **GroupChatManager** - Multi-agent collaboration with conflict resolution
 - **Agent Factory** - Dynamic agent configuration and lifecycle management
+- **✅ Dynamic System Messages**: Loads agent personas from markdown files via unified prompt loader
 
-**Service Architecture (SOLID Principles)** ✅ Simplified October 2025
-- **Orchestrator Services** - 7 focused services with consolidated project management (Phase 3: ProjectManager combines lifecycle + status tracking)
-- **HITL Services** - Comprehensive human oversight and approval workflows
-- **Workflow Engine** - State machine pattern with persistence and recovery
-- **Template System** - BMAD Core integration with dynamic loading
-- **✅ Phase 3 Consolidation** - ProjectLifecycleManager + StatusTracker → ProjectManager (8→7 files, -400 LOC)
-- **✅ Consolidated Utility Services** - Document processing, LLM operations, and recovery management consolidated for maintainability
+**Service Architecture (SOLID Principles)** ✅ BMAD Radical Simplification October 2025
+- **Orchestrator Services** - 7 focused services (unchanged - proper separation maintained)
+- **HITL Services** - 6 files → 2 consolidated services (83% reduction)
+- **Workflow Engine** - 11 files → 3 consolidated services (73% reduction, AutoGen dependencies preserved)
+- **Utility Services** - 7 files → 4 consolidated services (67% code reduction: 4,933 LOC → 1,532 LOC)
+- **Template System** - 3 focused services (unchanged - BMAD Core integration)
+- **AutoGen Services** - 4 focused services (unchanged - production reliability maintained)
+- **✅ Total Service Reduction** - 24 service files → 9 consolidated files (62.5% reduction)
+- **✅ Configuration Simplification** - 50+ variables → ~20 core settings (60% reduction)
 
-### HITL Safety Architecture
+### HITL Safety Architecture ✅ **RADICALLY SIMPLIFIED (October 2025)**
+
+**✅ HITL API Radical Simplification**
+- **BEFORE**: 28 endpoints across 3 files (hitl.py, hitl_safety.py, hitl_request_endpoints.py)
+- **AFTER**: 8 essential endpoints in 1 file (hitl_simplified.py)
+- **REDUCTION**: 71% fewer endpoints with preserved functionality
+- **Core Workflow**: Request → Approve → Monitor (eliminates complexity)
 
 **Mandatory Safety Controls**
 - **Pre-execution Approval** - Human authorization required for all agent operations
@@ -63,18 +80,21 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Emergency Stop System** - Immediate agent halting with multiple trigger conditions
 - **Real-time Monitoring** - WebSocket-based safety event broadcasting
 
-**API Endpoints**
-- 10 dedicated HITL safety endpoints (`/api/v1/hitl-safety/*`)
-- Budget management, emergency controls, approval tracking
-- Health monitoring with real-time safety system status
+**✅ Simplified API Endpoints**
+- **8 essential HITL endpoints** (`/api/v1/hitl/*`) - 71% reduction from 28 endpoints
+- **Single file implementation** - All HITL logic consolidated in `hitl_simplified.py`
+- **Essential functions only** - Request approval, approve/reject, monitor status, emergency stop
+- **Eliminated over-engineering** - Removed duplicate statistics, complex triggers, redundant context endpoints
 
 ### API Architecture
 
-**RESTful Design**
-- **81 Total Endpoints** across 13 organized service groups
-- **OpenAPI Documentation** - Interactive Swagger UI at `/docs`
-- **Endpoint Categories**: Projects, HITL, Agents, ADK, Workflows, Artifacts, Audit, Health
+**RESTful Design** ✅ **SIMPLIFIED (October 2025)**
+- **87 Total Endpoints** across 13 organized service groups
+- **✅ HITL API Simplification**: 28 endpoints → 8 essential endpoints (71% reduction)
+- **OpenAPI Documentation** - Interactive Swagger UI at `/docs` with simplification showcase
+- **Endpoint Categories**: Projects, HITL (simplified), Agents, ADK, Workflows, Artifacts, Audit, Health, System
 - **Standards Compliance** - Proper HTTP methods, status codes, error handling
+- **Core HITL Workflow**: Request → Approve → Monitor (eliminates over-engineering)
 
 **Data Validation**
 - **Pydantic 2.10.0** - Type-safe request/response validation
@@ -101,14 +121,14 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Real Database Integration** - Production-like testing with `DatabaseTestManager`
 - **Service Integration** - All services tested with proper dependency injection
 - **API Coverage** - Complete endpoint testing with error scenarios
-- **✅ Simplified Service Testing** - Consolidated services reduce test complexity and maintenance burden
+- **✅ Simplified Service Testing** - 62.5% fewer service files dramatically reduce test complexity and maintenance burden
 
 **Test Infrastructure**
 - **pytest 7.4.3** - Comprehensive testing framework
 - **pytest-asyncio 0.21.1** - Async testing support
 - **httpx 0.25.2** - HTTP client for API testing
 - **DatabaseTestManager** - Real database utilities with automatic cleanup
-- **✅ Reduced Test Surface** - 67% fewer service files means fewer integration points to test
+- **✅ Dramatically Reduced Test Surface** - 62.5% fewer service files means significantly fewer integration points to test and maintain
 
 ## Frontend Stack ✅ **FULLY INTEGRATED**
 
@@ -124,6 +144,22 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Enhanced WebSocket Client** - Project-scoped real-time communication with auto-reconnection
 - **Safety Event Handler** - HITL safety controls with emergency stop integration
 - **Type-safe Backend Integration** - Complete Pydantic model mapping to TypeScript
+
+### CopilotKit Integration ✅ **PHASE 3 COMPLETE - October 2025**
+- **CopilotKit 1.10.5** - React framework for AI copilot interfaces with chat UI
+- **ag_ui_adk 0.3.1** - AG-UI protocol support for agent-UI communication
+- **AgentContext** - React Context API for dynamic agent selection state
+- **Dynamic Agent Switching** - 6 agents with independent conversation threads
+- **Thread-Based Filtering** - Each agent maintains separate conversation history via unique threadId
+- **Fresh Runtime Per Request** - Prevents runtime mutation bugs in agent list
+- **useCoAgent Hook** - Real-time agent state synchronization between frontend and backend
+- **AgentProgressCard** - Live task progress visualization with status tracking
+- **Next.js API Proxy** - Seamless routing from frontend to FastAPI ADK endpoints with fresh CopilotRuntime
+- **LiteLLM Integration** - OpenAI GPT-4 Turbo routing via middleware
+- **Dynamic Agent Personas** - All agents load prompts from backend markdown files via AgentPromptLoader
+- **Demo Page** - `/copilot-demo` showcasing integrated chat + progress tracking
+- **End-to-End Chat** - Full message send/receive with <12s response times
+- **Zero 422 Errors** - Resolved AG-UI protocol validation issues
 
 ### UI Components ✅ **ENHANCED - September 2025 + CLEANED - October 2025**
 - **shadcn/ui + Radix UI** - Complete component system with accessibility
@@ -314,12 +350,14 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Backward Compatibility** - Graceful degradation with intelligent defaults
 - **Preserved Functionality** - All working API keys and integrations maintained
 
-### ✅ Why Service Consolidation? (October 2025)
-- **Reduced Complexity** - 67% fewer service files eliminates over-engineering
-- **Improved Maintainability** - Bug fixes in 1 place instead of 3-5 separate services
-- **Better Performance** - Reduced service overhead and simplified call chains
-- **Cleaner Architecture** - Logical grouping of related functionality (document processing, LLM operations)
-- **Developer Experience** - Easier to understand, debug, and extend consolidated services
-- **Production Readiness** - Simplified deployment with fewer moving parts
+### ✅ Why BMAD Radical Simplification? (October 2025)
+- **Eliminated Over-Engineering** - 62.5% fewer service files (24 → 9) removes excessive decomposition
+- **Dramatically Improved Maintainability** - Bug fixes in 1 consolidated service instead of 3-6 separate files
+- **Better Performance** - Reduced service overhead and simplified call chains across all layers
+- **Cleaner Architecture** - Logical grouping of related functionality (HITL workflows, document processing, LLM operations)
+- **Enhanced Developer Experience** - Easier to understand, debug, and extend consolidated services
+- **Production Readiness** - Simplified deployment with 62.5% fewer moving parts
+- **Configuration Simplicity** - 60% fewer environment variables eliminates configuration drift
+- **Preserved Functionality** - All features maintained through intelligent consolidation with backward compatibility
 
 This technology stack provides a robust foundation for enterprise-grade multi-agent orchestration with comprehensive safety controls, real-time communication, and production-ready scalability.

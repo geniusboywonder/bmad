@@ -9,7 +9,7 @@ import structlog
 from app.models.task import Task, TaskStatus
 from app.models.handoff import HandoffSchema
 from app.database.models import TaskDB
-from app.services.autogen_service import AutoGenService
+from app.agents.adk_executor import ADKAgentExecutor  # ADK-only architecture
 from app.services.context_store import ContextStoreService
 
 logger = structlog.get_logger(__name__)
@@ -20,11 +20,10 @@ class HandoffManager:
 
     def __init__(self,
                  db: Session,
-                 autogen_service: AutoGenService,
                  context_store: ContextStoreService):
         self.db = db
-        self.autogen_service = autogen_service
         self.context_store = context_store
+        # MAF wrapper created per-agent when needed
 
     def create_task_from_handoff(
         self,
@@ -143,12 +142,13 @@ class HandoffManager:
                 if artifact:
                     context_artifacts.append(artifact)
 
-            # Execute task with AutoGen
-            result = await self.autogen_service.execute_task(task, handoff, context_artifacts)
+            # Execute task with ADK agent executor
+            adk_executor = ADKAgentExecutor(agent_type=handoff.to_agent)
+            result = await adk_executor.execute_task(task, handoff, context_artifacts)
 
-            logger.info("Task processed successfully with AutoGen",
+            logger.info("Task processed successfully with ADK",
                        task_id=task.task_id,
-                       result_status=result.get("status"))
+                       success=result.get("success"))
 
             return result
 

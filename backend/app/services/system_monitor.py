@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from collections import defaultdict, deque
 import structlog
 
-from .llm_monitoring import LLMUsageTracker
+from .llm_service import LLMService
 
 logger = structlog.get_logger(__name__)
 
@@ -143,7 +143,7 @@ class SystemMonitor:
         self.last_collection = datetime.now(timezone.utc)
 
         # Dependencies
-        self.llm_tracker = LLMUsageTracker()
+        self.llm_service = LLMService({})
 
         # Initialize default alerts
         self._setup_default_alerts()

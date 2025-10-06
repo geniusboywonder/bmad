@@ -28,8 +28,8 @@ from ..models.agent_conflict import (
 from ..models.context import ContextArtifact
 from ..models.task import Task
 from ..services.context_store import ContextStoreService
-from ..services.autogen_service import AutoGenService
-from ..services.workflow_engine import WorkflowExecutionEngine
+# MAF integration - conflict resolution now uses direct agent calls, not global service
+from ..services.workflow_executor import WorkflowExecutor
 
 logger = structlog.get_logger(__name__)
 
@@ -46,9 +46,9 @@ class ConflictResolverService:
     - Conflict tracking and reporting
     """
 
-    def __init__(self, context_store: ContextStoreService, autogen_service: AutoGenService):
+    def __init__(self, context_store: ContextStoreService):
         self.context_store = context_store
-        self.autogen_service = autogen_service
+        # MAF wrapper created per-agent when needed for conflict resolution
 
         # Conflict tracking
         self.active_conflicts: Dict[str, AgentConflict] = {}

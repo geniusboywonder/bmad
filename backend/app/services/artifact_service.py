@@ -7,15 +7,14 @@ concept extraction, redundancy detection, and relationship mapping for context a
 
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import structlog
 import json
 import re
 from collections import defaultdict
 import difflib
 
-from .granularity_analyzer import GranularityAnalyzer
-from .document_sectioner import DocumentSectioner
+from .document_service import DocumentService
 
 logger = structlog.get_logger(__name__)
 
@@ -90,14 +89,13 @@ class ArtifactService:
         ])
 
         # Initialize sub-services
-        self.granularity_analyzer = GranularityAnalyzer(config)
-        self.document_sectioner = DocumentSectioner(config)
+        self.document_service = DocumentService(config)
 
         logger.info("Artifact service initialized",
                    granularity_analysis=self.enable_granularity_analysis,
                    concept_extraction=self.enable_concept_extraction)
 
-    def determine_granularity(self, content: str, artifact_type: str) -> Dict[str, Any]:
+    async def determine_granularity(self, content: str, artifact_type: str) -> Dict[str, Any]:
         """
         Determine optimal granularity strategy for content.
 
@@ -112,18 +110,20 @@ class ArtifactService:
             return {"strategy": "atomic", "confidence": 1.0}
 
         # Analyze content complexity
-        complexity = self.granularity_analyzer.analyze_complexity(content)
+        complexity_analysis = await self.document_service.analyze_granularity(content)
+        complexity = complexity_analysis.get("complexity_score", 0.5)
 
         # Create content profile
         content_profile = {
             "size": len(content),
-            "complexity_score": complexity["score"],
+            "complexity_score": complexity,
             "access_pattern": "unknown",  # Default
             "update_frequency": "unknown"  # Default
         }
 
         # Get granularity recommendation
-        recommendation = self.granularity_analyzer.recommend_granularity(content_profile)
+        granularity_analysis = await self.document_service.analyze_granularity(content)
+        recommendation = granularity_analysis.get("recommendations", ["Content granularity is optimal"])[0]
 
         # Add size category for compatibility
         size = content_profile.get("size", 0)
@@ -155,7 +155,7 @@ class ArtifactService:
         Returns:
             List of document sections
         """
-        return self.document_sectioner.section_document(content, format_type)
+        return self.document_service.section_document(content, format_type)
 
     def extract_concepts(self, content: str) -> List[Dict[str, Any]]:
         """
@@ -246,8 +246,8 @@ class ArtifactService:
 
             knowledge_units.append(unit)
 
-        # Analyze relationships between concepts
-        relationships = self.granularity_analyzer.analyze_concept_relationships(concepts)
+        # Analyze relationships between concepts (simplified)
+        relationships = []  # Simplified - can be enhanced later if needed
 
         # Add relationships to knowledge units
         concept_to_unit = {unit["concept"]: unit for unit in knowledge_units}

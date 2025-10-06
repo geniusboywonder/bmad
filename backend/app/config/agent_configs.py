@@ -5,97 +5,103 @@ import hashlib
 import structlog
 
 from app.models.agent import AgentType
+from app.settings import settings
 
 logger = structlog.get_logger(__name__)
 
 
-# Agent Configuration with Enhanced Multi-LLM Provider Support
-AGENT_CONFIGS = {
-    "analyst": {
-        "use_adk": True,  # Enable ADK for analysts first
-        "fallback_to_legacy": True,
-        "rollout_percentage": 25,  # Gradual rollout
-        "llm_config": {
-            "provider": "anthropic",
-            "model": "claude-3-5-sonnet-20241022",  # Updated to latest model
-            "temperature": 0.7,
-            "max_tokens": 4096,
-            "timeout": 30,
+# Agent Configuration with Environment-Based LLM Provider Support
+def _get_agent_configs() -> Dict[str, Dict[str, Any]]:
+    """Get agent configurations with environment-based LLM settings."""
+    return {
+        "analyst": {
+            "use_adk": True,  # Enable ADK for analysts first
+            "fallback_to_legacy": True,
+            "rollout_percentage": 25,  # Gradual rollout
+            "llm_config": {
+                "provider": getattr(settings, 'analyst_agent_provider', settings.llm_provider),
+                "model": getattr(settings, 'analyst_agent_model', settings.llm_model),
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "timeout": 30,
+            },
+            "instruction": None,  # Will be loaded dynamically from agent markdown files
+            "tools": [],
+            "specialization": "requirements_analysis",
+            "context_focus": ["user_input", "requirements", "analysis"]
         },
-        "instruction": """You are an Analyst agent. Your primary role is to interact with the Context Store to generate a comprehensive project plan, including scope, milestones, artifacts, and requirements gathering methodology. You also generate functional and non-functional requirements and initial user stories.""",
-        "tools": [],
-        "specialization": "requirements_analysis",
-        "context_focus": ["user_input", "requirements", "analysis"]
-    },
-    "architect": {
-        "use_adk": False,  # Enable after analyst validation
-        "rollout_percentage": 0,
-        "llm_config": {
-            "provider": "openai",
-            "model": "gpt-4o",
-            "temperature": 0.7,
-            "max_tokens": 4096,
-            "timeout": 30,
+        "architect": {
+            "use_adk": False,  # Enable after analyst validation
+            "rollout_percentage": 0,
+            "llm_config": {
+                "provider": getattr(settings, 'architect_agent_provider', settings.llm_provider),
+                "model": getattr(settings, 'architect_agent_model', settings.llm_model),
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "timeout": 30,
+            },
+            "instruction": None,  # Will be loaded dynamically from agent markdown files
+            "tools": [],
+            "specialization": "system_design",
+            "context_focus": ["requirements", "architecture", "design", "api", "model"]
         },
-        "instruction": """You are an Architect agent. Your primary role is to design the system architecture, define the technology stack, create a high-level database schema, and break down the project into specific, executable coding tasks for the Coder agent.""",
-        "tools": [],
-        "specialization": "system_design",
-        "context_focus": ["requirements", "architecture", "design", "api", "model"]
-    },
-    "coder": {
-        "use_adk": False,
-        "rollout_percentage": 0,
-        "llm_config": {
-            "provider": "gemini",
-            "model": "gemini-1.5-pro-latest",  # Updated to latest Gemini model
-            "temperature": 0.7,
-            "max_tokens": 4096,
-            "timeout": 30,
+        "coder": {
+            "use_adk": False,
+            "rollout_percentage": 0,
+            "llm_config": {
+                "provider": getattr(settings, 'coder_agent_provider', settings.llm_provider),
+                "model": getattr(settings, 'coder_agent_model', settings.llm_model),
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "timeout": 30,
+            },
+            "instruction": None,  # Will be loaded dynamically from agent markdown files
+            "tools": [],  # Will be populated in Phase 3
+            "specialization": "code_generation",
+            "context_focus": ["architecture", "design", "api", "model", "spec"]
         },
-        "instruction": """You are a Coder agent. Your primary role is to sequentially generate code for the defined components and functionality, and then review and refine the generated code for quality, adherence to best practices, and integration with the overall architecture.""",
-        "tools": [],  # Will be populated in Phase 3
-        "specialization": "code_generation",
-        "context_focus": ["architecture", "design", "api", "model", "spec"]
-    },
-    "tester": {
-        "use_adk": False,
-        "rollout_percentage": 0,
-        "llm_config": {
-            "provider": "gemini",
-            "model": "gemini-1.5-flash-latest",  # Cost-effective model for testing
-            "temperature": 0.7,
-            "max_tokens": 4096,
-            "timeout": 30,
+        "tester": {
+            "use_adk": False,
+            "rollout_percentage": 0,
+            "llm_config": {
+                "provider": getattr(settings, 'tester_agent_provider', settings.llm_provider),
+                "model": getattr(settings, 'tester_agent_model', settings.llm_model),
+                "temperature": 0.7,
+                "max_tokens": 4096,
+                "timeout": 30,
+            },
+            "instruction": None,  # Will be loaded dynamically from agent markdown files
+            "tools": [],
+            "specialization": "quality_assurance",
+            "context_focus": ["code", "source", "test", "spec", "requirement"]
         },
-        "instruction": """You are a Tester agent. Your primary role is to analyze the code and write a set of unit tests and integration tests to validate its functionality.""",
-        "tools": [],
-        "specialization": "quality_assurance",
-        "context_focus": ["code", "source", "test", "spec", "requirement"]
-    },
-    "deployer": {
-        "use_adk": False,
-        "rollout_percentage": 0,
-        "llm_config": {
-            "provider": "openai",
-            "model": "gpt-4o-mini",  # Cost-effective model for deployment
-            "temperature": 0.7,
-            "max_tokens": 2048,
-            "timeout": 30,
-        },
-        "instruction": """You are a Deployer agent. Your primary role is to set up the necessary infrastructure, deploy the application, and perform a final health check on the deployed application to confirm it is running as expected.""",
-        "tools": [],
-        "specialization": "infrastructure_deployment",
-        "context_focus": ["code", "source", "deployment", "config"]
+        "deployer": {
+            "use_adk": False,
+            "rollout_percentage": 0,
+            "llm_config": {
+                "provider": getattr(settings, 'deployer_agent_provider', settings.llm_provider),
+                "model": getattr(settings, 'deployer_agent_model', settings.llm_model),
+                "temperature": 0.7,
+                "max_tokens": 2048,
+                "timeout": 30,
+            },
+            "instruction": None,  # Will be loaded dynamically from agent markdown files
+            "tools": [],
+            "specialization": "infrastructure_deployment",
+            "context_focus": ["code", "source", "deployment", "config"]
+        }
     }
-}
+
+# Dynamic agent configurations based on environment settings
+AGENT_CONFIGS = _get_agent_configs()
 
 
 class ADKRolloutManager:
     """Manages gradual ADK rollout with user-based percentage control."""
 
     def __init__(self):
-        self._rollout_configs = AGENT_CONFIGS.copy()
-        logger.info("ADK Rollout Manager initialized")
+        self._rollout_configs = _get_agent_configs()  # Get fresh configs from environment
+        logger.info("ADK Rollout Manager initialized with environment-based LLM configs")
 
     def should_use_adk(self, agent_type: str, user_id: Optional[str] = None) -> bool:
         """Determine if ADK should be used based on rollout percentage.
@@ -228,9 +234,9 @@ class ADKRolloutManager:
         return self._rollout_configs.get(agent_type)
 
     def reset_to_defaults(self) -> None:
-        """Reset all configurations to default values."""
-        self._rollout_configs = AGENT_CONFIGS.copy()
-        logger.info("ADK configurations reset to defaults")
+        """Reset all configurations to default values from environment."""
+        self._rollout_configs = _get_agent_configs()
+        logger.info("ADK configurations reset to environment-based defaults")
 
     def get_rollout_metrics(self) -> Dict[str, Any]:
         """Get rollout metrics and statistics.
@@ -299,4 +305,16 @@ def get_agent_adk_config(agent_type: str) -> Optional[Dict[str, Any]]:
     Returns:
         Agent ADK configuration or None if not found
     """
-    return rollout_manager.get_agent_config(agent_type)
+    config = rollout_manager.get_agent_config(agent_type)
+    if config and config.get("instruction") is None:
+        # Load dynamic instruction from markdown files
+        try:
+            from app.utils.agent_prompt_loader import agent_prompt_loader
+            config = config.copy()  # Don't modify the original
+            config["instruction"] = agent_prompt_loader.get_agent_prompt(agent_type)
+        except Exception as e:
+            logger.warning("Failed to load dynamic instruction for agent", 
+                         agent_type=agent_type, error=str(e))
+            config["instruction"] = f"You are a {agent_type} agent. Follow instructions carefully."
+    
+    return config

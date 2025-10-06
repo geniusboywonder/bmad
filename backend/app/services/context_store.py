@@ -14,7 +14,7 @@ import os
 from collections import defaultdict
 
 from .artifact_service import ArtifactService
-from .granularity_analyzer import GranularityAnalyzer
+from .document_service import DocumentService
 
 logger = structlog.get_logger(__name__)
 
@@ -51,14 +51,14 @@ class ContextStore:
 
         # Initialize sub-services
         self.artifact_service = ArtifactService(config)
-        self.granularity_analyzer = GranularityAnalyzer(config)
+        self.document_service = DocumentService(config)
 
         logger.info("Context store initialized",
                    backend=self.storage_backend,
                    cache_enabled=self.cache_enabled,
                    compression=self.compression_enabled)
 
-    def store_artifact(self, artifact_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def store_artifact(self, artifact_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Store a context artifact with intelligent processing.
 
@@ -73,7 +73,7 @@ class ContextStore:
         artifact_type = artifact_data.get("type", "unknown")
 
         # Analyze content for optimal storage strategy
-        granularity = self.artifact_service.determine_granularity(content, artifact_type)
+        granularity = await self.artifact_service.determine_granularity(content, artifact_type)
 
         # Process content based on granularity strategy
         processed_data = self._process_artifact_for_storage(artifact_data, granularity)
@@ -652,7 +652,7 @@ class ContextStoreService:
         self.config = config
         self.db_session = db_session
 
-    def store_artifacts_batch(self, artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
+    async def store_artifacts_batch(self, artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Store multiple artifacts in batch.
 
@@ -668,7 +668,7 @@ class ContextStoreService:
 
         for artifact in artifacts:
             try:
-                result = self.context_store.store_artifact(artifact)
+                result = await self.context_store.store_artifact(artifact)
                 results.append(result)
                 if result.get("stored", False):
                     total_stored += 1

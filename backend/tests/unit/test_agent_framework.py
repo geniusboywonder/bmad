@@ -294,7 +294,8 @@ class TestBaseAgent:
         assert mock_agent.agent_type == AgentType.ANALYST
         assert mock_agent.llm_config["model"] == "gpt-4o-mini"
         assert mock_agent.response_validator is not None
-        assert mock_agent.retry_handler is not None
+        # retry_handler is now part of llm_service, not a separate attribute
+        assert mock_agent.llm_service is not None
         assert mock_agent.usage_tracker is not None
     
     @pytest.mark.asyncio
@@ -357,7 +358,7 @@ class TestBaseAgent:
         
         assert info["agent_type"] == AgentType.ANALYST.value
         assert info["reliability_features"]["validator"] is True
-        assert info["reliability_features"]["retry_handler"] is True
+        assert info["reliability_features"]["llm_service"] is True
         assert info["reliability_features"]["usage_tracker"] is True
 
 class TestAgentService:

@@ -13,8 +13,8 @@ import structlog
 from app.models.task import Task
 from app.models.handoff import HandoffSchema
 from app.services.context_store import ContextStoreService
-from app.services.autogen_service import AutoGenService
-from app.services.workflow_engine import WorkflowExecutionEngine
+# Note: BMADMAFWrapper used in agent_tasks.py, handoff_manager.py, workflow_step_processor.py
+from app.services.workflow_executor import WorkflowExecutor
 from app.services.conflict_resolver import ConflictResolverService
 
 from .project_manager import ProjectManager
@@ -35,9 +35,9 @@ class OrchestratorCore:
 
         # Initialize external services
         self.context_store = ContextStoreService(db)
-        self.autogen_service = AutoGenService()
-        self.workflow_engine = WorkflowExecutionEngine(db)
-        self.conflict_resolver = ConflictResolverService(self.context_store, self.autogen_service)
+        # MAF wrapper created per-agent when needed (not global instance)
+        self.workflow_engine = WorkflowExecutor(db)
+        self.conflict_resolver = ConflictResolverService(self.context_store)
 
         # Initialize specialized orchestrator services
         self.project_manager = ProjectManager(db)  # Consolidated service
@@ -45,7 +45,7 @@ class OrchestratorCore:
         self.workflow_integrator = WorkflowIntegrator(
             db, self.context_store, self.workflow_engine, self.conflict_resolver
         )
-        self.handoff_manager = HandoffManager(db, self.autogen_service, self.context_store)
+        self.handoff_manager = HandoffManager(db, self.context_store)
         self.context_manager = ContextManager(db, self.context_store)
 
     # ===== PROJECT LIFECYCLE MANAGEMENT =====
@@ -127,7 +127,7 @@ class OrchestratorCore:
     # ===== WORKFLOW INTEGRATION =====
 
     async def run_project_workflow(self, project_id: UUID, user_idea: str, workflow_id: str = "greenfield-fullstack"):
-        """Runs a dynamic workflow for a project using the WorkflowExecutionEngine."""
+        """Runs a dynamic workflow for a project using the WorkflowExecutor."""
         return await self.workflow_integrator.run_project_workflow(project_id, user_idea, workflow_id)
 
     def run_project_workflow_sync(self, project_id: UUID, user_idea: str, workflow_id: str = "greenfield-fullstack"):

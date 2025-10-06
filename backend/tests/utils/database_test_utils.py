@@ -130,6 +130,31 @@ class DatabaseTestManager:
             self.track_test_record('tasks', str(task.id))
             return task
 
+    def create_test_context_artifact(self, project_id: str = None, **kwargs) -> ContextArtifactDB:
+        """Create a test context artifact with proper tracking."""
+        from app.models.context import ArtifactType
+        
+        if not project_id:
+            project = self.create_test_project()
+            project_id = project.id
+
+        defaults = {
+            'project_id': project_id,
+            'content': {'test': 'data'},
+            'source_agent': 'test_agent',
+            'artifact_type': ArtifactType.AGENT_OUTPUT
+        }
+        defaults.update(kwargs)
+
+        with self.get_session() as session:
+            artifact = ContextArtifactDB(**defaults)
+            session.add(artifact)
+            session.commit()
+            session.refresh(artifact)
+
+            self.track_test_record('context_artifacts', str(artifact.id))
+            return artifact
+
     def verify_database_state(self, checks: List[Dict[str, Any]]) -> bool:
         """Verify specific database state conditions."""
         with self.get_session() as session:

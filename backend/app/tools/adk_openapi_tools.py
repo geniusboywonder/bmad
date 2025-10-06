@@ -8,7 +8,7 @@ from datetime import datetime
 
 from google.adk.tools import FunctionTool
 from app.services.hitl_safety_service import HITLSafetyService
-from app.services.llm_monitoring import LLMUsageTracker
+from app.services.llm_service import LLMService
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +21,7 @@ class BMADOpenAPITool:
         self.openapi_spec = openapi_spec
         self.adk_tool = None
         self.hitl_service = HITLSafetyService()
-        self.usage_tracker = LLMUsageTracker(enable_tracking=True)
+        self.llm_service = LLMService({"enable_monitoring": True})
         self.is_initialized = False
 
         # Tool configuration
@@ -366,7 +366,7 @@ class BMADOpenAPITool:
             estimated_tokens = self._estimate_request_tokens(parameters, result)
             estimated_cost = estimated_tokens * 0.00001  # Rough estimate
 
-            await self.usage_tracker.track_request(
+            self.llm_service.track_usage(
                 agent_type=agent_type,
                 tokens_used=estimated_tokens,
                 response_time=execution_time,

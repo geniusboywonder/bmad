@@ -161,7 +161,7 @@ export const useHITLStore = create<HITLStore>()(
           }
 
           // Check if approval still exists before trying to resolve
-          const checkResponse = await fetch(`http://localhost:8000/api/v1/hitl-safety/approvals/${approvalId}`);
+          const checkResponse = await fetch(`http://localhost:8000/api/v1/hitl/status/${approvalId}`);
 
           if (!checkResponse.ok) {
             if (checkResponse.status === 404) {
@@ -179,13 +179,12 @@ export const useHITLStore = create<HITLStore>()(
           }
 
           const approved = status === 'approved';
-          const apiResponse = await fetch(`http://localhost:8000/api/v1/hitl-safety/approve-agent-execution/${approvalId}`, {
+          const apiResponse = await fetch(`http://localhost:8000/api/v1/hitl/approve/${approvalId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               approved: approved,
-              response: response || `Request ${status}`,
-              comment: response || `Request ${status}`
+              response: response || `Request ${status}`
             }),
           });
 

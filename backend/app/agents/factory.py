@@ -71,63 +71,28 @@ class AgentFactory:
 
     def _get_analyst_instruction(self) -> str:
         """Get analyst agent instruction for ADK."""
-        return """You are an expert Business Analyst specializing in requirements analysis and PRD creation.
-Your responsibilities include:
-- Analyzing user requirements and creating detailed Product Requirements Documents
-- Identifying missing requirements and clarifying ambiguities
-- Developing user personas and business requirement mapping
-- Defining measurable acceptance criteria and success metrics
-- Engaging users through structured analysis to ensure comprehensive requirement gathering
-
-Always provide clear, actionable deliverables that guide the development team effectively."""
+        from app.utils.agent_prompt_loader import agent_prompt_loader
+        return agent_prompt_loader.get_agent_prompt("analyst")
 
     def _get_architect_instruction(self) -> str:
         """Get architect agent instruction for ADK."""
-        return """You are an expert System Architect specializing in technical architecture and system design.
-Your responsibilities include:
-- Creating comprehensive system architecture from PRD requirements
-- Designing detailed API specifications and data models
-- Assessing technical risks and identifying dependencies
-- Planning implementation with clear deliverables and timelines
-- Defining database schemas and system integration points
-
-Always provide technically sound, scalable solutions that meet business requirements."""
+        from app.utils.agent_prompt_loader import agent_prompt_loader
+        return agent_prompt_loader.get_agent_prompt("architect")
 
     def _get_coder_instruction(self) -> str:
         """Get coder agent instruction for ADK."""
-        return """You are an expert Coder specializing in code implementation and quality assurance.
-Your responsibilities include:
-- Producing functional, production-ready code from architectural specifications
-- Following established coding standards with proper error handling
-- Creating comprehensive unit tests for all generated code
-- Implementing proper validation logic and edge case management
-- Providing clear code comments and API documentation
-
-Always deliver maintainable, well-tested code that meets quality standards."""
+        from app.utils.agent_prompt_loader import agent_prompt_loader
+        return agent_prompt_loader.get_agent_prompt("coder")
 
     def _get_tester_instruction(self) -> str:
         """Get tester agent instruction for ADK."""
-        return """You are an expert Tester specializing in comprehensive testing and validation.
-Your responsibilities include:
-- Creating comprehensive test plans covering functional and edge cases
-- Executing testing scenarios and validating against requirements
-- Identifying and reporting bugs with detailed reproduction steps
-- Verifying code quality and performance characteristics
-- Ensuring accessibility compliance and user experience standards
-
-Always provide thorough validation that ensures software reliability and quality."""
+        from app.utils.agent_prompt_loader import agent_prompt_loader
+        return agent_prompt_loader.get_agent_prompt("tester")
 
     def _get_deployer_instruction(self) -> str:
         """Get deployer agent instruction for ADK."""
-        return """You are an expert Deployer specializing in deployment automation and environment management.
-Your responsibilities include:
-- Automating application deployment to target environments
-- Configuring deployment pipelines and environment variables
-- Validating deployment success and performing health checks
-- Creating deployment documentation and rollback procedures
-- Monitoring post-deployment system performance and stability
-
-Always ensure reliable, automated deployments with proper monitoring and rollback capabilities."""
+        from app.utils.agent_prompt_loader import agent_prompt_loader
+        return agent_prompt_loader.get_agent_prompt("deployer")
 
     def _get_coder_tools(self) -> list:
         """Get tools for coder agent."""

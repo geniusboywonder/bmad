@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  outputFileTracingRoot: '/Users/neill/Documents/AI Code/Projects/bmad/frontend',
   outputFileTracingExcludes: {
     '*': [
       'venv/**/*',

@@ -1,51 +1,57 @@
-import { websocketManager } from "@/lib/services/websocket/enhanced-websocket-client";
+/**
+ * CopilotKit Runtime Endpoint
+ *
+ * Adapts CopilotKit frontend to AG-UI backend endpoints
+ */
 
-export async function POST(req: Request): Promise<Response> {
-  const transformStream = new TransformStream();
-  const writer = transformStream.writable.getWriter();
-  const encoder = new TextEncoder();
+import {
+  CopilotRuntime,
+  ExperimentalEmptyAdapter,
+  copilotRuntimeNextJSAppRouterEndpoint,
+} from "@copilotkit/runtime";
+import { HttpAgent } from "@ag-ui/client";
+import { NextRequest } from "next/server";
 
-  // Get the global WebSocket connection
-  const globalConnection = websocketManager.getGlobalConnection();
+const BACKEND_BASE_URL = "http://localhost:8000";
 
-  const listener = (message: any) => {
-    console.log("Writing to stream:", message);
-    writer.write(encoder.encode("data: " + JSON.stringify(message) + "\n\n"));
+const serviceAdapter = new ExperimentalEmptyAdapter();
+
+// Create agents factory to get fresh instances
+function createAgents() {
+  return {
+    analyst: new HttpAgent({
+      url: `${BACKEND_BASE_URL}/api/copilotkit/analyst`,
+    }),
+    architect: new HttpAgent({
+      url: `${BACKEND_BASE_URL}/api/copilotkit/architect`,
+    }),
+    coder: new HttpAgent({
+      url: `${BACKEND_BASE_URL}/api/copilotkit/coder`,
+    }),
+    orchestrator: new HttpAgent({
+      url: `${BACKEND_BASE_URL}/api/copilotkit/orchestrator`,
+    }),
+    tester: new HttpAgent({
+      url: `${BACKEND_BASE_URL}/api/copilotkit/tester`,
+    }),
+    deployer: new HttpAgent({
+      url: `${BACKEND_BASE_URL}/api/copilotkit/deployer`,
+    }),
   };
-
-  // Subscribe to all message events from the WebSocket
-  globalConnection.on('message', listener);
-
-  req.signal.onabort = () => {
-    globalConnection.off('message', listener);
-    writer.close();
-  };
-
-  const forwardRequestToSocket = async () => {
-    try {
-      const body = await req.json();
-      if (body.message) {
-        const backendMessage = {
-            type: 'user_command',
-            data: {
-              command: 'chat_message',
-              text: body.message,
-            },
-          };
-        globalConnection.send(JSON.stringify(backendMessage));
-      }
-    } catch (error) {
-        // Ignore errors from reading the body, as it might have been already read.
-    }
-  }
-
-  forwardRequestToSocket();
-
-  return new Response(transformStream.readable, {
-    headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
 }
+
+export const POST = async (req: NextRequest) => {
+  // Create fresh runtime for each request to prevent agent list mutation
+  const agents = createAgents();
+  const runtime = new CopilotRuntime({ agents });
+
+  console.log('[CopilotKit Runtime] Handling request, available agents:', Object.keys(agents));
+
+  const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
+    runtime,
+    serviceAdapter,
+    endpoint: "/api/copilotkit",
+  });
+
+  return handleRequest(req);
+};

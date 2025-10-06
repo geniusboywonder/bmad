@@ -147,9 +147,7 @@ class Phase1EnvironmentSetup:
         env_lines = env_content.split('\n') if env_content else []
 
         redis_config = [
-            "REDIS_URL=redis://localhost:6379/0",
-            "CELERY_BROKER_URL=redis://localhost:6379/0",
-            "CELERY_RESULT_BACKEND=redis://localhost:6379/0"
+            "REDIS_URL=redis://localhost:6379/0"
         ]
 
         for config in redis_config:

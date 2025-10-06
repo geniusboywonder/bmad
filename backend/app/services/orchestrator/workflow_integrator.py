@@ -8,7 +8,7 @@ import structlog
 
 from app.models.agent import AgentType
 from app.services.context_store import ContextStoreService
-from app.services.workflow_engine import WorkflowExecutionEngine
+from app.services.workflow_executor import WorkflowExecutor
 from app.services.conflict_resolver import ConflictResolverService
 
 logger = structlog.get_logger(__name__)
@@ -20,7 +20,7 @@ class WorkflowIntegrator:
     def __init__(self,
                  db: Session,
                  context_store: ContextStoreService,
-                 workflow_engine: WorkflowExecutionEngine,
+                 workflow_engine: WorkflowExecutor,
                  conflict_resolver: ConflictResolverService):
         self.db = db
         self.context_store = context_store
@@ -29,7 +29,7 @@ class WorkflowIntegrator:
 
     async def run_project_workflow(self, project_id: UUID, user_idea: str, workflow_id: str = "greenfield-fullstack"):
         """
-        Runs a dynamic workflow for a project using the WorkflowExecutionEngine.
+        Runs a dynamic workflow for a project using the WorkflowExecutor.
 
         Args:
             project_id: UUID of the project

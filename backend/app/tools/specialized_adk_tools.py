@@ -8,7 +8,7 @@ from datetime import datetime
 
 from app.tools.adk_tool_registry import tool_registry
 from app.services.context_store import ContextStoreService
-from app.services.llm_monitoring import LLMUsageTracker
+from app.services.llm_service import LLMService
 
 logger = structlog.get_logger(__name__)
 

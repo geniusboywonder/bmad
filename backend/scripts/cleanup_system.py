@@ -63,10 +63,8 @@ class SystemCleaner:
                 redis_url_main = redis_url_main.rstrip('/') + '/0'
             self.redis_main = redis.from_url(redis_url_main)
 
-            # Connect to Celery Redis database (DB 1)
-            redis_url_celery = settings.redis_celery_url
-            if not redis_url_celery.endswith('/1'):
-                redis_url_celery = redis_url_celery.rstrip('/') + '/1'
+            # Connect to Redis (single database for all services)
+            redis_url_celery = settings.redis_url
             self.redis_celery = redis.from_url(redis_url_celery)
 
             # Test connections
