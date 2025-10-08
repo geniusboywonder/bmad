@@ -72,6 +72,12 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **REDUCTION**: 71% fewer endpoints with preserved functionality
 - **Core Workflow**: Request → Approve → Monitor (eliminates complexity)
 
+**Auto-Approval Counter (Native Action Flow)**
+- **`HitlCounterService`** (`backend/app/services/hitl_counter_service.py`) - Manages per-project HITL settings (enabled status, action limit, remaining actions) in Redis.
+- **Backend Governor** - The `ADKAgentExecutor` intercepts agent tasks. If the auto-approval limit is reached, it instructs the LLM to call the `reconfigureHITL` frontend action.
+- **Frontend Native Action** - The `copilot-demo` page uses `useCopilotAction` to define the `reconfigureHITL` tool, which renders an interactive prompt within the chat when called.
+- **Seamless Resumption** - The custom `HITLAwareLlmAgent` on the backend processes the result from the frontend action, updates the settings, and seamlessly resumes the user's original, paused request.
+
 **Mandatory Safety Controls**
 - **Pre-execution Approval** - Human authorization required for all agent operations
 - **✅ Duplicate Prevention** - Single HITL approval per task eliminates redundant messages (October 2025)
@@ -174,12 +180,11 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **✅ NEW: Expandable Artifacts System** - Progress tracking and download functionality
 - **✅ CLEANED: Chat Components** - Removed broken/experimental variants, single canonical implementation
 - **✅ INLINE HITL Updates** - Inline approval component now locks after a decision and displays the reviewer directive inline
-- **✅ HITL Counter Alert** - Chat card with counter input, HITL toggle, and Continue/Stop controls surfaced when the auto-approval limit is reached
 - **✅ Policy Guidance Banner** - Clarifies current SDLC phase, allowed agents, and highlights off-phase requests inside the Copilot demo
 
 ### State Management ✅ **ENHANCED - September 2025 + October 2025**
 - **Project Store** - Complete project lifecycle with backend synchronization
-- **HITL Store** - Request lifecycle management with decision persistence, counter tracking, expiration handling, and error recovery
+- **HITL Store** - Request lifecycle management with decision persistence, expiration handling, and error recovery for manual approvals
 - **Real-time Synchronization** - WebSocket event handling with optimistic updates
 - **Error Boundary System** - Comprehensive error handling with user-friendly recovery
 - **Loading State Management** - Consistent loading patterns across all components

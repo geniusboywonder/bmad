@@ -196,7 +196,21 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             if not budget_check.approved:
                 raise BudgetLimitExceeded(f"Budget limit exceeded: {budget_check.reason}")
             
-            # Check if approval already exists for this task to prevent duplicates
+            # --- HITL Counter Governor ---
+            hitl_counter_service = HitlCounterService()
+            is_auto_approved, _ = hitl_counter_service.check_and_decrement_counter(project_uuid)
+
+            approval_granted = False
+            approval_comment = None
+
+            if is_auto_approved:
+                logger.info("Task auto-approved by HITL counter.", task_id=str(task_uuid))
+                approval_granted = True
+                approval_comment = "Auto-approved by HITL counter"
+            else:
+                logger.info("HITL counter limit reached. Falling back to manual approval.", task_id=str(task_uuid))
+
+                # Manual approval workflow
                 existing_approval = db.query(HitlAgentApprovalDB).filter(
                     HitlAgentApprovalDB.task_id == task_uuid,
                     HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])
@@ -210,7 +224,6 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                     approval_id = existing_approval.id
                     approval_record = existing_approval
                 else:
-                    # Create pre-execution approval record
                     estimated_cost = float(estimated_tokens * 0.00015)
                     expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
                     approval_record = HitlAgentApprovalDB(
@@ -218,12 +231,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                         task_id=task_uuid,
                         agent_type=agent_type,
                         request_type="PRE_EXECUTION",
-                        request_data={
-                            "instructions": instructions,
-                            "estimated_tokens": estimated_tokens,
-                            "context_ids": [str(cid) for cid in context_uuids],
-                            "agent_type": agent_type
-                        },
+                        request_data={"instructions": instructions},
                         estimated_tokens=estimated_tokens,
                         estimated_cost=estimated_cost,
                         expires_at=expires_at,
@@ -234,39 +242,21 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                     approval_id = approval_record.id
                     logger.info("Created HITL approval record", task_id=str(task_uuid), approval_id=str(approval_id))
 
-                # Broadcast HITL approval request event
                 hitl_event = WebSocketEvent(
                     event_type=EventType.HITL_REQUEST_CREATED,
                     project_id=project_uuid,
                     task_id=task_uuid,
                     agent_type=agent_type,
-                    data={
-                        "approval_id": str(approval_id),
-                        "agent_type": agent_type,
-                        "request_type": "PRE_EXECUTION",
-                        "estimated_tokens": estimated_tokens,
-                        "estimated_cost": estimated_cost,
-                        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
-                        "request_data": {
-                            "instructions": instructions,
-                            "estimated_tokens": estimated_tokens,
-                            "context_ids": [str(cid) for cid in context_uuids],
-                            "agent_type": agent_type
-                        },
-                        "message": f"HITL approval required for {agent_type} agent execution",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
-                    }
+                    data={"approval_id": str(approval_id)}
                 )
                 asyncio.run(websocket_manager.broadcast_event(hitl_event))
-                logger.info("HITL approval request event broadcast", task_id=str(task_uuid), approval_id=str(approval_id))
 
-                # Wait for human approval by polling database
                 logger.info("Waiting for HITL pre-execution approval", task_id=str(task_uuid), approval_id=str(approval_id))
                 timeout_minutes = 30
                 poll_interval = 5
                 max_polls = (timeout_minutes * 60) // poll_interval
 
-                for poll_count in range(max_polls):
+                for _ in range(max_polls):
                     db.refresh(approval_record)
                     if approval_record.status == "APPROVED":
                         approval_granted = True

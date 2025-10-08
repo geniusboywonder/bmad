@@ -158,23 +158,20 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - Counter reset prompt when auto-action limit reached
 - Ability to adjust counter value from chat prompt
 
-### 4.3 Auto-Approval Counters (Redis-backed) ✅ NEW
+### 4.3 Auto-Approval Counters (CopilotKit Native Action) ✅ NEW
 
-- **HitlCounterService** (`backend/app/services/hitl_counter_service.py`) stores per-project settings in Redis (`enabled`, `counter_total`, `counter_remaining`, `locked`, `alert_sent`).
-- **Celery Task Flow**: `process_agent_task` consults the counter before creating approvals:
-  - HITL disabled → task runs automatically with safety checks only.
-  - Counter > 0 → decrements remaining approvals and auto-executes the task.
-  - Counter exhausted → locks auto-approvals and routes subsequent messages through the existing HITL path.
-- **Broadcasting**: Every change emits a `HITL_COUNTER` WebSocket event so the frontend can reflect the latest counter/toggle state and display the limit-reaching card.
-- **REST API**:
-  - `GET /api/v1/hitl/settings/{project_id}` – Fetch current toggle/counter state.
-  - `POST /settings/{project_id}/toggle` – Enable/disable HITL.
-  - `POST /settings/{project_id}/counter` – Update counter limit (optionally resets remaining).
-  - `POST /settings/{project_id}/continue` – Reset/unlock counter and resume auto approvals.
-  - `POST /settings/{project_id}/stop` – Force manual-only workflow (counter locked at zero).
-- **Frontend Experience**:
-  - `HitlCounterAlert` chat card renders when the counter reaches zero, exposing the counter input, toggle, and `Continue`/`Stop` actions.
-  - Zustand HITL store keeps settings per project, synchronises via the WebSocket event, and surfaces new helper actions for UI components.
+- **`HitlCounterService`** (`backend/app/services/hitl_counter_service.py`) stores per-project settings in Redis (`enabled`, `limit`, `remaining`).
+- **Backend Governor Flow**: The `ADKAgentExecutor` acts as a "governor" for agent actions.
+  - Before executing a task, it calls the `HitlCounterService` to check if auto-approvals are enabled and if the remaining action count is greater than zero.
+  - If an action is allowed, the counter is decremented, and the task proceeds.
+  - If the limit is reached, the executor intercepts the task. It generates a new, high-priority instruction for the LLM, commanding it to call the `reconfigureHITL` tool with the current settings. The LLM's response, which is a `tool_calls` payload, is then sent to the frontend.
+- **Frontend Native Action**: The frontend uses a native CopilotKit action to handle the HITL intervention.
+  - In `frontend/app/copilot-demo/page.tsx`, a `reconfigureHITL` tool is defined using the `useCopilotAction` hook.
+  - The `render` property of this action is used to display the `HITLReconfigurePrompt` component directly within the chat when the tool is called by the backend.
+  - The user's response from the prompt (new limit, new status) is captured and sent back to the backend as the result of the tool call.
+- **Seamless Resumption**: The `HITLAwareLlmAgent` on the backend is designed to handle the result of the `reconfigureHITL` tool.
+  - It intercepts the tool result, uses the `HitlCounterService` to update the settings in Redis, and then truncates the conversation history to remove the tool-related messages.
+  - It then re-runs the agent with the cleaned history, allowing the user's original, paused request to be processed seamlessly.
 
 ## 4.5 ✅ COMPLETED: BMAD Radical Simplification Plan (October 2025)
 

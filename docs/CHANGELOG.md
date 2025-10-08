@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Shared `policyGuidance` state in the frontend store with Copilot demo UI surfacing allowed agents, chat input gating, and accompanying vitest coverage for policy normalization.
 
 ### Changed
+- **Refactored HITL counter to use a native CopilotKit action flow.** The system no longer relies on a custom WebSocket event and REST API endpoint to handle the "limit reached" state. Instead, the backend governor now instructs the LLM to call a `reconfigureHITL` tool, which is a `useCopilotAction` on the frontend that renders an interactive prompt. This creates a more robust and framework-aligned implementation.
 - Enforced single-action behavior for inline HITL approvals and surface the chosen action on chat messages.
 - Backend `HITLSafetyService` now records explicit `HitlAction` selections and emits HITL response events for agent routing.
 - Updated HITL store to persist action metadata and align websocket updates, with refreshed unit tests.

@@ -73,6 +73,9 @@ backend/
 │   │   ├── factory.py                 # ✅ Agent factory with dynamic prompt loading
 │   │   ├── [analyst|architect|coder|tester|deployer|orchestrator].md # ✅ Agent persona definitions (YAML in markdown)
 │   │   └── [analyst|architect|coder|tester|deployer].py # Legacy agents
+│   ├── copilot/             # ✅ NEW: CopilotKit specific integration logic
+│   │   ├── adk_runtime.py   # ✅ AG-UI ADK Runtime for CopilotKit
+│   │   └── hitl_aware_agent.py # ✅ Custom agent to handle HITL tool responses
 │   ├── api/                 # ✅ SIMPLIFIED: REST API endpoints (87 endpoints, 13 groups)
 │   │   ├── adk.py          # ADK endpoints (26 endpoints)
 │   │   ├── agents.py       # Agent management (4 endpoints)
@@ -140,7 +143,7 @@ backend/
 │   │   ├── bmad_core_service.py          # BMAD Core integration
 │   │   ├── context_store.py              # Context storage service
 │   │   ├── hitl_safety_service.py        # HITL safety controls + action processing/broadcasting
-│   │   ├── hitl_counter_service.py       # Redis-backed HITL toggle + counter management
+│   │   ├── hitl_counter_service.py       # ✅ NEW: Redis-backed HITL counter management for native action flow
 │   │   ├── project_completion_service.py # Project lifecycle management
 │   │   ├── quality_gate_service.py       # Quality gate evaluation
 │   │   ├── response_safety_analyzer.py   # Response safety analysis
