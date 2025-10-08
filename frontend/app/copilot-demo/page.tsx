@@ -96,8 +96,16 @@ export default function CopilotDemoPage() {
     if (!isClient) return;
 
     const handlePolicyViolation = (event: PolicyViolationEvent) => {
-      const { reason_code, message, current_phase, allowed_agents } = event.data;
-      
+      const { status, message, current_phase, allowed_agents } = event.data;
+
+      // Update the application state to show the policy guidance UI.
+      setPolicyGuidance({
+        status: status as "denied",
+        message: message,
+        currentPhase: current_phase,
+        allowedAgents: allowed_agents as AgentType[],
+      });
+
       const allowedAgentsString = allowed_agents.join(', ');
       const toastMessage = `
         **Policy Violation**

@@ -1,0 +1,28 @@
+# Policy configuration for agent access control based on SDLC phase.
+# This file defines which agents are allowed to be invoked during each phase.
+# The 'orchestrator' is allowed in all phases as it manages the workflow.
+
+analyze:
+  allowed_agents:
+    - "analyst"
+    - "orchestrator"
+
+design:
+  allowed_agents:
+    - "architect"
+    - "orchestrator"
+
+build:
+  allowed_agents:
+    - "coder"
+    - "orchestrator"
+
+validate:
+  allowed_agents:
+    - "tester"
+    - "orchestrator"
+
+launch:
+  allowed_agents:
+    - "deployer"
+    - "orchestrator"

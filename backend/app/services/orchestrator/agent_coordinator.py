@@ -11,15 +11,17 @@ from app.models.agent import AgentType, AgentStatus
 from app.database.models import TaskDB, AgentStatusDB
 from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
+from app.services.orchestrator.phase_policy_service import PhasePolicyService
+from app.services.orchestrator.exceptions import PolicyViolationException
 
 logger = structlog.get_logger(__name__)
-
 
 class AgentCoordinator:
     """Coordinates agent assignments and execution."""
 
     def __init__(self, db: Session):
         self.db = db
+        self.phase_policy_service = PhasePolicyService(db)
 
     def create_task(
         self,
@@ -28,7 +30,12 @@ class AgentCoordinator:
         instructions: str,
         context_ids: List[UUID] = None
     ) -> Task:
-        """Create a new task for an agent."""
+        """Create a new task for an agent, enforcing phase policies."""
+
+        # Enforce phase policy
+        policy_decision = self.phase_policy_service.evaluate(project_id, agent_type)
+        if policy_decision.status == "denied":
+            raise PolicyViolationException(policy_decision)
 
         if context_ids is None:
             context_ids = []

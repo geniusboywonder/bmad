@@ -94,6 +94,7 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - OrchestratorCore: Main coordination logic with AutoGen integration
 - ProjectLifecycleManager: SDLC phase management
 - AgentCoordinator: Agent assignment and task distribution
+- PhasePolicyService: Enforces that agent actions are valid for the current SDLC phase based on a configurable policy.
 - WorkflowIntegrator: Workflow engine coordination
 - HandoffManager: Agent handoff logic (AutoGen-based)
 - StatusTracker: Performance monitoring

@@ -131,6 +131,13 @@ async def get_project_status(
     }
 
 
+import structlog
+from app.services.orchestrator.exceptions import PolicyViolationException
+from app.websocket.manager import websocket_manager
+from app.websocket.events import WebSocketEvent, EventType
+
+logger = structlog.get_logger(__name__)
+
 @router.post("/{project_id}/tasks", status_code=status.HTTP_201_CREATED)
 async def create_task(
     project_id: UUID,
@@ -138,36 +145,60 @@ async def create_task(
     orchestrator: OrchestratorService = Depends(get_orchestrator_service)
 ):
     """Create a new task for a project."""
-    
-    task = orchestrator.create_task(
-        project_id=project_id,
-        agent_type=request.agent_type,
-        instructions=request.instructions,
-        context_ids=request.context_ids
-    )
-    
-    # Submit task to queue with estimated tokens
-    task_data = {
-        "task_id": str(task.task_id),
-        "project_id": str(task.project_id),
-        "agent_type": task.agent_type,
-        "instructions": task.instructions,
-        "context_ids": [str(cid) for cid in task.context_ids],
-        "estimated_tokens": request.estimated_tokens
-    }
-    
-    from app.tasks.agent_tasks import process_agent_task
-    celery_task = process_agent_task.delay(task_data)
-    celery_task_id = celery_task.id
-    
-    return {
-        "task_id": task.task_id,
-        "celery_task_id": celery_task_id,
-        "status": "submitted",
-        "hitl_required": True,
-        "estimated_tokens": request.estimated_tokens,
-        "message": "Task created but requires HITL approval before execution"
-    }
+    try:
+        task = orchestrator.create_task(
+            project_id=project_id,
+            agent_type=request.agent_type,
+            instructions=request.instructions,
+            context_ids=request.context_ids
+        )
+
+        # Submit task to queue with estimated tokens
+        task_data = {
+            "task_id": str(task.task_id),
+            "project_id": str(task.project_id),
+            "agent_type": task.agent_type,
+            "instructions": task.instructions,
+            "context_ids": [str(cid) for cid in task.context_ids],
+            "estimated_tokens": request.estimated_tokens
+        }
+
+        from app.tasks.agent_tasks import process_agent_task
+        celery_task = process_agent_task.delay(task_data)
+        celery_task_id = celery_task.id
+
+        return {
+            "task_id": task.task_id,
+            "celery_task_id": celery_task_id,
+            "status": "submitted",
+            "hitl_required": True,
+            "estimated_tokens": request.estimated_tokens,
+            "message": "Task created but requires HITL approval before execution"
+        }
+    except PolicyViolationException as e:
+        logger.warning(
+            "Policy violation caught in API",
+            project_id=project_id,
+            agent_type=request.agent_type,
+            decision=e.decision,
+        )
+        # Broadcast the policy violation event to the frontend
+        event = WebSocketEvent(
+            event_type=EventType.POLICY_VIOLATION,
+            project_id=project_id,
+            data={
+                "status": e.decision.status,
+                "reason_code": e.decision.reason_code,
+                "message": e.decision.message,
+                "current_phase": e.decision.current_phase,
+                "allowed_agents": e.decision.allowed_agents,
+            },
+        )
+        await websocket_manager.broadcast_to_project(project_id, event)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=e.decision.message,
+        )
 
 
 @router.get("/{project_id}/completion")
