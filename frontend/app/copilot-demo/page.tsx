@@ -162,10 +162,10 @@ export default function CopilotDemoPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Toaster />
       {/* HITLAlertsBar is removed. Toasts will be handled by the Toaster in the root layout. */}
       
         <div className="container mx-auto p-6 flex-1">
+          <Toaster />
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">
               BMAD AI Agent Dashboard

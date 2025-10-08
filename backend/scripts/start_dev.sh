@@ -56,49 +56,49 @@ except Exception as e:
     print('Please ensure PostgreSQL is running and the database exists')
 "
 
-# Start Redis if not running - COMMENTED OUT FOR SQLITE FALLBACK
-# echo "🔴 Starting Redis server..."
-# if command -v brew &> /dev/null; then
-#     # macOS with Homebrew
-#     if brew services list | grep redis | grep started > /dev/null; then
-#         echo "   ✅ Redis already running (Homebrew)"
-#     else
-#         brew services start redis && echo "   ✅ Redis started (Homebrew)" || echo "   ❌ Failed to start Redis with Homebrew"
-#     fi
-# elif command -v systemctl &> /dev/null; then
-#     # Linux with systemd
-#     if systemctl is-active --quiet redis-server; then
-#         echo "   ✅ Redis already running (systemctl)"
-#     else
-#         sudo systemctl start redis-server && echo "   ✅ Redis started (systemctl)" || echo "   ❌ Failed to start Redis with systemctl"
-#     fi
-# else
-#     echo "   ⚠️  Cannot auto-start Redis. Please start it manually:"
-#     echo "      macOS: brew services start redis"
-#     echo "      Linux: sudo systemctl start redis-server"
-# fi
+# Start Redis if not running
+echo "🔴 Starting Redis server..."
+if command -v brew &> /dev/null; then
+    # macOS with Homebrew
+    if brew services list | grep redis | grep started > /dev/null; then
+        echo "   ✅ Redis already running (Homebrew)"
+    else
+        brew services start redis && echo "   ✅ Redis started (Homebrew)" || echo "   ❌ Failed to start Redis with Homebrew"
+    fi
+elif command -v systemctl &> /dev/null; then
+    # Linux with systemd
+    if systemctl is-active --quiet redis-server; then
+        echo "   ✅ Redis already running (systemctl)"
+    else
+        sudo systemctl start redis-server && echo "   ✅ Redis started (systemctl)" || echo "   ❌ Failed to start Redis with systemctl"
+    fi
+else
+    echo "   ⚠️  Cannot auto-start Redis. Please start it manually:"
+    echo "      macOS: brew services start redis"
+    echo "      Linux: sudo systemctl start redis-server"
+fi
 
-# Verify Redis connection - COMMENTED OUT FOR SQLITE FALLBACK
-# echo "🔍 Verifying Redis connection..."
-# python -c "
-# import time
-# try:
-#     import redis
-#     from app.settings import settings
-#     r = redis.from_url(settings.redis_url)
-#     r.ping()
-#     print('   ✅ Redis connection successful')
-# except Exception as e:
-#     print(f'   ❌ Redis connection failed: {e}')
-#     print('   Please ensure Redis is running on localhost:6379')
-#     exit(1)
-# "
+# Verify Redis connection
+echo "🔍 Verifying Redis connection..."
+python -c "
+import time
+try:
+    import redis
+    from app.settings import settings
+    r = redis.from_url(settings.redis_url)
+    r.ping()
+    print('   ✅ Redis connection successful')
+except Exception as e:
+    print(f'   ❌ Redis connection failed: {e}')
+    print('   Please ensure Redis is running on localhost:6379')
+    exit(1)
+"
 
-# Exit if Redis check failed - COMMENTED OUT FOR SQLITE FALLBACK
-# if [ $? -ne 0 ]; then
-#     echo "❌ Cannot proceed without Redis. Please start Redis and try again."
-#     exit 1
-# fi
+# Exit if Redis check failed
+if [ $? -ne 0 ]; then
+    echo "❌ Cannot proceed without Redis. Please start Redis and try again."
+    exit 1
+fi
 
 # Run database migrations
 echo "🔄 Running database migrations..."

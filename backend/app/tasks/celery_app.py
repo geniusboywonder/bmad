@@ -9,11 +9,9 @@ celery_app = Celery(
     include=["app.tasks.agent_tasks"]
 )
 
-# Configure broker and backend URLs
-# By default, Celery will use the CELERY_BROKER_URL and CELERY_RESULT_BACKEND
-# environment variables. We will set these to use a SQLite backend.
-# celery_app.conf.broker_url = settings.redis_url
-# celery_app.conf.result_backend = settings.redis_url
+# Configure broker and backend URLs (Single Redis DB)
+celery_app.conf.broker_url = settings.redis_url
+celery_app.conf.result_backend = settings.redis_url
 
 # Celery configuration
 celery_app.conf.update(
