@@ -196,38 +196,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             if not budget_check.approved:
                 raise BudgetLimitExceeded(f"Budget limit exceeded: {budget_check.reason}")
             
-            # --- HITL Counter Governor ---
-            hitl_counter_service = HitlCounterService()
-            is_auto_approved, limit_just_reached = hitl_counter_service.check_and_decrement_counter(project_uuid)
-
-            if limit_just_reached:
-                logger.warning("Broadcasting HITL counter limit reached event.", task_id=str(task_uuid))
-                current_settings = hitl_counter_service.get_settings(project_uuid)
-                limit_reached_event = WebSocketEvent(
-                    event_type=EventType.HITL_COUNTER_LIMIT_REACHED,
-                    project_id=project_uuid,
-                    task_id=task_uuid,
-                    agent_type=agent_type,
-                    data={
-                        "message": "HITL auto-approval limit reached. Manual approval is now required.",
-                        "current_settings": current_settings,
-                        "timestamp": datetime.now(timezone.utc).isoformat()
-                    }
-                )
-                asyncio.run(websocket_manager.broadcast_event(limit_reached_event))
-
-            approval_granted = False
-            approval_comment = None
-
-            if is_auto_approved:
-                logger.info("Task auto-approved by HITL counter.", task_id=str(task_uuid))
-                approval_granted = True
-                approval_comment = "Auto-approved by HITL counter"
-            else:
-                logger.info("HITL counter limit reached. Falling back to manual approval.", task_id=str(task_uuid))
-
-                # Manual approval workflow
-                # Check if approval already exists for this task to prevent duplicates
+            # Check if approval already exists for this task to prevent duplicates
                 existing_approval = db.query(HitlAgentApprovalDB).filter(
                     HitlAgentApprovalDB.task_id == task_uuid,
                     HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])

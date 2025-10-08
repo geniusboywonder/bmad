@@ -20,7 +20,6 @@ class EventType(str, Enum):
     ARTIFACT_CREATED = "artifact_created"
     WORKFLOW_EVENT = "workflow_event"
     AGENT_CHAT_MESSAGE = "agent_chat_message"
-    HITL_COUNTER_LIMIT_REACHED = "hitl_counter_limit_reached"
     ERROR = "error"
 
 

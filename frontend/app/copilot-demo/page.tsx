@@ -43,7 +43,6 @@ export default function CopilotDemoPage() {
   const { selectedAgent, setSelectedAgent } = useAgent();
   const policyGuidance = useAppStore((state) => state.policyGuidance);
   const setPolicyGuidance = useAppStore((state) => state.setPolicyGuidance);
-  const [hitlPromptData, setHitlPromptData] = useState<{ settings: any; projectId: string | null } | null>(null);
 
   // Available agents
   const availableAgents = [
@@ -79,28 +78,45 @@ export default function CopilotDemoPage() {
       });
     };
 
-    const handleLimitReached = (event: any) => {
-      console.log("HITL limit reached event received:", event);
-      toast.warning("HITL Limit Reached", {
-        description: "Auto-approval limit reached. Manual approval is now required for agent actions.",
-        duration: 8000,
-      });
-      setHitlPromptData({
-        settings: event.data.current_settings,
-        projectId: event.project_id,
-      });
-    };
-
     const wsClient = websocketManager.getGlobalConnection();
     const unsubscribePolicy = wsClient.on('policy_violation', handlePolicyViolation);
-    const unsubscribeLimit = wsClient.on('hitl_counter_limit_reached', handleLimitReached);
-
 
     return () => {
       unsubscribePolicy();
-      unsubscribeLimit();
     };
   }, [isClient]);
+
+  // Define the client-side action for HITL reconfiguration
+  const reconfigureHITL = useCopilotAction({
+    name: "reconfigureHITL",
+    description: "Renders a prompt to reconfigure HITL settings when the action limit is reached.",
+    parameters: [
+      { name: "actionLimit", type: "number", description: "The current action limit." },
+      { name: "isHitlEnabled", type: "boolean", description: "The current HITL status." },
+    ],
+    render: (props) => {
+      const { actionLimit, isHitlEnabled } = props.args;
+
+      const handleContinue = (response: { newLimit: number; newStatus: boolean }) => {
+        console.log("Frontend: Continue button clicked. Sending response to backend:", response);
+        props.done(JSON.stringify(response));
+      };
+
+      const handleStop = () => {
+        console.log("Frontend: Stop button clicked. Sending stop signal to backend.");
+        props.done(JSON.stringify({ newStatus: false, stop: true }));
+      };
+
+      return (
+        <HITLReconfigurePrompt
+          initialLimit={actionLimit}
+          initialStatus={isHitlEnabled}
+          onContinue={handleContinue}
+          onStop={handleStop}
+        />
+      );
+    },
+  });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -150,43 +166,6 @@ export default function CopilotDemoPage() {
                     Dismiss
                   </Button>
                 </div>
-              </div>
-            )}
-
-            {/* --- HITL Reconfiguration Prompt --- */}
-            {hitlPromptData && (
-              <div className="my-4 p-4 border-dashed border-2 border-amber-500 rounded-lg bg-amber-500/10">
-                 <HITLReconfigurePrompt
-                  initialLimit={hitlPromptData.settings.limit}
-                  initialStatus={hitlPromptData.settings.enabled}
-                  onContinue={async (response) => {
-                    if (!hitlPromptData.projectId) {
-                      toast.error("Error: Project ID is missing.");
-                      setHitlPromptData(null);
-                      return;
-                    }
-                    try {
-                      const apiResponse = await fetch(`/api/v1/hitl/settings/${hitlPromptData.projectId}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(response),
-                      });
-                      if (!apiResponse.ok) {
-                        throw new Error("Failed to update HITL settings.");
-                      }
-                      toast.success("HITL settings updated. Auto-approvals are active again.");
-                    } catch (error) {
-                      toast.error("Error updating HITL settings.");
-                      console.error(error);
-                    } finally {
-                      setHitlPromptData(null);
-                    }
-                  }}
-                  onStop={() => {
-                    console.log("Stop action chosen.");
-                    setHitlPromptData(null);
-                  }}
-                />
               </div>
             )}
 
@@ -250,6 +229,7 @@ export default function CopilotDemoPage() {
                   initial: `I'm your ${selectedAgent} agent. How can I help you today?`
                 }}
                 instructions={`You are the BMAD ${selectedAgent} agent. Your full instructions are loaded from the backend. HITL (Human-in-the-Loop) is managed by the backend. When you reach your action limit, you will be instructed to call the 'reconfigureHITL' function to ask the user for guidance.`}
+                actions={[reconfigureHITL]}
               />
             </div>
           )}

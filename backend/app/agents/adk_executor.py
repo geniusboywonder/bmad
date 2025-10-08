@@ -6,6 +6,8 @@ Replaces the abandoned MAF integration with proven ADK implementation.
 
 from typing import Dict, Any, List
 import structlog
+import json
+import uuid
 from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 
@@ -13,6 +15,7 @@ from app.models.task import Task
 from app.models.handoff import HandoffSchema
 from app.models.context import ContextArtifact
 from app.utils.agent_prompt_loader import agent_prompt_loader
+from app.services.hitl_counter_service import HitlCounterService
 
 logger = structlog.get_logger(__name__)
 
@@ -80,6 +83,40 @@ class ADKAgentExecutor:
 
             # Prepare user message with task instructions
             user_message = self._prepare_task_message(task, handoff)
+
+            # Initialize HITL Counter Service
+            hitl_counter_service = HitlCounterService()
+
+            # --- HITL Governor Logic ---
+            # Check if the agent's action is allowed
+            is_action_allowed, _ = hitl_counter_service.check_and_decrement_counter(task.project_id)
+
+            if not is_action_allowed:
+                self.logger.warning("HITL Governor: Action limit reached. Instructing LLM to call reconfigureHITL tool.", task_id=str(task.id))
+
+                # Get current settings to pass to the frontend prompt
+                current_settings = hitl_counter_service.get_settings(task.project_id)
+
+                # This is a new, single-purpose message to force the LLM to call the tool.
+                governor_instruction = f"""
+                Your action limit has been reached. You MUST call the 'reconfigureHITL' tool to ask the user for new settings.
+                The current settings are: actionLimit: {current_settings.get('limit')}, isHitlEnabled: {current_settings.get('enabled')}.
+                Do not respond with any other text or tools. Call the 'reconfigureHITL' tool now.
+                """
+
+                # We are now executing the agent with our own instruction, not the user's.
+                response = self.adk_agent.run(governor_instruction)
+
+                return {
+                    "status": "completed",
+                    "success": True,
+                    "output": response,
+                    "agent_type": self.agent_type,
+                    "task_id": str(task.id),
+                    "model_used": self.model,
+                    "blocked_by_hitl_governor": True,
+                }
+            # --- End of HITL Governor Logic ---
 
             # Execute ADK agent
             self.logger.info("Executing ADK agent",
