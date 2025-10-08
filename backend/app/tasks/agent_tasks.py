@@ -17,6 +17,7 @@ from app.websocket.manager import websocket_manager
 from app.websocket.events import WebSocketEvent, EventType
 from app.agents.adk_executor import ADKAgentExecutor  # ADK-only architecture
 from app.services.context_store import ContextStoreService
+from app.services.hitl_counter_service import HitlCounterService
 from app.database.connection import get_session
 from app.database.models import TaskDB, HitlAgentApprovalDB
 
@@ -195,106 +196,122 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             if not budget_check.approved:
                 raise BudgetLimitExceeded(f"Budget limit exceeded: {budget_check.reason}")
             
-            # Check if approval already exists for this task to prevent duplicates
-            existing_approval = db.query(HitlAgentApprovalDB).filter(
-                HitlAgentApprovalDB.task_id == task_uuid,
-                HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])
-            ).first()
+            # --- HITL Counter Governor ---
+            hitl_counter_service = HitlCounterService()
+            is_auto_approved, limit_just_reached = hitl_counter_service.check_and_decrement_counter(project_uuid)
 
-            if existing_approval:
-                logger.info("Using existing HITL approval record",
-                           task_id=str(task_uuid),
-                           approval_id=str(existing_approval.id),
-                           status=existing_approval.status)
-                approval_id = existing_approval.id
-                approval_record = existing_approval
-            else:
-                # Create pre-execution approval record directly in same database session
-                # This prevents foreign key constraint violations
-                estimated_cost = float(estimated_tokens * 0.00015)  # Estimate cost
-                expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
-
-                approval_record = HitlAgentApprovalDB(
+            if limit_just_reached:
+                logger.warning("Broadcasting HITL counter limit reached event.", task_id=str(task_uuid))
+                current_settings = hitl_counter_service.get_settings(project_uuid)
+                limit_reached_event = WebSocketEvent(
+                    event_type=EventType.HITL_COUNTER_LIMIT_REACHED,
                     project_id=project_uuid,
                     task_id=task_uuid,
                     agent_type=agent_type,
-                    request_type="PRE_EXECUTION",
-                    request_data={
-                        "instructions": instructions,
-                        "estimated_tokens": estimated_tokens,
-                        "context_ids": [str(cid) for cid in context_uuids],
-                        "agent_type": agent_type
-                    },
-                    estimated_tokens=estimated_tokens,
-                    estimated_cost=estimated_cost,
-                    expires_at=expires_at,
-                    status="PENDING"
+                    data={
+                        "message": "HITL auto-approval limit reached. Manual approval is now required.",
+                        "current_settings": current_settings,
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
                 )
-
-                db.add(approval_record)
-                db.commit()  # Commit both task and approval in same transaction
-                approval_id = approval_record.id
-
-                logger.info("Created HITL approval record", task_id=str(task_uuid), approval_id=str(approval_id))
-
-            # Broadcast HITL approval request event via WebSocket
-            hitl_event = WebSocketEvent(
-                event_type=EventType.HITL_REQUEST_CREATED,
-                project_id=project_uuid,
-                task_id=task_uuid,
-                agent_type=agent_type,
-                data={
-                    "approval_id": str(approval_id),
-                    "agent_type": agent_type,
-                    "request_type": "PRE_EXECUTION",
-                    "estimated_tokens": estimated_tokens,
-                    "estimated_cost": estimated_cost,  # Use same calculation
-                    "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
-                    "request_data": {
-                        "instructions": instructions,
-                        "estimated_tokens": estimated_tokens,
-                        "context_ids": [str(cid) for cid in context_uuids],
-                        "agent_type": agent_type
-                    },
-                    "message": f"HITL approval required for {agent_type} agent execution",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
-
-            # Send WebSocket event asynchronously
-            asyncio.run(websocket_manager.broadcast_event(hitl_event))
-            logger.info("HITL approval request event broadcast", task_id=str(task_uuid), approval_id=str(approval_id))
-
-            # Wait for human approval by polling database
-            logger.info("Waiting for HITL pre-execution approval", task_id=str(task_uuid), approval_id=str(approval_id))
-
-            # Simple polling mechanism - check every 5 seconds for up to 30 minutes
-            timeout_minutes = 30
-            poll_interval = 5
-            max_polls = (timeout_minutes * 60) // poll_interval
+                asyncio.run(websocket_manager.broadcast_event(limit_reached_event))
 
             approval_granted = False
             approval_comment = None
 
-            for poll_count in range(max_polls):
-                # Refresh database session to get latest status
-                db.refresh(approval_record)
+            if is_auto_approved:
+                logger.info("Task auto-approved by HITL counter.", task_id=str(task_uuid))
+                approval_granted = True
+                approval_comment = "Auto-approved by HITL counter"
+            else:
+                logger.info("HITL counter limit reached. Falling back to manual approval.", task_id=str(task_uuid))
 
-                if approval_record.status == "APPROVED":
-                    approval_granted = True
-                    approval_comment = approval_record.user_comment
-                    break
-                elif approval_record.status == "REJECTED":
-                    approval_granted = False
-                    approval_comment = approval_record.user_comment or "Request rejected"
-                    break
-                elif approval_record.status == "EXPIRED":
-                    approval_granted = False
-                    approval_comment = "Request expired"
-                    break
+                # Manual approval workflow
+                # Check if approval already exists for this task to prevent duplicates
+                existing_approval = db.query(HitlAgentApprovalDB).filter(
+                    HitlAgentApprovalDB.task_id == task_uuid,
+                    HitlAgentApprovalDB.status.in_(["PENDING", "APPROVED"])
+                ).first()
 
-                # Wait before next poll
-                time.sleep(poll_interval)
+                if existing_approval:
+                    logger.info("Using existing HITL approval record",
+                               task_id=str(task_uuid),
+                               approval_id=str(existing_approval.id),
+                               status=existing_approval.status)
+                    approval_id = existing_approval.id
+                    approval_record = existing_approval
+                else:
+                    # Create pre-execution approval record
+                    estimated_cost = float(estimated_tokens * 0.00015)
+                    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+                    approval_record = HitlAgentApprovalDB(
+                        project_id=project_uuid,
+                        task_id=task_uuid,
+                        agent_type=agent_type,
+                        request_type="PRE_EXECUTION",
+                        request_data={
+                            "instructions": instructions,
+                            "estimated_tokens": estimated_tokens,
+                            "context_ids": [str(cid) for cid in context_uuids],
+                            "agent_type": agent_type
+                        },
+                        estimated_tokens=estimated_tokens,
+                        estimated_cost=estimated_cost,
+                        expires_at=expires_at,
+                        status="PENDING"
+                    )
+                    db.add(approval_record)
+                    db.commit()
+                    approval_id = approval_record.id
+                    logger.info("Created HITL approval record", task_id=str(task_uuid), approval_id=str(approval_id))
+
+                # Broadcast HITL approval request event
+                hitl_event = WebSocketEvent(
+                    event_type=EventType.HITL_REQUEST_CREATED,
+                    project_id=project_uuid,
+                    task_id=task_uuid,
+                    agent_type=agent_type,
+                    data={
+                        "approval_id": str(approval_id),
+                        "agent_type": agent_type,
+                        "request_type": "PRE_EXECUTION",
+                        "estimated_tokens": estimated_tokens,
+                        "estimated_cost": estimated_cost,
+                        "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=30)).isoformat(),
+                        "request_data": {
+                            "instructions": instructions,
+                            "estimated_tokens": estimated_tokens,
+                            "context_ids": [str(cid) for cid in context_uuids],
+                            "agent_type": agent_type
+                        },
+                        "message": f"HITL approval required for {agent_type} agent execution",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }
+                )
+                asyncio.run(websocket_manager.broadcast_event(hitl_event))
+                logger.info("HITL approval request event broadcast", task_id=str(task_uuid), approval_id=str(approval_id))
+
+                # Wait for human approval by polling database
+                logger.info("Waiting for HITL pre-execution approval", task_id=str(task_uuid), approval_id=str(approval_id))
+                timeout_minutes = 30
+                poll_interval = 5
+                max_polls = (timeout_minutes * 60) // poll_interval
+
+                for poll_count in range(max_polls):
+                    db.refresh(approval_record)
+                    if approval_record.status == "APPROVED":
+                        approval_granted = True
+                        approval_comment = approval_record.user_comment
+                        break
+                    elif approval_record.status == "REJECTED":
+                        approval_granted = False
+                        approval_comment = approval_record.user_comment or "Request rejected"
+                        break
+                    elif approval_record.status == "EXPIRED":
+                        approval_granted = False
+                        approval_comment = "Request expired"
+                        break
+                    time.sleep(poll_interval)
 
             if not approval_granted:
                 if approval_comment:

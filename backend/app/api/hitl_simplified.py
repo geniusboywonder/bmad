@@ -50,7 +50,41 @@ class HITLApprovalStatus(BaseModel):
     instructions: str
 
 
+class HITLSettingsUpdateRequest(BaseModel):
+    """Request model for updating HITL counter settings."""
+    new_limit: Optional[int] = None
+    new_status: Optional[bool] = None
+
+
 # ✅ 8 ESSENTIAL ENDPOINTS (was 28)
+
+@router.post("/settings/{project_id}",
+             response_model=dict,
+             summary="⚙️ Update HITL Counter Settings")
+async def update_hitl_settings(
+    project_id: UUID,
+    request: HITLSettingsUpdateRequest,
+):
+    """Updates the HITL auto-approval settings for a project."""
+    try:
+        from app.services.hitl_counter_service import HitlCounterService
+        hitl_counter_service = HitlCounterService()
+
+        updated_settings = hitl_counter_service.update_settings(
+            project_id=project_id,
+            new_limit=request.new_limit,
+            new_status=request.new_status,
+        )
+
+        return {
+            "success": True,
+            "message": "HITL settings updated successfully.",
+            "updated_settings": updated_settings,
+        }
+    except Exception as e:
+        logger.error("Failed to update HITL settings", project_id=project_id, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/request-approval", 
              response_model=dict,

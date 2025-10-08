@@ -13,6 +13,7 @@ from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.sessions import InMemorySessionService
 from app.utils.agent_prompt_loader import agent_prompt_loader
+from app.copilot.hitl_aware_agent import HITLAwareLlmAgent
 
 # Don't import settings at module level to avoid circular imports
 # Settings will be imported inside functions when needed
@@ -50,37 +51,37 @@ class BMADAGUIRuntime:
 
         # Create agents using environment-configured models and dynamic prompts from markdown files
         # HITL instructions are now embedded in each agent's .md file
-        analyst = LlmAgent(
+        analyst = HITLAwareLlmAgent(
             name="analyst",
             model=LiteLlm(model=settings.analyst_agent_model),
             instruction=agent_prompt_loader.get_agent_prompt("analyst")
         )
 
-        architect = LlmAgent(
+        architect = HITLAwareLlmAgent(
             name="architect",
             model=LiteLlm(model=settings.architect_agent_model),
             instruction=agent_prompt_loader.get_agent_prompt("architect")
         )
 
-        coder = LlmAgent(
+        coder = HITLAwareLlmAgent(
             name="coder",
             model=LiteLlm(model=settings.coder_agent_model),
             instruction=agent_prompt_loader.get_agent_prompt("coder")
         )
 
-        orchestrator = LlmAgent(
+        orchestrator = HITLAwareLlmAgent(
             name="orchestrator",
             model=LiteLlm(model=settings.analyst_agent_model),
             instruction=agent_prompt_loader.get_agent_prompt("orchestrator")
         )
 
-        tester = LlmAgent(
+        tester = HITLAwareLlmAgent(
             name="tester",
             model=LiteLlm(model=settings.tester_agent_model),
             instruction=agent_prompt_loader.get_agent_prompt("tester")
         )
 
-        deployer = LlmAgent(
+        deployer = HITLAwareLlmAgent(
             name="deployer",
             model=LiteLlm(model=settings.deployer_agent_model),
             instruction=agent_prompt_loader.get_agent_prompt("deployer")
