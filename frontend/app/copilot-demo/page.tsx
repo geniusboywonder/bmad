@@ -1,27 +1,29 @@
 /**
- * CopilotKit + AG-UI Integration Demo
+ * CopilotKit + AG-UI Integration Demo (Refactored)
  *
- * Shows how to connect CopilotKit frontend to AG-UI ADK backend
- * with BMAD HITL integration and agent progress tracking
- *
- * This page uses the global CopilotKit provider to avoid conflicts.
+ * Shows how to connect CopilotKit frontend to a backend that uses a
+ * session governor for HITL, with UI interactions handled by native
+ * CopilotKit client-side actions.
  */
 
 "use client";
 
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
-import { useHITLStore } from "@/lib/stores/hitl-store";
 import { useAgent } from "@/lib/context/agent-context";
-import { ComponentsMap } from "@copilotkit/react-ui";
-import { HITLAlertsBar } from "@/components/hitl/hitl-alerts-bar";
+import { useCopilotAction } from "@copilotkit/react-core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Settings, AlertTriangle, ToggleLeft, ToggleRight } from "lucide-react";
+import { Toaster, toast } from "sonner";
+import { HITLReconfigurePrompt } from "@/components/hitl/HITLReconfigurePrompt";
+import { websocketManager } from "@/lib/services/websocket/enhanced-websocket-client";
+import { PolicyViolationEvent, AgentType } from "@/lib/services/api/types";
+import { useAppStore } from "@/lib/stores/app-store";
 import "@copilotkit/react-ui/styles.css";
 
-// Dynamically import CopilotSidebar and AgentProgressCard
+// Dynamically import CopilotSidebar and AgentState
 const CopilotSidebar = dynamic(
   () => import("@copilotkit/react-ui").then((mod) => ({ default: mod.CopilotSidebar })),
   {
@@ -30,30 +32,23 @@ const CopilotSidebar = dynamic(
   }
 );
 
-const AgentProgressCard = dynamic(
-  () => import("@/components/copilot/agent-progress-ui").then((mod) => ({ default: mod.AgentProgressCard })),
-  { ssr: false }
-);
-
-const InlineHITLApproval = dynamic(
-  () => import("@/components/hitl/inline-hitl-approval").then((mod) => ({ default: mod.InlineHITLApproval })),
-  { ssr: false }
-);
+// TODO: Replace with AgentState once its package is confirmed.
+// const AgentState = dynamic(
+//   () => import("@copilotkit/react-ui").then((mod) => ({ default: mod.AgentState })),
+//   { ssr: false }
+// );
 
 export default function CopilotDemoPage() {
   const [isClient, setIsClient] = useState(false);
   const { selectedAgent, setSelectedAgent } = useAgent();
-  const { requests, addRequest } = useHITLStore();
-  
-  // HITL Configuration State
+  const policyGuidance = useAppStore((state) => state.policyGuidance);
+  const setPolicyGuidance = useAppStore((state) => state.setPolicyGuidance);
+
+  // HITL Configuration State (settings to be sent to backend)
   const [hitlEnabled, setHitlEnabled] = useState(true);
   const [hitlCounter, setHitlCounter] = useState(10);
-  const [currentCounter, setCurrentCounter] = useState(10);
-  const [systemAlerts, setSystemAlerts] = useState<Array<{id: string, message: string, stage?: string}>>([]);
-  const [expandedAlerts, setExpandedAlerts] = useState<string[]>([]);
-  const [messageCount, setMessageCount] = useState(0);
 
-  // Available agents (dynamically loaded from backend/app/agents/*.md)
+  // Available agents
   const availableAgents = [
     { name: "analyst", label: "Analyst", description: "Requirements analysis and documentation" },
     { name: "architect", label: "Architect", description: "System architecture and design" },
@@ -67,135 +62,147 @@ export default function CopilotDemoPage() {
     setIsClient(true);
   }, []);
 
-  // HITL threshold management
-  const triggerHITLRequest = (reason: string = "HITL threshold reached") => {
-    const requestId = `hitl-${Date.now()}-${Math.random()}`;
-    addRequest({
-      agentName: selectedAgent,
-      decision: `${reason}. Agent: ${selectedAgent}`,
-      context: {
-        approvalId: requestId,
-        source: 'threshold',
-        agentType: selectedAgent,
-        requestData: {
-          instructions: `${selectedAgent} agent needs approval: ${reason}`
-        }
-      },
-      priority: 'medium'
-    });
-    
-    // Add system alert
-    setSystemAlerts(prev => [...prev, {
-      id: `alert-${Date.now()}`,
-      message: `HITL approval required for ${selectedAgent} agent`,
-      stage: selectedAgent
-    }]);
-  };
+  useEffect(() => {
+    if (!isClient) return;
 
-  // Handle message sending with HITL counter
-  const handleMessageSend = () => {
-    setMessageCount(prev => prev + 1);
-    
-    if (hitlEnabled && currentCounter > 0) {
-      setCurrentCounter(prev => prev - 1);
-    } else if (hitlEnabled && currentCounter <= 0) {
-      triggerHITLRequest("HITL counter reached zero");
-      setCurrentCounter(hitlCounter); // Reset counter
-    }
-  };
+    const handlePolicyViolation = (event: PolicyViolationEvent) => {
+      const { reason_code, message, current_phase, allowed_agents } = event.data;
+      
+      const allowedAgentsString = allowed_agents.join(', ');
+      const toastMessage = `
+        **Policy Violation**
+        ${message}
+        **Current Phase:** ${current_phase}
+        **Allowed Agents:** ${allowedAgentsString}
+      `;
 
-  // HITL Controls
-  const resetCounter = () => {
-    setCurrentCounter(hitlCounter);
-  };
+      toast.error("Action Blocked", {
+        description: toastMessage,
+        duration: 10000,
+      });
+    };
 
+    const wsClient = websocketManager.getGlobalConnection();
+    const unsubscribe = wsClient.on('policy_violation', handlePolicyViolation);
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isClient]);
+
+  // Define the client-side action for HITL reconfiguration
+  useCopilotAction({
+    name: "reconfigureHITL",
+    description: "Renders a prompt to reconfigure HITL settings when the action limit is reached.",
+    parameters: [
+      { name: "actionLimit", type: "number", description: "The current action limit." },
+      { name: "isHitlEnabled", type: "boolean", description: "The current HITL status." },
+    ],
+    handler: async ({ actionLimit, isHitlEnabled }) => {
+      // This handler will be implemented in a future step to use the
+      // render and getResponse functions from the hook to manage the interactive UI.
+      console.log("Backend requested HITL reconfiguration with params:", { actionLimit, isHitlEnabled });
+      toast({
+        title: "HITL Intervention Required",
+        description: "Agent has reached its action limit. Please respond in the chat.",
+        duration: 5000,
+      });
+      // In a real implementation, you would use render() here to show the prompt
+      // and getResponse() to send the user's choice back.
+    },
+  });
+
+  // HITL Controls - These would now call a backend service to update session state
   const toggleHITL = () => {
     setHitlEnabled(!hitlEnabled);
-    if (!hitlEnabled) {
-      setCurrentCounter(hitlCounter); // Reset counter when enabling
-    }
+    // TODO: Call backend to update session: POST /api/hitl/reconfigure { newStatus: !hitlEnabled }
+    toast({ description: `HITL has been ${!hitlEnabled ? "enabled" : "disabled"}.` });
   };
 
   const updateCounterLimit = (newLimit: number) => {
     setHitlCounter(newLimit);
-    setCurrentCounter(newLimit);
+    // TODO: Call backend to update session: POST /api/hitl/reconfigure { newLimit: newLimit }
+    toast({ description: `HITL counter limit set to ${newLimit}.` });
   };
 
-  // Alert management
-  const toggleExpanded = (id: string) => {
-    setExpandedAlerts(prev => 
-      prev.includes(id) 
-        ? prev.filter(alertId => alertId !== id)
-        : [...prev, id]
-    );
-  };
+  // Custom markdown tag renderer for the new HITL prompt
+  const customMarkdownTagRenderers = {
+    "hitl-reconfigure-prompt": (props: { actionLimit?: string; isHitlEnabled?: string; }) => {
+      const { actionLimit, isHitlEnabled } = props;
+      const initialLimit = parseInt(actionLimit || '10', 10);
+      const initialStatus = isHitlEnabled === 'true';
 
-  const dismissAlert = (id: string) => {
-    setSystemAlerts(prev => prev.filter(alert => alert.id !== id));
-    setExpandedAlerts(prev => prev.filter(alertId => alertId !== id));
-  };
+      const handleContinue = (response: { newLimit: number; newStatus: boolean }) => {
+        console.log("Continuing with new HITL config:", response);
+        // This would ideally be handled by the getResponse() from the action hook
+        // For now, we just log it.
+      };
 
-  // Custom markdown tag renderer for HITL approvals
-  const customMarkdownTagRenderers: ComponentsMap<{ "hitl-approval": { requestId: string, children?: React.ReactNode } }> = {
-    "hitl-approval": ({ requestId, children }) => {
-      // Find existing request by looking for matching approvalId in context
-      let request = requests.find(req => req.context?.approvalId === requestId);
-
-      if (!request) {
-        // Create HITL request from markdown tag
-        const description = typeof children === 'string' ? children : 'Agent task requires approval';
-
-        addRequest({
-          agentName: selectedAgent,
-          decision: description,
-          context: {
-            approvalId: requestId,  // Use requestId as approvalId for duplicate detection
-            source: 'copilotkit',
-            agentType: selectedAgent,
-            requestData: {
-              instructions: description
-            }
-          },
-          priority: 'medium'
-        });
-
-        // Get the newly created request
-        request = requests.find(req => req.context?.approvalId === requestId);
-        
-        // Trigger message send handler for counter management
-        handleMessageSend();
-      }
-
-      if (!request) return null;
+      const handleStop = () => {
+        console.log("Stopping agent operation.");
+      };
 
       return (
-        <InlineHITLApproval
-          request={request as any}
-          className="my-3"
+        <HITLReconfigurePrompt
+          initialLimit={initialLimit}
+          initialStatus={initialStatus}
+          onContinue={handleContinue}
+          onStop={handleStop}
         />
       );
     }
-  };
+  } as any;
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* HITL Alerts Bar */}
-      <HITLAlertsBar
-        systemAlerts={systemAlerts}
-        expandedAlerts={expandedAlerts}
-        toggleExpanded={toggleExpanded}
-        dismissAlert={dismissAlert}
-        isClient={isClient}
-      />
+      <Toaster />
+      {/* HITLAlertsBar is removed. Toasts will be handled by the Toaster in the root layout. */}
       
-      <div className="container mx-auto p-6 flex-1">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">
-            BMAD AI Agent Dashboard
-          </h1>
-          <p className="text-muted-foreground">
-            Real-time agent progress with CopilotKit + AG-UI protocol and HITL controls
-          </p>
+        <div className="container mx-auto p-6 flex-1">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">
+              BMAD AI Agent Dashboard
+            </h1>
+            <p className="text-muted-foreground">
+              Real-time agent progress with CopilotKit + AG-UI protocol and HITL controls
+            </p>
+
+            {policyGuidance && (
+              <div className="mt-4 border border-destructive/40 bg-destructive/10 rounded-lg p-4" data-testid="policy-guidance">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 mt-0.5 text-destructive" />
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm uppercase tracking-wide text-destructive font-semibold">
+                        {policyGuidance.status === "denied" ? "Policy Blocked" : "Needs Clarification"}
+                      </span>
+                      <Badge variant="secondary">
+                        Phase: {policyGuidance.currentPhase ?? "unknown"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-destructive">
+                      {policyGuidance.message}
+                    </p>
+                    {policyGuidance.allowedAgents.length > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Allowed agents this phase:{" "}
+                        <span className="font-medium text-foreground">
+                          {policyGuidance.allowedAgents.map((agent) => agent.charAt(0).toUpperCase() + agent.slice(1)).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setPolicyGuidance(null)}
+                    className="text-xs"
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            )}
 
           {/* Agent Selector */}
           {isClient && (
@@ -206,12 +213,21 @@ export default function CopilotDemoPage() {
                   <button
                     key={agent.name}
                     onClick={() => setSelectedAgent(agent.name)}
-                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`px-3 py-2 rounded-lg text-sm transition-all border ${
                       selectedAgent === agent.name
-                        ? 'bg-primary text-primary-foreground shadow-md'
-                        : 'bg-muted hover:bg-muted/80'
+                        ? 'bg-primary text-primary-foreground shadow-md border-primary'
+                        : 'bg-muted hover:bg-muted/80 border-transparent'
+                    } ${
+                      policyGuidance && policyGuidance.allowedAgents.length > 0 && !policyGuidance.allowedAgents.includes(agent.name as AgentType)
+                        ? 'opacity-50 cursor-not-allowed border-destructive/60'
+                        : ''
                     }`}
                     title={agent.description}
+                    disabled={
+                      !!policyGuidance &&
+                      policyGuidance.allowedAgents.length > 0 &&
+                      !policyGuidance.allowedAgents.includes(agent.name as AgentType)
+                    }
                   >
                     {agent.label}
                   </button>
@@ -220,7 +236,7 @@ export default function CopilotDemoPage() {
             </div>
           )}
 
-          {/* HITL Controls */}
+          {/* Simplified HITL Controls */}
           {isClient && (
             <div className="mt-4 p-4 border rounded-lg bg-muted/30" data-testid="hitl-controls">
               <div className="flex items-center gap-4 mb-3">
@@ -233,7 +249,7 @@ export default function CopilotDemoPage() {
                 </Badge>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* HITL Toggle */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">HITL Status</label>
@@ -249,7 +265,7 @@ export default function CopilotDemoPage() {
 
                 {/* Counter Settings */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Counter Limit</label>
+                  <label className="text-sm font-medium">Action Limit</label>
                   <div className="flex gap-2">
                     <Input
                       type="number"
@@ -259,95 +275,32 @@ export default function CopilotDemoPage() {
                       max="100"
                       className="flex-1"
                     />
-                    <Button onClick={resetCounter} variant="outline" size="sm">
-                      Reset
-                    </Button>
                   </div>
-                </div>
-
-                {/* Current Status */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Current Status</label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={currentCounter > 0 ? "default" : "destructive"}>
-                      {currentCounter} actions left
-                    </Badge>
-                    <Badge variant="outline">
-                      {messageCount} messages sent
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Test Buttons */}
-              <div className="mt-4 pt-3 border-t">
-                <label className="text-sm font-medium mb-2 block">Test HITL Features:</label>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    onClick={() => triggerHITLRequest("Manual test request")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <AlertTriangle className="w-4 h-4 mr-1" />
-                    Trigger HITL Request
-                  </Button>
-                  <Button
-                    onClick={() => setCurrentCounter(0)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Force Counter to Zero
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setMessageCount(0);
-                      setCurrentCounter(hitlCounter);
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Reset All Counters
-                  </Button>
                 </div>
               </div>
             </div>
           )}
-      </div>
 
           <div className="mt-6 p-4 border rounded-lg bg-muted/50">
             <h2 className="text-xl font-semibold mb-2">AG-UI Integration Status</h2>
             <ul className="space-y-2 text-sm">
               <li>✅ CopilotKit Provider: Using global configuration</li>
-              <li>✅ Runtime URL: /api/copilotkit (CopilotRuntime with HttpAgent for all 6 agents)</li>
-              <li>✅ Selected Agent: {selectedAgent} (Dynamic prompts from backend/app/agents/{selectedAgent}.md)</li>
+              <li>✅ Runtime URL: /api/copilotkit</li>
+              <li>✅ Selected Agent: {selectedAgent}</li>
               <li>✅ LLM: OpenAI GPT-4 Turbo via LiteLLM</li>
-              <li>✅ Public API Key: {process.env.NEXT_PUBLIC_COPILOTKIT_API_KEY ? `Configured (${process.env.NEXT_PUBLIC_COPILOTKIT_API_KEY.substring(0, 10)}...)` : "Missing"}</li>
-              <li>{isClient ? "✅" : "⏳"} Client hydration: {isClient ? "Complete" : "Loading..."}</li>
-              <li>✅ Phase 3: HITL approval rendering with custom markdown tags</li>
-              <li>✅ Agent switching: Dynamic agent context enables real-time switching</li>
-              <li>✅ HITL Integration: Counter-based approval system with alerts bar</li>
-              <li>✅ HITL Status: {hitlEnabled ? `Enabled (${currentCounter}/${hitlCounter} actions left)` : "Disabled"}</li>
+              <li>✅ **NEW**: HITL logic is now backend-driven via Session Governor.</li>
+              <li>✅ **NEW**: Interactive prompts are handled by `useCopilotKitAction`.</li>
+              <li>✅ **DEPRECATED**: Frontend counter, `useHITLStore`, `HITLAlertsBar`.</li>
             </ul>
-
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
-              <strong>🔄 How it works:</strong><br/>
-              CopilotKit Frontend → /api/copilotkit (CopilotRuntime + @ag-ui/client HttpAgent) → Backend AG-UI ADK (dynamic prompts) + LiteLLM → OpenAI GPT-4 Turbo
-              <br/><br/>
-              <strong>🛡️ HITL Flow:</strong><br/>
-              Message Counter → HITL Threshold → Alert Bar → Navigate to Chat → Approve/Reject → Continue
-            </div>
           </div>
 
-          {/* Agent Progress Card - Shows task tracking */}
-          {isClient && (
+          {/* Agent Progress Card is replaced by AgentState */}
+          {/* {isClient && (
             <div className="mt-6 p-4 border rounded-lg">
-              <AgentProgressCard agentName={selectedAgent} />
+              <AgentState />
             </div>
-          )}
+          )} */}
 
-          {/* CopilotKit Sidebar - Main chat interface */}
-          {/* Note: Uses global CopilotKit provider from client-provider.tsx */}
-          {/* Agent switching requires page navigation to /copilot-demo?agent=<name> */}
           {isClient && (
             <div data-testid="chat-section">
               <CopilotSidebar
@@ -355,21 +308,7 @@ export default function CopilotDemoPage() {
                   title: `BMAD ${selectedAgent.charAt(0).toUpperCase() + selectedAgent.slice(1)} Agent`,
                   initial: `I'm your ${selectedAgent} agent. How can I help you today?`
                 }}
-                instructions={`You are the BMAD ${selectedAgent} agent. Your full instructions are loaded from backend/app/agents/${selectedAgent}.md.
-
-IMPORTANT: When you need human approval (HITL), include a custom markdown tag in your response:
-<hitl-approval requestId="unique-request-id">Brief description of what needs approval</hitl-approval>
-
-This will render an inline approval component with approve/reject/modify buttons.
-
-HITL Status: ${hitlEnabled ? `Enabled (${currentCounter}/${hitlCounter} actions remaining)` : 'Disabled'}
-Message Count: ${messageCount} messages sent
-
-To test HITL functionality:
-1. Send messages to decrease the counter
-2. When counter reaches 0, HITL approval will be required
-3. Use the test buttons above to manually trigger HITL requests
-4. Check the alerts bar at the top for pending approvals`}
+                instructions={`You are the BMAD ${selectedAgent} agent. Your full instructions are loaded from the backend. HITL (Human-in-the-Loop) is managed by the backend. When you reach your action limit, you will be instructed to call the 'reconfigureHITL' function to ask the user for guidance.`}
                 markdownTagRenderers={customMarkdownTagRenderers}
               />
             </div>

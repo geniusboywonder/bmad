@@ -18,6 +18,7 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - **✅ NEW**: Enhanced Process Summary with SDLC workflow visualization (50/50 layout)
 - **✅ NEW**: Interactive stage navigation with role-based icons and status overlays
 - **✅ NEW**: Expandable artifacts system with progress tracking and download functionality
+- **✅ NEW**: Phase policy guidance surfaced in chat/banner with agent selector gating
 
 **Backend (FastAPI)**
 - Central orchestration hub with REST APIs and WebSocket services
@@ -130,13 +131,15 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 
 **✅ The 8 Essential HITL Endpoints:**
 1. `POST /api/v1/hitl/request-approval` - Request agent approval
-2. `POST /api/v1/hitl/approve/{approval_id}` - Approve/reject request
+2. `POST /api/v1/hitl/approve/{approval_id}` - Submit human action (`approve`, `reject`, `amend`) with optional reviewer note
 3. `GET /api/v1/hitl/pending` - Get pending approvals
 4. `GET /api/v1/hitl/status/{approval_id}` - Get approval status
 5. `POST /api/v1/hitl/emergency-stop` - Emergency stop all agents
 6. `DELETE /api/v1/hitl/emergency-stop/{stop_id}` - Deactivate emergency stop
 7. `GET /api/v1/hitl/project/{project_id}/summary` - Project HITL summary
 8. `GET /api/v1/hitl/health` - HITL system health
+
+`POST /api/v1/hitl/approve/{approval_id}` now calls `HITLSafetyService.process_approval_response`, which persists the reviewer’s `HitlAction`, applies a default comment when none is provided, and emits a `HITL_RESPONSE` WebSocket event containing the normalized decision (`continue`, `stop`, `redirect`). Downstream Celery tasks read the stored status to determine whether to resume, halt, or reroute agent execution.
 
 ### 4.2 Simplified Configuration
 
@@ -155,6 +158,24 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 - Counter reset prompt when auto-action limit reached
 - Ability to adjust counter value from chat prompt
 
+### 4.3 Auto-Approval Counters (Redis-backed) ✅ NEW
+
+- **HitlCounterService** (`backend/app/services/hitl_counter_service.py`) stores per-project settings in Redis (`enabled`, `counter_total`, `counter_remaining`, `locked`, `alert_sent`).
+- **Celery Task Flow**: `process_agent_task` consults the counter before creating approvals:
+  - HITL disabled → task runs automatically with safety checks only.
+  - Counter > 0 → decrements remaining approvals and auto-executes the task.
+  - Counter exhausted → locks auto-approvals and routes subsequent messages through the existing HITL path.
+- **Broadcasting**: Every change emits a `HITL_COUNTER` WebSocket event so the frontend can reflect the latest counter/toggle state and display the limit-reaching card.
+- **REST API**:
+  - `GET /api/v1/hitl/settings/{project_id}` – Fetch current toggle/counter state.
+  - `POST /settings/{project_id}/toggle` – Enable/disable HITL.
+  - `POST /settings/{project_id}/counter` – Update counter limit (optionally resets remaining).
+  - `POST /settings/{project_id}/continue` – Reset/unlock counter and resume auto approvals.
+  - `POST /settings/{project_id}/stop` – Force manual-only workflow (counter locked at zero).
+- **Frontend Experience**:
+  - `HitlCounterAlert` chat card renders when the counter reaches zero, exposing the counter input, toggle, and `Continue`/`Stop` actions.
+  - Zustand HITL store keeps settings per project, synchronises via the WebSocket event, and surfaces new helper actions for UI components.
+
 ## 4.5 ✅ COMPLETED: BMAD Radical Simplification Plan (October 2025)
 
 ### 4.5.1 Phase 2A & 2B: Service Consolidation - ✅ COMPLETED
@@ -170,7 +191,7 @@ BMAD follows a modern microservice-oriented architecture designed for scalabilit
 **✅ HITL Service Consolidation** (6 files → 2 files):
 ```python
 # backend/app/services/hitl_approval_service.py (✅ CONSOLIDATED)
-class HITLApprovalService:
+class HitlApprovalService:
     """Unified HITL approval workflow management."""
     
     # Core approval logic (from hitl_core.py)
@@ -178,9 +199,14 @@ class HITLApprovalService:
     
     # Trigger processing (from trigger_processor.py)
     def evaluate_approval_triggers(self, task_context) -> bool
+
+# backend/app/services/hitl_safety_service.py (✅ CONSOLIDATED)
+class HITLSafetyService:
+    """Mandatory approval enforcement + decision broadcasting."""
     
-    # Response handling (from response_processor.py)
-    async def process_approval_response(self, approval_id, status, response)
+    # Approval lifecycle (from hitl_core.py/response_processor.py)
+    async def process_approval_response(self, approval_id, action, response_text=None)
+    async def create_approval_request(self, project_id, task_id, agent_type, request_type, request_data)
 
 # backend/app/services/hitl_validation_service.py (✅ CONSOLIDATED)
 class HITLValidationService:
@@ -271,6 +297,7 @@ class LLMService:
 - **✅ Manual Cleanup**: `clearAllRequests()`, `removeResolvedRequests()`, `removeExpiredRequests()` methods
 - **✅ NEW: Expiration Handling**: 30-minute request expiration with automatic cleanup
 - **✅ NEW: Error Recovery**: Graceful handling of 404/400 errors for stale requests
+- **✅ NEW: Policy Guidance State**: `app-store` exposes `policyGuidance` object with allowed agents, current phase, and messaging for UI gating
 
 **Resolution Workflow:**
 1. User approves/rejects/modifies HITL request via inline component
@@ -533,13 +560,15 @@ Frontend Chat Input → HTTP API Call → Backend Task Creation → HITL Safety 
 **Enhanced Message Flow Steps:**
 1. **Frontend Chat**: User sends message via `CopilotChat` component
 2. **HTTP API Call**: Frontend calls `POST /api/v1/projects/{project_id}/tasks` with task data
-3. **Task Creation**: Backend creates database task with status PENDING
-4. **Celery Queue**: Backend calls `process_agent_task.delay()` to queue task execution
-5. **HITL Safety Check**: Celery task calls `HITLSafetyService.create_approval_request()`
-6. **WebSocket Broadcast**: HITL approval request broadcast via `HITL_REQUEST_CREATED` event
-7. **Frontend UI Update**: WebSocket event triggers HITL alerts bar display
-8. **✅ NEW: Separate HITL Messages**: Each HITL request creates a unique chat message with persistent state
-9. **✅ NEW: Alert Navigation**: Alert bar clicks navigate directly to specific HITL messages with visual highlighting
+3. **Policy Enforcement**: Backend `PhasePolicyService` validates phase → agent → prompt alignment and returns structured policy decisions when blocked
+4. **Task Creation**: Backend creates database task with status PENDING (only when policy allows)
+5. **Celery Queue**: Backend calls `process_agent_task.delay()` to queue task execution
+6. **HITL Safety Check**: Celery task calls `HITLSafetyService.create_approval_request()`
+7. **WebSocket Broadcast**: HITL approval request broadcast via `HITL_REQUEST_CREATED` event
+8. **Frontend UI Update**: WebSocket event triggers HITL alerts bar display
+9. **✅ NEW: Separate HITL Messages**: Each HITL request creates a unique chat message with persistent state
+10. **✅ NEW: Alert Navigation**: Alert bar clicks navigate directly to specific HITL messages with visual highlighting
+11. **✅ NEW: Policy Guidance UI**: `policy_violation` WebSocket or API responses hydrate `policyGuidance`, disabling disallowed agents and updating banner/chat messaging
 
 **Implementation Details:**
 ```typescript
@@ -562,8 +591,10 @@ const response = await fetch(`http://localhost:8000/api/v1/projects/${projectId}
 - ✅ **Navigation Integration**: Alert bar provides direct navigation to specific HITL chat messages
 - ✅ **Visual Highlighting**: Clicked HITL messages receive temporary highlighting for user feedback
 - ✅ **Status Indicators**: Visual badges show HITL approval status within chat messages
+- ✅ **Inline Action Locking**: Inline approval controls hide after selection and surface the reviewer directive inside the chat card
 - ✅ **Alert Lifecycle Management**: HITL alerts now properly disappear when requests are resolved
-- ✅ **Store Cleanup Integration**: Frontend HITL store removes resolved requests instead of updating status
+- ✅ **Decision Persistence**: Frontend HITL store retains resolved requests with final action metadata and synchronizes chat badges
+- ✅ **Policy Guidance Integration**: `policy_violation` events and REST errors normalize through `buildPolicyGuidance`, gating chat input and agent selection with banner/tooltip messaging
 
 **Current Status: ✅ FULLY FUNCTIONAL WITH ENHANCEMENTS**
 - ✅ HTTP API task creation working

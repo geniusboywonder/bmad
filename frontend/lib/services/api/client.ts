@@ -5,7 +5,8 @@
 
 import { ApiResponse, ApiError, RequestConfig } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const SERVER_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const BROWSER_BASE_URL = '';
 const DEFAULT_TIMEOUT = 30000;
 const MAX_RETRIES = 3;
 
@@ -90,8 +91,12 @@ export class ApiClient {
   private defaultHeaders: Record<string, string>;
   private retryConfig: RetryConfig;
 
-  constructor(baseURL: string = API_BASE_URL) {
-    this.baseURL = baseURL.replace(/\/$/, ''); // Remove trailing slash
+  constructor(baseURL?: string) {
+    const resolvedBase =
+      baseURL ??
+      (typeof window === 'undefined' ? SERVER_BASE_URL : BROWSER_BASE_URL);
+
+    this.baseURL = resolvedBase.replace(/\/$/, ''); // Remove trailing slash
     this.defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',

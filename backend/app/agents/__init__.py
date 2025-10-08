@@ -1,1 +1,1 @@
-"""Agent framework for multi-agent orchestration."""
+"""BMAD Core agents package."""

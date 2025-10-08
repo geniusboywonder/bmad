@@ -139,7 +139,8 @@ backend/
 │   │   ├── audit_service.py              # Audit trail and compliance
 │   │   ├── bmad_core_service.py          # BMAD Core integration
 │   │   ├── context_store.py              # Context storage service
-│   │   ├── hitl_safety_service.py        # HITL safety controls
+│   │   ├── hitl_safety_service.py        # HITL safety controls + action processing/broadcasting
+│   │   ├── hitl_counter_service.py       # Redis-backed HITL toggle + counter management
 │   │   ├── project_completion_service.py # Project lifecycle management
 │   │   ├── quality_gate_service.py       # Quality gate evaluation
 │   │   ├── response_safety_analyzer.py   # Response safety analysis
@@ -219,7 +220,7 @@ frontend/
 │   ├── artifacts/          # Project artifacts management
 │   ├── bot-army-ux-review/ # UX review components
 │   ├── copilot-demo/       # ✅ NEW (Oct 2025): CopilotKit integration demo page
-│   │   └── page.tsx        # Demo page with AgentProgressCard + CopilotSidebar
+│   │   └── page.tsx        # Demo page with AgentProgressCard, policy guidance banner, and CopilotSidebar
 │   ├── deploy/             # Deployment management
 │   ├── design/             # Design system pages
 │   ├── dev/                # Development tools
@@ -235,9 +236,10 @@ frontend/
 │   └── page.tsx            # Home page component
 ├── components/             # ✅ Enhanced UI components - September + October 2025
 │   ├── chat/              # ✅ SIMPLIFIED: Chat interface components (October 2025)
-│   │   ├── copilot-chat.tsx           # ✅ CANONICAL: Main chat implementation (scrolling fixed)
+│   │   ├── copilot-chat.tsx           # ✅ CANONICAL: Main chat implementation with policy gating
 │   │   ├── copilot-agent-status.tsx   # Agent status display component
-│   │   └── chat-input.tsx             # Chat input component
+│   │   ├── chat-input.tsx             # Chat input component
+│   │   └── copilot-chat.policy.test.tsx # ✅ NEW: Policy guidance UI regression tests
 │   │   # ✅ ELIMINATED (October 2025): 3 broken/experimental components removed
 │   │   # - copilot-chat-broken.tsx → deleted (broken implementation)
 │   │   # - copilot-chat-hybrid.tsx → deleted (experimental approach)
@@ -246,7 +248,8 @@ frontend/
 │   │   └── agent-progress-ui.tsx      # Real-time agent state with useCoAgent hook
 │   ├── hitl/              # ✅ HITL components with enhanced navigation
 │   │   ├── hitl-alerts-bar.tsx        # ✅ ENHANCED: Smart project navigation
-│   │   └── inline-hitl-approval.tsx   # ✅ ENHANCED: Badge utility imports
+│   │   ├── inline-hitl-approval.tsx   # ✅ ENHANCED: Single-action approval with decision summary
+│   │   └── hitl-counter-alert.tsx     # ✅ NEW: Counter limit controls (toggle, continue, stop)
 │   ├── projects/          # ✅ NEW: Project management components
 │   │   ├── project-dashboard.tsx         # Real-time project dashboard
 │   │   ├── project-creation-form.tsx     # Project creation with validation
@@ -283,14 +286,14 @@ frontend/
 │   │       ├── safety-event-handler.ts      # ✅ HITL safety controls
 │   │       └── safety-event-handler.test.ts # ✅ Safety system tests
 │   ├── stores/           # ✅ Enhanced state management - September + October 2025
-│   │   ├── hitl-store.ts              # ✅ ENHANCED: Expiration handling, error recovery
+│   │   ├── hitl-store.ts              # ✅ ENHANCED: Decision persistence, counter settings sync, expiration handling, error recovery
 │   │   ├── project-store.ts           # ✅ Project lifecycle with backend sync
 │   │   ├── navigation-store.ts        # ✅ NEW: View navigation and breadcrumb management
 │   │   └── project-store.test.ts      # ✅ Store integration tests
 │   ├── utils/            # ✅ Enhanced utility functions - September 2025
 │   │   └── badge-utils.ts             # ✅ NEW: Centralized badge styling system for status/agent indicators
 │   └── websocket/        # ✅ Enhanced existing WebSocket service
-│       └── websocket-service.ts       # ✅ ENHANCED: ProjectId in HITL events
+│       └── websocket-service.ts       # ✅ ENHANCED: ProjectId + action metadata in HITL events
 ├── tests/                 # ✅ NEW: Comprehensive test suite
 │   └── integration/      # ✅ Integration test suite
 │       └── frontend-integration.test.ts # ✅ End-to-end integration tests
@@ -337,9 +340,12 @@ lib/services/
 ├── websocket/           # ✅ Enhanced real-time communication
 │   ├── enhanced-websocket-client.ts # ✅ Project-scoped connections
 │   └── *.test.ts        # ✅ Connection management testing
-└── safety/              # ✅ HITL safety integration
-    ├── safety-event-handler.ts # ✅ Emergency controls and approvals
-    └── *.test.ts        # ✅ Safety workflow testing
+├── safety/              # ✅ HITL safety integration
+│   ├── safety-event-handler.ts # ✅ Emergency controls and approvals
+│   └── *.test.ts        # ✅ Safety workflow testing
+└── utils/               # ✅ NEW (Oct 2025): Frontend policy + formatting helpers
+    ├── policy-utils.ts       # Normalizes SDLC policy responses for UI/state
+    └── policy-utils.test.ts  # Vitest coverage for policy normalization
 ```
 ```
 

@@ -87,6 +87,13 @@ export interface HitlRequestResponse {
   responded_at?: string | null;
 }
 
+export interface HitlSettingsResponse {
+  enabled: boolean;
+  counter_total: number;
+  counter_remaining: number;
+  locked: boolean;
+}
+
 // Project Types (inferred from API patterns)
 export type ProjectStatus = 'active' | 'completed' | 'paused' | 'failed';
 
@@ -166,7 +173,8 @@ export type WebSocketEventType =
   | 'artifact_generated'
   | 'error_notification'
   | 'agent_chat_message'
-  | 'safety_alert';
+  | 'safety_alert'
+  | 'policy_violation';
 
 export interface WebSocketEvent {
   event_type: WebSocketEventType;
@@ -242,6 +250,18 @@ export interface AgentChatMessageEvent extends WebSocketEvent {
     message: string;
     message_type: 'info' | 'question' | 'response' | 'thinking';
     requires_response: boolean;
+    timestamp: string;
+  };
+}
+
+export interface PolicyViolationEvent extends WebSocketEvent {
+  event_type: 'policy_violation';
+  project_id: string;
+  data: {
+    reason_code: 'AGENT_NOT_ALLOWED' | 'PROMPT_MISALIGNED';
+    message: string;
+    current_phase: string;
+    allowed_agents: AgentType[];
     timestamp: string;
   };
 }

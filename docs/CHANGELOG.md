@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.24.0] - 2025-10-04
 
+## [Unreleased]
+
+### Added
+- Drafted agent policy enforcement plan (`docs/policy-agent-policy-plan.md`) and logged implementation roadmap in `docs/PLAN.md`.
+- Shared `policyGuidance` state in the frontend store with Copilot demo UI surfacing allowed agents, chat input gating, and accompanying vitest coverage for policy normalization.
+
+### Changed
+- Enforced single-action behavior for inline HITL approvals and surface the chosen action on chat messages.
+- Backend `HITLSafetyService` now records explicit `HitlAction` selections and emits HITL response events for agent routing.
+- Updated HITL store to persist action metadata and align websocket updates, with refreshed unit tests.
+- Added Redis-backed HITL counter service, auto-approval gating, and chat controls (toggle, counter reset, continue/stop) when limits are reached.
+
 ### ✅ COMPLETE - ADK Execution Fully Implemented
 
 **Status**: All agent execution now using ADK - system fully functional

@@ -10,6 +10,7 @@ import {
   ArtifactGeneratedEvent,
   ErrorNotificationEvent,
   AgentChatMessageEvent,
+  PolicyViolationEvent,
   WebSocketEventType
 } from "../api/types";
 
@@ -74,6 +75,8 @@ class WebSocketService {
     this.globalConnection.on('error_notification', this.handleErrorNotification.bind(this));
     this.globalConnection.on('agent_chat_message', this.handleAgentChatMessage.bind(this));
     this.globalConnection.on('hitl_approval_response', this.handleHITLApprovalResponse.bind(this));
+    this.globalConnection.on('hitl_counter', this.handleHITLCounterEvent.bind(this));
+    this.globalConnection.on('policy_violation', this.handlePolicyViolation.bind(this));
   }
 
   connect() {
@@ -312,13 +315,121 @@ class WebSocketService {
 
     console.log(`[WebSocket] HITL approval response:`, data);
 
-    // Update the specific HITL message with the approval result
-    const approvalResult = data.approved ? "✅ **APPROVED**" : "❌ **REJECTED**";
+    const action = (data.action ?? (data.approved ? "approve" : "reject")) as "approve" | "reject" | "amend";
+    const mappedStatus = action === "approve" ? "approved" : action === "reject" ? "rejected" : "modified";
+
+    const approvalResult =
+      action === "approve"
+        ? "✅ **APPROVED** — Agent may proceed."
+        : action === "reject"
+          ? "⛔ **REJECTED** — Agent workflow halted."
+          : "🔄 **REDIRECTED** — Agent must adjust before continuing.";
+
     const timestamp = new Date().toLocaleTimeString();
 
     updateMessage(data.approval_id, {
-      content: `${approvalResult}\n\nOriginal request: "${data.original_instructions || 'Execute task'}"\n\n📊 **Cost:** $${data.estimated_cost?.toFixed(4) || '0.0150'}\n⏱️ **Tokens:** ${data.estimated_tokens || 100}\n\n${data.approved ? '✓' : '✗'} **Decision made at:** ${timestamp}${data.comment ? `\n💬 **Comment:** ${data.comment}` : ''}`,
-      hitlStatus: data.approved ? "approved" : "rejected"
+      content: `${approvalResult}\n\nOriginal request: "${data.original_instructions || "Execute task"}"\n\n📊 **Cost:** $${data.estimated_cost?.toFixed(4) || "0.0150"}\n⏱️ **Tokens:** ${data.estimated_tokens || 100}\n🕒 **Decision made at:** ${timestamp}${data.comment ? `\n💬 **Reviewer note:** ${data.comment}` : ""}`,
+      hitlStatus: mappedStatus,
+      metadata: {
+        ...(data.metadata || {}),
+        selectedAction: action,
+        reviewerComment: data.comment ?? null
+      }
+    });
+  }
+
+  private handleHITLCounterEvent(event: any) {
+    const projectId: string | undefined = event.project_id || event.data?.project_id;
+    if (!projectId) {
+      console.warn('[WebSocket] HITL counter event missing project_id', event);
+      return;
+    }
+
+    const data = event.data || {};
+    const counterTotal = data.counter_total;
+    const counterRemaining = data.counter_remaining;
+    const hitlEnabled = data.hitl_enabled;
+    const locked = data.locked;
+    const reason = data.reason;
+
+    if (
+      typeof counterTotal !== 'number' ||
+      typeof counterRemaining !== 'number' ||
+      typeof hitlEnabled !== 'boolean'
+    ) {
+      console.warn('[WebSocket] HITL counter event missing required fields', event);
+      return;
+    }
+
+    useHITLStore.getState().applyServerSettings(
+      projectId,
+      {
+        counter_total: counterTotal,
+        counter_remaining: counterRemaining,
+        hitl_enabled: hitlEnabled,
+        locked,
+      },
+      reason
+    );
+
+    const { addMessage, updateMessage, conversation } = useAppStore.getState();
+    const messageId = `hitl-counter-${projectId}`;
+    const metadata = {
+      projectId,
+      counterTotal,
+      counterRemaining,
+      hitlEnabled,
+      locked: locked ?? counterRemaining <= 0,
+      reason,
+    };
+
+    const shouldDisplay = ['counter_limit_reached', 'counter_limit_active'].includes(reason);
+    const exists = conversation.some(
+      (message) => message.approvalId === messageId && message.type === 'hitl_counter'
+    );
+
+    if (shouldDisplay && !exists) {
+      addMessage({
+        type: 'hitl_counter',
+        agent: 'System',
+        content: '',
+        approvalId: messageId,
+        metadata,
+      });
+    } else if (exists) {
+      updateMessage(messageId, { metadata });
+    }
+  }
+
+  private handlePolicyViolation(event: PolicyViolationEvent) {
+    const { data, project_id: projectId } = event;
+    const { addLog, addMessage, setPolicyGuidance } = useAppStore.getState();
+
+    const status = data.reason_code === 'PROMPT_MISALIGNED' ? 'needs_clarification' : 'denied';
+
+    setPolicyGuidance({
+      status,
+      reasonCode: data.reason_code,
+      message: data.message,
+      currentPhase: data.current_phase,
+      allowedAgents: data.allowed_agents,
+      timestamp: data.timestamp,
+    });
+
+    addLog({
+      agent: 'Policy',
+      level: 'info',
+      message: `Request blocked: ${data.message}`,
+    });
+
+    addMessage({
+      type: 'system',
+      agent: 'Policy',
+      content: `⚖️ **Policy Enforcement**\n\n${data.message}\n\n**Current phase:** ${data.current_phase}\n**Allowed agents:** ${data.allowed_agents.join(', ')}`,
+      metadata: {
+        projectId,
+        reasonCode: data.reason_code,
+      },
     });
   }
 

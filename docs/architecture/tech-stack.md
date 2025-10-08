@@ -79,11 +79,12 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Response Validation** - Content safety scoring and quality metrics
 - **Emergency Stop System** - Immediate agent halting with multiple trigger conditions
 - **Real-time Monitoring** - WebSocket-based safety event broadcasting
+- **Action Broadcasting** - Stored reviewer decisions drive downstream agent gating via `HITL_RESPONSE` events
 
 **✅ Simplified API Endpoints**
 - **8 essential HITL endpoints** (`/api/v1/hitl/*`) - 71% reduction from 28 endpoints
 - **Single file implementation** - All HITL logic consolidated in `hitl_simplified.py`
-- **Essential functions only** - Request approval, approve/reject, monitor status, emergency stop
+- **Essential functions only** - Request approval, submit `HitlAction` decisions (`approve`/`reject`/`amend`), monitor status, emergency stop
 - **Eliminated over-engineering** - Removed duplicate statistics, complex triggers, redundant context endpoints
 
 ### API Architecture
@@ -108,6 +109,7 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Project-scoped Broadcasting** - Event distribution by project ID
 - **Event Types** - Agent status, task progress, HITL notifications, safety alerts
 - **Auto-reconnection** - Graceful handling of connection failures
+- **Decision Metadata** - `HITL_RESPONSE` payloads include normalized action, reviewer comment, and decision timestamp; dedicated `HITL_COUNTER` events broadcast toggle/counter updates when auto-approval thresholds change
 
 **Health Monitoring**
 - **Multi-tier Health Checks** - Database, Redis, Celery, LLM providers
@@ -157,9 +159,10 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Next.js API Proxy** - Seamless routing from frontend to FastAPI ADK endpoints with fresh CopilotRuntime
 - **LiteLLM Integration** - OpenAI GPT-4 Turbo routing via middleware
 - **Dynamic Agent Personas** - All agents load prompts from backend markdown files via AgentPromptLoader
-- **Demo Page** - `/copilot-demo` showcasing integrated chat + progress tracking
+- **Demo Page** - `/copilot-demo` showcasing integrated chat, policy guidance banner, and progress tracking
 - **End-to-End Chat** - Full message send/receive with <12s response times
 - **Zero 422 Errors** - Resolved AG-UI protocol validation issues
+- **Policy Enforcement UX** - Toasts, banner messaging, and agent selector gating fed by backend policy decisions
 
 ### UI Components ✅ **ENHANCED - September 2025 + CLEANED - October 2025**
 - **shadcn/ui + Radix UI** - Complete component system with accessibility
@@ -170,10 +173,13 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **✅ NEW: Interactive Stage Navigation** - Role-based icons and status overlays
 - **✅ NEW: Expandable Artifacts System** - Progress tracking and download functionality
 - **✅ CLEANED: Chat Components** - Removed broken/experimental variants, single canonical implementation
+- **✅ INLINE HITL Updates** - Inline approval component now locks after a decision and displays the reviewer directive inline
+- **✅ HITL Counter Alert** - Chat card with counter input, HITL toggle, and Continue/Stop controls surfaced when the auto-approval limit is reached
+- **✅ Policy Guidance Banner** - Clarifies current SDLC phase, allowed agents, and highlights off-phase requests inside the Copilot demo
 
 ### State Management ✅ **ENHANCED - September 2025 + October 2025**
 - **Project Store** - Complete project lifecycle with backend synchronization
-- **HITL Store** - Request lifecycle management with expiration handling and error recovery
+- **HITL Store** - Request lifecycle management with decision persistence, counter tracking, expiration handling, and error recovery
 - **Real-time Synchronization** - WebSocket event handling with optimistic updates
 - **Error Boundary System** - Comprehensive error handling with user-friendly recovery
 - **Loading State Management** - Consistent loading patterns across all components
@@ -181,15 +187,19 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **✅ Artifacts Management** - Project-specific artifacts with real-time progress tracking
 - **✅ NEW: Automatic Cleanup** - 5-minute periodic cleanup of expired HITL requests
 - **✅ NEW: Error Recovery** - Graceful handling of 404/400 errors for stale approvals
+- **✅ NEW: Action Metadata Sync** - WebSocket updates merge reviewer actions and comments into chat state
+- **✅ NEW: Policy Guidance State** - Zustand `app-store` exposes `policyGuidance` with helper setters consumed by Copilot demo and chat
 
 ### Testing Infrastructure ✅ **COMPREHENSIVE**
 - **Vitest** - Modern testing framework with jsdom environment
 - **React Testing Library** - Component testing with user interactions
 - **228 Total Tests** - Complete coverage across all integration layers
+- **✅ HITL Store Tests** - Vitest suite validates action mapping, UUID fallbacks, and API payloads
 - **Test Categories**:
   - **156 Unit Tests** - Individual components and services
   - **52 Integration Tests** - Inter-service communication
   - **20 End-to-End Tests** - Complete workflow validation
+- **✅ Policy UX Tests** - Vitest suites cover policy normalization utilities and chat input gating scenarios
 
 ### Development Tools ✅ **OPTIMIZED + CLEANED**
 - **PostCSS** - CSS processing with proper Tailwind compilation

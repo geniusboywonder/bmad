@@ -7,12 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend Development
 
 **Start Backend Server:**
+
 ```bash
 cd backend
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 **Start Celery Worker:**
+
 ```bash
 cd backend
 # Simplified: Single Redis DB (no environment variables needed)
@@ -20,6 +22,7 @@ celery -A app.tasks.celery_app worker --loglevel=info --queues=agent_tasks,celer
 ```
 
 **Backend Testing:**
+
 ```bash
 cd backend
 pytest                                    # Run all tests
@@ -31,6 +34,7 @@ pytest -k test_name                       # Run specific test
 ```
 
 **Database Migrations:**
+
 ```bash
 cd backend
 alembic revision --autogenerate -m "description"  # Create migration
@@ -39,6 +43,7 @@ alembic downgrade -1                              # Rollback one migration
 ```
 
 **System Cleanup:**
+
 ```bash
 cd backend
 python scripts/cleanup_system.py --confirm  # Clean database and Redis
@@ -47,12 +52,14 @@ python scripts/cleanup_system.py --confirm  # Clean database and Redis
 ### Frontend Development
 
 **Start Frontend Server:**
+
 ```bash
 cd frontend
 npm run dev                    # Development server (localhost:3000)
 ```
 
 **Frontend Testing:**
+
 ```bash
 cd frontend
 npm test                       # Run all tests
@@ -60,6 +67,7 @@ npm run test:ui                # Run tests with UI
 ```
 
 **Build Frontend:**
+
 ```bash
 cd frontend
 npm run build                  # Production build
@@ -70,8 +78,11 @@ npm run lint                   # Run linter
 
 **IMPORTANT**: Always read and follow `docs/CODEPROTOCOL.md` before making any code changes. This file contains the complete development workflow, quality standards, and enforcement rules that must be followed for every task.
 Read and follow the front-end style guide in `docs/STYLEGUIDE.md` before making any front-end changes.
-Read and follow the SOLID principles in `docs/SOLID.md`
-**ALWAYS USE A TODO LIST TO PLAN YOUR STEPS AND TRACK PROGRESS**
+Read and follow the SOLID principles in `docs/SOLID.md`.
+Read and follow the architecture in `docs/architecture/architecture.md`.
+Read and follow the test protocal in `docs/TESTPROTOCOL.md` before running any tests.
+
+**ALWAYS USE A TODO LIST TO PLAN YOUR STEPS AND TRACK PROGRESS. UPDATE THE TODO AS YOU FINISH EACH STEP. THE TODO SHOULD INCLUDE BETWEEN 5-10 STEPS, THE MORE GANULAR THE BETTER**
 
 ## Development Patterns
 
@@ -114,6 +125,7 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 ### Critical System Components
 
 **HITL Approval Workflow (October 2025 - Duplicate Fix)**
+
 - **Single Approval per Task**: One `PRE_EXECUTION` approval record prevents duplicate HITL messages
 - **Backend**: `backend/app/tasks/agent_tasks.py` checks for existing approval before creating new one
 - **Frontend**: `frontend/components/hitl/inline-hitl-approval.tsx` displays approval UI
@@ -121,18 +133,21 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 - **WebSocket Events**: Real-time HITL request broadcasting via `websocketService`
 
 **Database Architecture**
+
 - **PostgreSQL 13+**: ACID-compliant with JSON support for complex data
 - **Key Tables**: `projects`, `tasks`, `hitl_agent_approvals`, `agent_status`, `context_artifacts`, `event_log`
 - **Migrations**: Alembic-managed migrations in `backend/alembic/versions/`
 - **Session Management**: Proper cleanup via generator pattern in services
 
 **WebSocket Communication**
+
 - **Project-scoped Broadcasting**: All events tagged with `project_id` for filtering
 - **Event Types**: Agent status, task progress, HITL requests, safety alerts
 - **Frontend Client**: `frontend/lib/services/websocket/enhanced-websocket-client.ts`
 - **Backend Manager**: `backend/app/websocket/manager.py` with connection pooling
 
 **Service Architecture (SOLID Principles)**
+
 - **Orchestrator Services**: 7 focused services (OrchestratorCore, ProjectLifecycleManager, AgentCoordinator, etc.)
 - **HITL Services**: 5 focused services (HitlCore, TriggerProcessor, ResponseProcessor, etc.)
 - **Workflow Engine**: 4 focused services (ExecutionEngine, StateManager, EventDispatcher, SdlcOrchestrator)
@@ -142,6 +157,7 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 ### Key File Locations
 
 **Backend Critical Files:**
+
 - `backend/app/tasks/agent_tasks.py` - Celery task processing with HITL approval logic
 - `backend/app/services/hitl_safety_service.py` - HITL safety controls and budget management
 - `backend/app/services/startup_service.py` - Server startup cleanup (queues, agents, tasks)
@@ -149,6 +165,7 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 - `backend/app/websocket/manager.py` - WebSocket connection management
 
 **Frontend Critical Files:**
+
 - `frontend/components/chat/copilot-chat.tsx` - Main chat interface with HITL message display
 - `frontend/components/hitl/inline-hitl-approval.tsx` - HITL approval buttons and status
 - `frontend/lib/stores/hitl-store.ts` - HITL request lifecycle with auto-cleanup
@@ -156,6 +173,7 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 - `frontend/lib/services/api/client.ts` - API client with retry logic and error handling
 
 **BMAD Core Framework:**
+
 - `.bmad-core/agents/` - Agent persona definitions (analyst, architect, dev, qa, deployer)
 - `.bmad-core/workflows/` - SDLC workflow definitions (YAML format)
 - `.bmad-core/templates/` - Document and code templates (Jinja2)
@@ -165,12 +183,14 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 ### Backend Testing (pytest)
 
 **Test Categories:**
+
 - **Unit Tests**: Service logic, model validation (`tests/unit/`)
 - **Integration Tests**: Database operations, workflow validation (`tests/integration/`)
 - **Real Database Tests**: Production-like testing with `DatabaseTestManager`
 - **Performance Tests**: Sub-200ms API response validation
 
 **Test Markers:**
+
 - `@pytest.mark.real_data` - Tests use real database (no mocking internal components)
 - `@pytest.mark.external_service` - Tests mock external APIs only
 - `@pytest.mark.mock_data` - Legacy tests with mocks
@@ -178,11 +198,13 @@ Read and follow the SOLID principles in `docs/SOLID.md`
 ### Frontend Testing (Vitest + React Testing Library)
 
 **Test Coverage (228 Tests):**
+
 - **156 Unit Tests**: Individual components and services
 - **52 Integration Tests**: Inter-service communication
 - **20 End-to-End Tests**: Complete workflow validation
 
 **Test Files:**
+
 - `frontend/tests/integration/frontend-integration.test.ts` - E2E integration tests
 - `frontend/lib/services/api/*.test.ts` - API service tests
 - `frontend/lib/stores/*.test.ts` - State management tests

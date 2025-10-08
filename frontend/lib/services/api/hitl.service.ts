@@ -12,6 +12,7 @@ import {
   HitlAgentApproval,
   EmergencyStop,
   ApiResponse,
+  HitlSettingsResponse,
 } from './types';
 
 export class HITLService {
@@ -84,6 +85,66 @@ export class HITLService {
     }
   ): Promise<ApiResponse<HitlRequestResponse>> {
     return apiClient.patch<HitlRequestResponse>(`${this.baseUrl}/requests/${requestId}`, updates);
+  }
+
+  /**
+   * Retrieve HITL toggle/counter settings for a project
+   */
+  async getSettings(projectId: string): Promise<ApiResponse<HitlSettingsResponse>> {
+    return apiClient.get<HitlSettingsResponse>(`${this.baseUrl}/settings/${projectId}`);
+  }
+
+  /**
+   * Toggle HITL approvals on/off for a project
+   */
+  async toggleSettings(
+    projectId: string,
+    enabled: boolean
+  ): Promise<ApiResponse<{ success: boolean; data: HitlSettingsResponse }>> {
+    return apiClient.post<{ success: boolean; data: HitlSettingsResponse }>(
+      `${this.baseUrl}/settings/${projectId}/toggle`,
+      { enabled }
+    );
+  }
+
+  /**
+   * Update HITL counter limit for a project
+   */
+  async updateCounterLimit(
+    projectId: string,
+    counter: number,
+    resetRemaining: boolean = true
+  ): Promise<ApiResponse<{ success: boolean; data: HitlSettingsResponse }>> {
+    return apiClient.post<{ success: boolean; data: HitlSettingsResponse }>(
+      `${this.baseUrl}/settings/${projectId}/counter`,
+      { counter, reset_remaining: resetRemaining }
+    );
+  }
+
+  /**
+   * Continue auto approvals after counter exhaustion (optionally with new counter)
+   */
+  async continueAutoApprovals(
+    projectId: string,
+    counter?: number
+  ): Promise<ApiResponse<{ success: boolean; data: HitlSettingsResponse }>> {
+    const payload = typeof counter === 'number' ? { counter } : {};
+    return apiClient.post<{ success: boolean; data: HitlSettingsResponse }>(
+      `${this.baseUrl}/settings/${projectId}/continue`,
+      payload
+    );
+  }
+
+  /**
+   * Stop auto approvals (manual only until reset)
+   */
+  async stopAutoApprovals(
+    projectId: string
+  ): Promise<ApiResponse<{ success: boolean; data: HitlSettingsResponse }>> {
+    return apiClient.post<{ success: boolean; data: HitlSettingsResponse }>(
+      `${this.baseUrl}/settings/${projectId}/stop`,
+      {}
+    );
   }
 
   // HITL Safety Controls

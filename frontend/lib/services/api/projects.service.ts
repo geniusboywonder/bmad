@@ -16,19 +16,20 @@ import {
 
 export class ProjectsService {
   private readonly baseUrl = '/api/v1/projects';
+  private readonly collectionUrl = '/api/v1/projects/';
 
   /**
    * Create a new project
    */
   async createProject(data: CreateProjectRequest): Promise<ApiResponse<Project>> {
-    return apiClient.post<Project>(this.baseUrl, data);
+    return apiClient.post<Project>(this.collectionUrl, data);
   }
 
   /**
    * Get all projects
    */
   async getProjects(): Promise<ApiResponse<Project[]>> {
-    return apiClient.get<Project[]>(this.baseUrl);
+    return apiClient.get<Project[]>(this.collectionUrl);
   }
 
   /**

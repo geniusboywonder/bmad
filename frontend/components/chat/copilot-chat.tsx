@@ -13,7 +13,10 @@ import ChatInput from './chat-input';
 import { websocketService } from "@/lib/services/websocket/websocket-service";
 import { AGENT_DEFINITIONS } from "@/lib/agents/agent-definitions";
 import { InlineHITLApproval } from '@/components/hitl/inline-hitl-approval';
+import { HitlCounterAlert } from '@/components/hitl/hitl-counter-alert';
 import { getAgentBadgeClasses, getStatusBadgeClasses } from '@/lib/utils/badge-utils';
+import { buildPolicyGuidance } from '@/lib/utils/policy-utils';
+import type { AgentType } from '@/lib/services/api/types';
 
 interface CopilotChatProps {
   projectId?: string;
@@ -21,15 +24,37 @@ interface CopilotChatProps {
 
 const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
   console.log('[CopilotChat] Component rendered with projectId:', projectId);
-  const { conversation, addMessage, agentFilter, setAgentFilter } = useAppStore();
+  const {
+    conversation,
+    addMessage,
+    agentFilter,
+    setAgentFilter,
+    policyGuidance,
+    setPolicyGuidance,
+  } = useAppStore();
   const { requests } = useHITLStore();
+  const loadHitlSettings = useHITLStore((state) => state.loadSettings);
   const isLoading = false; // Temporarily disable CopilotKit
   const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const policyInputDisabled = policyGuidance?.status === 'denied';
+  const policyPlaceholder = policyGuidance
+    ? policyGuidance.status === 'needs_clarification'
+      ? `Clarify instructions for the ${policyGuidance.currentPhase ?? 'current'} phase before retrying...`
+      : 'Select an allowed agent for this phase before continuing.'
+    : undefined;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
+
+  useEffect(() => {
+    if (projectId) {
+      loadHitlSettings(projectId).catch((error) => {
+        console.error('[CopilotChat] Failed to load HITL settings', error);
+      });
+    }
+  }, [projectId, loadHitlSettings]);
 
   // Initialize HITL messages from persisted store on mount
   useEffect(() => {
@@ -68,6 +93,7 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
   const handleSendMessage = async (content: string) => {
     console.log('[CopilotChat] handleSendMessage called with projectId:', projectId, 'content:', content);
     addMessage({ type: 'user', agent: 'User', content });
+    setPolicyGuidance(null);
 
     // Create a task through API to trigger HITL workflow
     if (projectId) {
@@ -94,12 +120,27 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
             agent: 'System',
             content: `Task created: ${result.task_id}. HITL approval required before execution.`
           });
+          setPolicyGuidance(null);
         } else {
-          console.error('❌ Failed to create task:', response.status, response.statusText);
+          let detailPayload: any = null;
+          try {
+            detailPayload = await response.json();
+          } catch (err) {
+            console.warn('[CopilotChat] Failed to parse policy error payload', err);
+          }
+
+          const guidance = buildPolicyGuidance(detailPayload, response.statusText);
+          if (guidance) {
+            setPolicyGuidance(guidance);
+          }
+
+          const errorMessage = guidance?.message || `Failed to create task (${response.status})`;
+
+          console.error('❌ Failed to create task:', response.status, response.statusText, detailPayload);
           addMessage({
             type: 'system',
             agent: 'System',
-            content: `Error: Failed to create task (${response.status})`
+            content: `Error: ${errorMessage}`
           });
         }
       } catch (error) {
@@ -113,6 +154,7 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
     } else {
       // Fallback to WebSocket if no project ID
       websocketService.sendChatMessage(content, projectId);
+      setPolicyGuidance(null);
     }
   };
 
@@ -130,6 +172,30 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
 
   const memoizedMessages = useMemo(() => {
     return filteredMessages.map((msg, index) => {
+      if (msg.type === 'hitl_counter') {
+        const metadata = msg.metadata || {};
+        return (
+          <div
+            key={index}
+            className="flex w-full justify-start"
+            data-approval-id={msg.approvalId}
+          >
+            <div className="max-w-[80%] rounded-lg px-4 py-3 shadow-sm border bg-amber/5 border-amber/30 text-foreground">
+              <div className="text-sm font-semibold mb-2 text-amber-700">
+                HITL Counter Limit Reached
+              </div>
+              <HitlCounterAlert
+                projectId={metadata.projectId || projectId}
+                counterTotal={metadata.counterTotal ?? 0}
+                counterRemaining={metadata.counterRemaining ?? 0}
+                hitlEnabled={metadata.hitlEnabled ?? true}
+                locked={metadata.locked ?? false}
+              />
+            </div>
+          </div>
+        );
+      }
+
       const isUser = msg.type === 'user';
       const isHITLRequest = msg.type === 'hitl_request';
 
@@ -203,11 +269,12 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
                     getStatusBadgeClasses(
                       msg.hitlStatus === 'approved' ? 'completed' :
                       msg.hitlStatus === 'rejected' ? 'error' :
+                      msg.hitlStatus === 'modified' ? 'waiting' :
                       'pending'
                     )
                   )}
                 >
-                  {msg.hitlStatus.toUpperCase()}
+                  {msg.hitlStatus === 'modified' ? 'REDIRECTED' : msg.hitlStatus.toUpperCase()}
                 </Badge>
               )}
             </div>
@@ -252,17 +319,35 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
       </div>
 
       <div className="px-6 py-4 border-b bg-gradient-to-r from-card/50 to-card flex-shrink-0">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           {AGENT_DEFINITIONS.map((agent) => {
+            const agentName = agent.name as AgentType;
             const isSelected = agentFilter === agent.name;
+            const allowedAgents = policyGuidance?.allowedAgents ?? [];
+            const isRestricted = policyGuidance && allowedAgents.length > 0 && !allowedAgents.includes(agentName);
+            const badgeHighlight = policyGuidance && allowedAgents.includes(agentName);
+
             return (
               <button
                 key={agent.name}
-                onClick={() => setAgentFilter(isSelected ? null : agent.name)}
+                onClick={() => {
+                  if (isRestricted) {
+                    return;
+                  }
+                  setAgentFilter(isSelected ? null : agent.name);
+                }}
                 className={cn(
-                  "flex flex-col items-center p-2 rounded-lg transition-all duration-200 group hover:scale-105",
-                  isSelected ? "bg-primary/10 ring-2 ring-primary/20" : "hover:bg-secondary/50"
+                  "flex flex-col items-center p-2 rounded-lg transition-all duration-200 group hover:scale-105 border",
+                  isSelected ? "bg-primary/10 ring-2 ring-primary/20 border-primary/60" : "hover:bg-secondary/50 border-transparent",
+                  isRestricted && "opacity-50 cursor-not-allowed border-destructive/60",
+                  badgeHighlight && !isSelected && "border-primary/40"
                 )}
+                disabled={isRestricted}
+                title={
+                  isRestricted
+                    ? "Agent not available in current phase"
+                    : agent.description
+                }
               >
                 <div className={cn(
                   "w-12 h-12 rounded-full border-2 flex items-center justify-center mb-2 transition-all duration-200",
@@ -282,7 +367,11 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
                   size="sm"
                   className={cn(
                     "text-[10px] px-1 py-0.5 h-4",
-                    isSelected ? getAgentBadgeClasses(agent.name) : "text-muted-foreground border-muted-foreground/20"
+                    isSelected
+                      ? getAgentBadgeClasses(agent.name)
+                      : badgeHighlight
+                        ? "text-primary border-primary/50"
+                        : "text-muted-foreground border-muted-foreground/20"
                   )}
                 >
                   {agent.name}
@@ -315,7 +404,28 @@ const CustomCopilotChat: React.FC<CopilotChatProps> = ({ projectId }) => {
       </div>
 
       <div className="border-t bg-gradient-to-r from-card/30 to-card/50 flex-shrink-0">
-        <ChatInput onSend={handleSendMessage} isLoading={isLoading} hasActiveHITL={false} />
+        <ChatInput
+          onSend={handleSendMessage}
+          isLoading={isLoading}
+          hasActiveHITL={false}
+          disabled={policyInputDisabled}
+          placeholder={policyPlaceholder}
+        />
+        {policyGuidance && (
+          <div className="px-6 py-2 text-xs text-muted-foreground border-t border-destructive/20 bg-destructive/5">
+            {policyGuidance.message}
+            {policyGuidance.allowedAgents.length > 0 && (
+              <>
+                {' '}
+                Allowed agents:{' '}
+                {policyGuidance.allowedAgents
+                  .map((agent) => agent.charAt(0).toUpperCase() + agent.slice(1))
+                  .join(', ')}
+                .
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

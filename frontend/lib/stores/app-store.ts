@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { AgentType } from '@/lib/services/api/types';
 
 // --- TYPE DEFINITIONS ---
 
@@ -16,7 +17,7 @@ export interface Log {
 }
 
 export interface Message {
-  type: 'user' | 'agent' | 'system' | 'error' | 'hitl_request';
+  type: 'user' | 'agent' | 'system' | 'error' | 'hitl_request' | 'hitl_counter';
   agent: string;
   content: string;
   timestamp?: Date;
@@ -35,6 +36,15 @@ export interface Message {
   };
 }
 
+export interface PolicyGuidance {
+  status: 'denied' | 'needs_clarification';
+  reasonCode: string;
+  message: string;
+  currentPhase?: string;
+  allowedAgents: AgentType[];
+  timestamp: string;
+}
+
 export interface AppState {
   connection: {
     connected: boolean;
@@ -44,12 +54,14 @@ export interface AppState {
   logs: Log[];
   conversation: Message[];
   agentFilter: string | null;
+  policyGuidance: PolicyGuidance | null;
   setConnectionStatus: (status: { connected: boolean; reconnecting: boolean }) => void;
   updateAgent: (agent: Agent) => void;
   addLog: (log: Omit<Log, 'timestamp'>) => void;
   addMessage: (message: Message) => void;
   updateMessage: (approvalId: string, updates: Partial<Message>) => void;
   setAgentFilter: (agentName: string | null) => void;
+  setPolicyGuidance: (guidance: PolicyGuidance | null) => void;
 }
 
 // --- CENTRALIZED APP STORE ---
@@ -63,6 +75,7 @@ export const useAppStore = create<AppState>((set) => ({
   logs: [],
   conversation: [],
   agentFilter: null,
+  policyGuidance: null,
 
   setConnectionStatus: (status) =>
     set((state) => ({ ...state, connection: status })),
@@ -101,15 +114,30 @@ export const useAppStore = create<AppState>((set) => ({
   updateMessage: (approvalId, updates) =>
     set((state) => ({
       ...state,
-      conversation: state.conversation.map((message) =>
-        message.approvalId === approvalId
-          ? { ...message, ...updates }
-          : message
-      ),
+      conversation: state.conversation.map((message) => {
+        if (message.approvalId !== approvalId) {
+          return message;
+        }
+
+        const mergedMetadata = updates.metadata
+          ? { ...(message.metadata || {}), ...updates.metadata }
+          : message.metadata;
+
+        const { metadata, ...rest } = updates;
+
+        return {
+          ...message,
+          ...rest,
+          metadata: mergedMetadata,
+        };
+      }),
     })),
 
   setAgentFilter: (agentName) =>
     set((state) => ({ ...state, agentFilter: agentName })),
+
+  setPolicyGuidance: (guidance) =>
+    set((state) => ({ ...state, policyGuidance: guidance })),
 }));
 
 // Make store globally accessible for cross-store updates

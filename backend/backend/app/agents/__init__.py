@@ -1,1 +1,0 @@
-"""BMAD Core agents package."""

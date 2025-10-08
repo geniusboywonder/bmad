@@ -213,3 +213,4 @@ backups/**/*SECRET*
 
 .gemini/
 gha-creds-*.json
+# BMAD (local only)

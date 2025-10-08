@@ -52,12 +52,21 @@ interface HITLRequest {
   timestamp: Date;
   status: 'pending' | 'approved' | 'rejected' | 'modified';
   response?: string;
+  action?: 'approve' | 'reject' | 'amend';
+}
+
+interface HitlSettings {
+  enabled: boolean;
+  counterTotal: number;
+  counterRemaining: number;
+  locked: boolean;
 }
 
 interface HITLStore {
   requests: HITLRequest[];
   activeRequest: HITLRequest | null;
   safetyAlerts: SafetyAlert[];
+  settings: Record<string, HitlSettings>;
 
   addRequest: (request: Omit<HITLRequest, 'id' | 'timestamp' | 'status'>) => void;
   resolveRequest: (id: string, status: 'approved' | 'rejected' | 'modified', response?: string) => Promise<void>;
@@ -72,6 +81,18 @@ interface HITLStore {
   navigateToRequest: (id: string) => void;
   filterChatByAgent: (agentName: string) => void;
 
+  // Settings helpers
+  loadSettings: (projectId: string) => Promise<void>;
+  applyServerSettings: (
+    projectId: string,
+    payload: { counter_total: number; counter_remaining: number; hitl_enabled: boolean; locked?: boolean },
+    reason?: string
+  ) => void;
+  setHitlEnabled: (projectId: string, enabled: boolean) => Promise<void>;
+  updateCounterLimit: (projectId: string, counter: number, reset?: boolean) => Promise<void>;
+  continueAutoApprovals: (projectId: string, counter?: number) => Promise<void>;
+  stopAutoApprovals: (projectId: string) => Promise<void>;
+
   // Cleanup methods
   clearAllRequests: () => void;
   removeResolvedRequests: () => void;
@@ -80,14 +101,36 @@ interface HITLStore {
 
 export const useHITLStore = create<HITLStore>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      const updateCounterMessage = (projectId: string, settings: HitlSettings, reason?: string) => {
+        if (typeof window === 'undefined') return;
+        const appStore = (window as any).useAppStore;
+        if (!appStore) return;
+
+        const { updateMessage } = appStore.getState();
+        updateMessage(`hitl-counter-${projectId}`, {
+          metadata: {
+            projectId,
+            counterTotal: settings.counterTotal,
+            counterRemaining: settings.counterRemaining,
+            hitlEnabled: settings.enabled,
+            locked: settings.locked,
+            reason,
+          },
+        });
+      };
+
+      return {
       requests: [],
       activeRequest: null,
       safetyAlerts: [],
+      settings: {},
 
       addRequest: (request) => {
-        // Check for duplicate based on approval ID in context
-        const approvalId = request.context?.approvalId;
+        // Ensure context is an object and approvalId is present
+        const context = request.context || {};
+        const approvalId = context.approvalId || `auto-approval-${Date.now()}-${Math.random()}`;
+
         if (approvalId) {
           const existingRequest = get().requests.find(req =>
             req.context?.approvalId === approvalId && req.status === 'pending'
@@ -103,6 +146,11 @@ export const useHITLStore = create<HITLStore>()(
           id: `hitl-${Date.now()}-${Math.random()}`,
           timestamp: new Date(),
           status: 'pending',
+          action: undefined,
+          context: {
+            ...context,
+            approvalId: approvalId
+          }
         };
         set((state) => ({ requests: [...state.requests, newRequest] }));
       },
@@ -114,12 +162,20 @@ export const useHITLStore = create<HITLStore>()(
           return;
         }
 
+        const actionMap: Record<'approved' | 'rejected' | 'modified', 'approve' | 'reject' | 'amend'> = {
+          approved: 'approve',
+          rejected: 'reject',
+          modified: 'amend'
+        };
+
+        const selectedAction = actionMap[status];
+
         // Update request status in store instead of removing
         const updateRequestStatus = (newStatus: 'approved' | 'rejected' | 'modified', responseText?: string) => {
           set((state) => ({
             requests: state.requests.map((req) =>
               req.id === id
-                ? { ...req, status: newStatus, response: responseText }
+                ? { ...req, status: newStatus, response: responseText, action: actionMap[newStatus] }
                 : req
             ),
             activeRequest: state.activeRequest?.id === id ? null : state.activeRequest,
@@ -151,12 +207,19 @@ export const useHITLStore = create<HITLStore>()(
           safetyEventHandler.acknowledgeAlert(relatedAlertId);
         };
 
-        try {
-          const approvalId = request.context?.approvalId;
+        const approvalId = request.context?.approvalId;
 
-          if (!approvalId) {
-            console.warn(`[HITLStore] No approval ID found in request context for ${id}`);
-            removeFromStore();
+        // Helper to validate UUID format
+        const isValidUUID = (value: string | undefined | null) => {
+          if (typeof value !== 'string') return false;
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          return uuidRegex.test(value);
+        };
+
+        try {
+          if (!approvalId || !isValidUUID(approvalId)) {
+            console.warn(`[HITLStore] Approval ${approvalId ?? 'unknown'} is not a valid UUID. Marking request as ${status} locally.`);
+            updateRequestStatus(status, response || `Request ${status} (local-only)`);
             return;
           }
 
@@ -178,12 +241,11 @@ export const useHITLStore = create<HITLStore>()(
             }
           }
 
-          const approved = status === 'approved';
           const apiResponse = await fetch(`http://localhost:8000/api/v1/hitl/approve/${approvalId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              approved: approved,
+              action: selectedAction,
               response: response || `Request ${status}`
             }),
           });
@@ -326,12 +388,153 @@ export const useHITLStore = create<HITLStore>()(
           };
         });
       },
-    }),
+      loadSettings: async (projectId) => {
+        if (!projectId) return;
+        try {
+          const response = await hitlService.getSettings(projectId);
+          if (response.success && response.data) {
+            const normalized: HitlSettings = {
+              enabled: response.data.enabled,
+              counterTotal: response.data.counter_total,
+              counterRemaining: response.data.counter_remaining,
+              locked: response.data.locked,
+            };
+            set((state) => ({
+              settings: {
+                ...state.settings,
+                [projectId]: normalized,
+              },
+            }));
+            updateCounterMessage(projectId, normalized, 'settings_load');
+          }
+        } catch (error) {
+          console.error('[HITLStore] Failed to load settings', error);
+        }
+      },
+
+      applyServerSettings: (projectId, payload, reason) => {
+        const normalized: HitlSettings = {
+          enabled: payload.hitl_enabled,
+          counterTotal: payload.counter_total,
+          counterRemaining: payload.counter_remaining,
+          locked: payload.locked ?? payload.counter_remaining <= 0,
+        };
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            [projectId]: normalized,
+          },
+        }));
+        updateCounterMessage(projectId, normalized, reason);
+      },
+
+      setHitlEnabled: async (projectId, enabled) => {
+        try {
+          const response = await hitlService.toggleSettings(projectId, enabled);
+          const payload = response.data?.data;
+          if (response.success && payload) {
+            const normalized: HitlSettings = {
+              enabled: payload.enabled,
+              counterTotal: payload.counter_total,
+              counterRemaining: payload.counter_remaining,
+              locked: payload.locked,
+            };
+            set((state) => ({
+              settings: {
+                ...state.settings,
+                [projectId]: normalized,
+              },
+            }));
+            updateCounterMessage(projectId, normalized, 'toggle');
+          }
+        } catch (error) {
+          console.error('[HITLStore] Failed to toggle HITL', error);
+          throw error;
+        }
+      },
+
+      updateCounterLimit: async (projectId, counter, reset = true) => {
+        try {
+          const response = await hitlService.updateCounterLimit(projectId, counter, reset);
+          const payload = response.data?.data;
+          if (response.success && payload) {
+            const normalized: HitlSettings = {
+              enabled: payload.enabled,
+              counterTotal: payload.counter_total,
+              counterRemaining: payload.counter_remaining,
+              locked: payload.locked,
+            };
+            set((state) => ({
+              settings: {
+                ...state.settings,
+                [projectId]: normalized,
+              },
+            }));
+            updateCounterMessage(projectId, normalized, 'counter_update');
+          }
+        } catch (error) {
+          console.error('[HITLStore] Failed to update HITL counter', error);
+          throw error;
+        }
+      },
+
+      continueAutoApprovals: async (projectId, counter) => {
+        try {
+          const response = await hitlService.continueAutoApprovals(projectId, counter);
+          const payload = response.data?.data;
+          if (response.success && payload) {
+            const normalized: HitlSettings = {
+              enabled: payload.enabled,
+              counterTotal: payload.counter_total,
+              counterRemaining: payload.counter_remaining,
+              locked: payload.locked,
+            };
+            set((state) => ({
+              settings: {
+                ...state.settings,
+                [projectId]: normalized,
+              },
+            }));
+            updateCounterMessage(projectId, normalized, 'counter_continue');
+          }
+        } catch (error) {
+          console.error('[HITLStore] Failed to continue auto approvals', error);
+          throw error;
+        }
+      },
+
+      stopAutoApprovals: async (projectId) => {
+        try {
+          const response = await hitlService.stopAutoApprovals(projectId);
+          const payload = response.data?.data;
+          if (response.success && payload) {
+            const normalized: HitlSettings = {
+              enabled: payload.enabled,
+              counterTotal: payload.counter_total,
+              counterRemaining: payload.counter_remaining,
+              locked: payload.locked,
+            };
+            set((state) => ({
+              settings: {
+                ...state.settings,
+                [projectId]: normalized,
+              },
+            }));
+            updateCounterMessage(projectId, normalized, 'counter_stop');
+          }
+        } catch (error) {
+          console.error('[HITLStore] Failed to stop auto approvals', error);
+          throw error;
+        }
+      },
+    };
+    },
     {
       name: 'hitl-store',
       storage: createJSONStorage(() => createSafeStorage()),
       partialize: (state) => ({
         requests: state.requests,
+        settings: state.settings,
         // Don't persist activeRequest as it's a UI state
       }),
       version: 1,
