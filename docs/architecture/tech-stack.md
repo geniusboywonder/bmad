@@ -170,6 +170,14 @@ BMAD Enterprise AI Orchestration Platform leverages a modern, production-ready t
 - **Zero 422 Errors** - Resolved AG-UI protocol validation issues
 - **Policy Enforcement UX** - Toasts, banner messaging, and agent selector gating fed by backend policy decisions
 
+**✅ Critical Fixes (October 9, 2025):**
+- **Backend Async Generator Cleanup** - Removed incorrect `.aclose()` call in `adk_executor.py`
+- **HITL Agent Protocol Alignment** - Removed incompatible `run_async()` override, AG-UI wrapper handles all protocol translation
+- **Frontend Routing** - Uses `/api/copilotkit` with CopilotKit Runtime + HttpAgent adapters (not direct agent URLs)
+- **Next.js Proxy** - Added `/api/copilotkit/*` rewrite rule for proper backend communication
+- **Error Handling** - Enhanced filtering to suppress empty CopilotKit error objects
+- **Result** - Zero console errors, fully functional agent chat with responses
+
 ### UI Components ✅ **ENHANCED - September 2025 + CLEANED - October 2025**
 - **shadcn/ui + Radix UI** - Complete component system with accessibility
 - **Project Management Dashboard** - Real-time project lifecycle management

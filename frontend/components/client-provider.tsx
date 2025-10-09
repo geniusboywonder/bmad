@@ -23,13 +23,14 @@ function CopilotKitWrapper({ children }: { children: React.ReactNode }) {
       agent={selectedAgent}
       threadId={threadId}
       onError={(errorEvent) => {
-        // Only log actual errors, not empty objects
-        if (errorEvent.error || errorEvent.type) {
+        // Only log actual errors with meaningful content
+        if (errorEvent?.error?.message || errorEvent?.type) {
           console.error("[CopilotKit Error]", {
             type: errorEvent.type,
             agent: selectedAgent,
             threadId: threadId,
-            timestamp: new Date(errorEvent.timestamp).toISOString(),
+            runtimeUrl: "/api/copilotkit",
+            timestamp: errorEvent.timestamp ? new Date(errorEvent.timestamp).toISOString() : new Date().toISOString(),
             context: errorEvent.context,
             error: errorEvent.error,
             message: errorEvent.error?.message,

@@ -95,7 +95,18 @@ class BMADAGUIRuntime:
         tester_adk = ADKAgent(adk_agent=tester, app_name="bmad_tester", session_timeout_seconds=3600)
         deployer_adk = ADKAgent(adk_agent=deployer, app_name="bmad_deployer", session_timeout_seconds=3600)
 
-        # Add AG-UI endpoints for each agent
+        # Store agents in dict
+        self.adk_agents = {
+            "analyst": analyst_adk,
+            "architect": architect_adk,
+            "coder": coder_adk,
+            "orchestrator": orchestrator_adk,
+            "tester": tester_adk,
+            "deployer": deployer_adk
+        }
+
+        # Register each agent at a unique path
+        # Frontend will use /api/copilotkit/{agent_name} based on selectedAgent state
         add_adk_fastapi_endpoint(app, analyst_adk, path="/api/copilotkit/analyst")
         add_adk_fastapi_endpoint(app, architect_adk, path="/api/copilotkit/architect")
         add_adk_fastapi_endpoint(app, coder_adk, path="/api/copilotkit/coder")

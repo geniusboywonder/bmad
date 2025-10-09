@@ -1312,6 +1312,19 @@ const response = await workflowsService.getWorkflowDeliverables('greenfield-full
 - ✅ **Network Performance**: POST /api/copilotkit → 200 OK responses in <12s
 - ✅ **HITL Integration**: Inline approval UI with custom markdown tag rendering for seamless agent-driven approvals
 
+**✅ October 2025 CopilotKit Integration Fixes - Critical Bugs Resolved:**
+- ✅ **Backend Async Generator Fix**: Removed incorrect `.aclose()` call on exhausted generators in `adk_executor.py`
+- ✅ **HITL Agent Protocol Fix**: Removed incompatible `run_async()` override in `HITLAwareLlmAgent`
+  - Google ADK expects: `run_async(parent_context: InvocationContext) -> AsyncGenerator[Event, None]`
+  - Previous override used: `run_async(messages: List[Message], **kwargs)` causing subscriptable errors
+  - AG-UI ADK wrapper now handles all protocol translation correctly
+- ✅ **Frontend Routing Fix**: Reverted to `/api/copilotkit` with proper HttpAgent adapters
+  - Next.js API route uses CopilotKit Runtime SDK with AG-UI client integration
+  - Dynamic agent selection via `agent` prop, not URL-based routing
+- ✅ **Next.js Proxy Configuration**: Added `/api/copilotkit/*` rewrite rule for backend communication
+- ✅ **Error Handling Improvements**: Enhanced CopilotKit error filtering to suppress empty error objects
+- ✅ **End-to-End Verification**: Chat fully functional with agent responses, no console errors
+
 ### 12.2 Architecture Validation
 
 **SOLID Principles Compliance:**

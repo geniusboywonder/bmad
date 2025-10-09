@@ -74,8 +74,8 @@ backend/
 │   │   ├── [analyst|architect|coder|tester|deployer|orchestrator].md # ✅ Agent persona definitions (YAML in markdown)
 │   │   └── [analyst|architect|coder|tester|deployer].py # Legacy agents
 │   ├── copilot/             # ✅ NEW: CopilotKit specific integration logic
-│   │   ├── adk_runtime.py   # ✅ AG-UI ADK Runtime for CopilotKit
-│   │   └── hitl_aware_agent.py # ✅ Custom agent to handle HITL tool responses
+│   │   ├── adk_runtime.py   # ✅ AG-UI ADK Runtime for CopilotKit (per-agent endpoint registration)
+│   │   └── hitl_aware_agent.py # ✅ HITL-aware agent (protocol translation handled by AG-UI wrapper)
 │   ├── api/                 # ✅ SIMPLIFIED: REST API endpoints (87 endpoints, 13 groups)
 │   │   ├── adk.py          # ADK endpoints (26 endpoints)
 │   │   ├── agents.py       # Agent management (4 endpoints)

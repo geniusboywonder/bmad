@@ -44,39 +44,9 @@ export default function CopilotDemoPage() {
   const policyGuidance = useAppStore((state) => state.policyGuidance);
   const setPolicyGuidance = useAppStore((state) => state.setPolicyGuidance);
 
-  // State for the HITL controls
-  const [hitlEnabled, setHitlEnabled] = useState(true);
-  const [hitlCounter, setHitlCounter] = useState(10);
-
   // A hardcoded project ID for this demo page.
   // In a real application, this would come from a project context or URL.
   const projectId = "018f9fa8-b639-4858-812d-57f592324a35";
-
-  const updateHitlSettings = async (settings: { new_limit?: number; new_status?: boolean }) => {
-    toast.info("Updating HITL settings...");
-    try {
-      const response = await fetch(`/api/v1/hitl/settings/${projectId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update HITL settings.");
-      }
-
-      const result = await response.json();
-      const updatedSettings = result.updated_settings;
-
-      if (updatedSettings.limit !== undefined) setHitlCounter(updatedSettings.limit);
-      if (updatedSettings.enabled !== undefined) setHitlEnabled(updatedSettings.enabled);
-
-      toast.success("HITL settings updated successfully.");
-    } catch (error) {
-      toast.error("Failed to update HITL settings.");
-      console.error(error);
-    }
-  };
 
   // Available agents
   const availableAgents = [
@@ -202,52 +172,6 @@ export default function CopilotDemoPage() {
                 </div>
               </div>
             )}
-
-          {/* HITL Controls */}
-          {isClient && (
-            <div className="mt-4 p-4 border rounded-lg bg-muted/30" data-testid="hitl-controls">
-              <div className="flex items-center gap-4 mb-3">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  HITL Controls
-                </h3>
-                <Badge variant={hitlEnabled ? "default" : "secondary"}>
-                  {hitlEnabled ? "Enabled" : "Disabled"}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* HITL Toggle */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">HITL Status</label>
-                  <Button
-                    onClick={() => updateHitlSettings({ new_status: !hitlEnabled })}
-                    variant={hitlEnabled ? "default" : "outline"}
-                    className="w-full justify-start"
-                  >
-                    {hitlEnabled ? <ToggleRight className="w-4 h-4 mr-2" /> : <ToggleLeft className="w-4 h-4 mr-2" />}
-                    {hitlEnabled ? "Enabled" : "Disabled"}
-                  </Button>
-                </div>
-
-                {/* Counter Settings */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Action Limit</label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      value={hitlCounter}
-                      onChange={(e) => setHitlCounter(parseInt(e.target.value) || 10)}
-                      onBlur={() => updateHitlSettings({ new_limit: hitlCounter })}
-                      min="1"
-                      max="100"
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Agent Selector */}
           {isClient && (

@@ -20,6 +20,7 @@ async def websocket_endpoint(
     project_id: Optional[str] = Query(None, description="Project ID to subscribe to")
 ):
     """WebSocket endpoint for real-time communication."""
+    logger.info("WebSocket connection request received", project_id=project_id)
 
     await websocket_manager.connect(websocket, project_id)
 

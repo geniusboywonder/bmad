@@ -102,6 +102,11 @@ def process_agent_task(self, task_data: Dict[str, Any]):
 
     db_gen = get_session()
     db = next(db_gen)
+
+    result = {} # Initialize result here
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         # Ensure task exists in database before proceeding
         task_db = db.query(TaskDB).filter(TaskDB.id == task_uuid).first()
@@ -140,7 +145,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
         )
 
         # Send WebSocket event asynchronously
-        asyncio.run(websocket_manager.broadcast_event(event))
+        loop.run_until_complete(websocket_manager.broadcast_event(event))
         logger.info("Task started event broadcast", task_id=str(task_uuid))
 
         # Create Task object for agent processing
@@ -185,12 +190,12 @@ def process_agent_task(self, task_data: Dict[str, Any]):
         
         try:
             # Check for emergency stops
-            if asyncio.run(hitl_service._is_emergency_stopped()):
+            if loop.run_until_complete(hitl_service._is_emergency_stopped()):
                 raise EmergencyStopActivated("Emergency stop is active")
             
             # Check budget limits
             estimated_tokens = validated_data.get("estimated_tokens", 100)
-            budget_check = asyncio.run(hitl_service.check_budget_limits(
+            budget_check = loop.run_until_complete(hitl_service.check_budget_limits(
                 project_uuid, agent_type, estimated_tokens
             ))
             if not budget_check.approved:
@@ -249,7 +254,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                     agent_type=agent_type,
                     data={"approval_id": str(approval_id)}
                 )
-                asyncio.run(websocket_manager.broadcast_event(hitl_event))
+                loop.run_until_complete(websocket_manager.broadcast_event(hitl_event))
 
                 logger.info("Waiting for HITL pre-execution approval", task_id=str(task_uuid), approval_id=str(approval_id))
                 timeout_minutes = 30
@@ -268,7 +273,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                         break
                     elif approval_record.status == "EXPIRED":
                         approval_granted = False
-                        approval_comment = "Request expired"
+                        approval_comment = approval_record.user_comment
                         break
                     time.sleep(poll_interval)
 
@@ -281,18 +286,18 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             logger.info("HITL pre-execution approval granted", task_id=str(task_uuid), comment=approval_comment)
 
             # Execute task with ADK agent executor
-            result = asyncio.run(adk_executor.execute_task(task, handoff, context_artifacts))
+            result = loop.run_until_complete(adk_executor.execute_task(task, handoff, context_artifacts))
 
             # Skip response approval for simple tasks - pre-execution approval is sufficient
             # Response approval would create a duplicate HITL message
             logger.info("Skipping response approval - using pre-execution approval only",
-                       task_id=str(task_uuid),
-                       pre_execution_approval_id=str(approval_id))
+                           task_id=str(task_uuid),
+                           pre_execution_approval_id=str(approval_id))
 
             # Update budget usage
             if result.get("success", False):
                 tokens_used = result.get("tokens_used", estimated_tokens)
-                asyncio.run(hitl_service.update_budget_usage(
+                loop.run_until_complete(hitl_service.update_budget_usage(
                     project_uuid, agent_type, tokens_used
                 ))
 
@@ -347,7 +352,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                 }
             )
 
-            asyncio.run(websocket_manager.broadcast_event(event))
+            loop.run_until_complete(websocket_manager.broadcast_event(event))
 
             # Send agent chat message with the result
             agent_output = result.get("output", "Task completed successfully")
@@ -369,7 +374,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                 }
             )
 
-            asyncio.run(websocket_manager.broadcast_event(chat_event))
+            loop.run_until_complete(websocket_manager.broadcast_event(chat_event))
             logger.info("Task completed successfully", task_id=str(task_uuid))
 
         else:
@@ -396,7 +401,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
                 }
             )
 
-            asyncio.run(websocket_manager.broadcast_event(event))
+            loop.run_until_complete(websocket_manager.broadcast_event(event))
             logger.error("Task failed", task_id=str(task_uuid), error=error_message)
 
             # Re-raise exception to trigger Celery retry
@@ -408,5 +413,7 @@ def process_agent_task(self, task_data: Dict[str, Any]):
             next(db_gen)
         except StopIteration:
             pass
+        # Close the event loop
+        loop.close()
 
     return result

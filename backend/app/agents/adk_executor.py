@@ -111,9 +111,16 @@ class ADKAgentExecutor:
                            handoff_from=handoff.from_agent if handoff else None,
                            context_count=len(context_artifacts))
 
-            # ADK agent run - simplified synchronous call
-            # For async execution, use: response = await self.adk_agent.run_async(user_message)
-            response = self.adk_agent.run(user_message)
+            response_generator = self.adk_agent.run_async(user_message)
+            result_content = ""
+
+            # Process events from generator
+            async for event in response_generator:
+                if hasattr(event, 'content'):
+                    result_content += event.content
+
+            # Generator is automatically cleaned up after iteration completes
+            response = result_content
 
             # Extract response content
             result_content = self._extract_response_content(response)

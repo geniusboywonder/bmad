@@ -36,6 +36,10 @@ const nextConfig = {
         source: '/api/v1/:path*',
         destination: `${normalizedBackendUrl}/api/v1/:path*`,
       },
+      {
+        source: '/api/copilotkit/:path*',
+        destination: `${normalizedBackendUrl}/api/copilotkit/:path*`,
+      },
     ];
   },
 }

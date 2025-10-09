@@ -36,7 +36,7 @@ from app.models.context import ArtifactType
 from app.models.hitl import HitlStatus
 from app.services.orchestrator import OrchestratorService
 from app.services.context_store import ContextStoreService
-from app.services.autogen_service import AutoGenService
+# AutoGenService removed - replaced by ADK agents
 
 # Test Database Configuration
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"

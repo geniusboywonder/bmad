@@ -8,7 +8,7 @@ from uuid import UUID
 from typing import List, Dict, Any
 
 from google.adk.agents import LlmAgent
-from google.adk.models.agent import Message
+from a2a.types import Message
 from app.services.hitl_counter_service import HitlCounterService
 
 logger = structlog.get_logger(__name__)
@@ -78,10 +78,3 @@ class HITLAwareLlmAgent(LlmAgent):
         # If no HITL tool message is found, proceed with the normal agent execution.
         return super().run(messages=messages, **kwargs)
 
-    async def run_async(self, messages: List[Message], **kwargs) -> Message:
-        """
-        Async version of the run method to handle HITL tool results.
-        """
-        # For simplicity, this implementation wraps the synchronous `run` method.
-        # A fully async implementation would use async libraries for Redis etc.
-        return self.run(messages, **kwargs)
