@@ -105,10 +105,13 @@ backend/
 │   │   ├── workflow.py     # ✅ Canonical workflow models (WorkflowStep, WorkflowDefinition)
 │   │   └── workflow_state.py # Workflow execution runtime state
 │   ├── services/           # ✅ BMAD RADICAL SIMPLIFICATION: Business logic services (October 2025)
-│   │   ├── orchestrator/   # Orchestrator service components (7 files - unchanged)
+│   │   ├── orchestrator/   # Orchestrator service components
 │   │   │   ├── orchestrator_core.py      # Main coordination logic
 │   │   │   ├── project_lifecycle_manager.py # SDLC phase management
 │   │   │   ├── agent_coordinator.py       # Agent assignment and distribution
+│   │   │   ├── phase_policy_service.py    # ✅ NEW: SDLC phase policy enforcement
+│   │   │   ├── exceptions.py              # ✅ NEW: Custom service-layer exceptions
+│   │   │   ├── policy_config.yaml         # ✅ NEW: Configuration for phase policies
 │   │   │   ├── workflow_integrator.py     # Workflow engine integration
 │   │   │   ├── handoff_manager.py         # Agent handoff coordination
 │   │   │   ├── status_tracker.py          # Project status monitoring
@@ -191,7 +194,8 @@ backend/
 │   │   ├── test_agent_status_service.py
 │   │   ├── test_artifact_service.py
 │   │   ├── test_project_completion_service.py
-│   │   └── test_template_service.py
+│   │   ├── test_template_service.py
+│   │   └── test_phase_policy_service.py # ✅ NEW: Unit tests for phase policy service
 │   ├── test_adk_integration.py        # ADK core integration tests
 │   ├── test_adk_tools.py              # ADK tools framework tests
 │   ├── test_autogen_conversation.py   # AutoGen conversation tests

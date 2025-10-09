@@ -8,7 +8,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 import structlog
 
 from app.websocket.manager import websocket_manager
-from app.websocket.events import WebSocketEvent
+from app.websocket.events import WebSocketEvent, EventType
+from app.services.orchestrator.exceptions import PolicyViolationException
+
 
 router = APIRouter(tags=["websocket"])
 logger = structlog.get_logger(__name__)
@@ -164,6 +166,26 @@ async def websocket_project_endpoint(
                             # Send response immediately after successful task creation and assignment
                             await websocket.send_text(json.dumps(response))
 
+                        except PolicyViolationException as e:
+                            logger.warning(
+                                "Policy violation caught in WebSocket",
+                                project_id=project_id,
+                                agent_type=agent_type,
+                                decision=e.decision,
+                            )
+                            # Broadcast the policy violation event to the frontend
+                            event = WebSocketEvent(
+                                event_type=EventType.POLICY_VIOLATION,
+                                project_id=UUID(project_id),
+                                data={
+                                    "status": e.decision.status,
+                                    "reason_code": e.decision.reason_code,
+                                    "message": e.decision.message,
+                                    "current_phase": e.decision.current_phase,
+                                    "allowed_agents": e.decision.allowed_agents,
+                                },
+                            )
+                            await websocket_manager.broadcast_to_project(UUID(project_id), event)
                         except Exception as e:
                             logger.error("🔥 WEBSOCKET DEBUG: Failed to create agent task",
                                        error=str(e),

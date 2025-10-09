@@ -8,7 +8,7 @@ from uuid import UUID
 from typing import List, Dict, Any
 
 from google.adk.agents import LlmAgent
-from a2a.types import Message
+from google.adk.a2a.types import Message
 from app.services.hitl_counter_service import HitlCounterService
 
 logger = structlog.get_logger(__name__)

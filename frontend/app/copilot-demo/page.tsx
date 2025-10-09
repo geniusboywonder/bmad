@@ -66,8 +66,16 @@ export default function CopilotDemoPage() {
     if (!isClient) return;
 
     const handlePolicyViolation = (event: PolicyViolationEvent) => {
-      const { reason_code, message, current_phase, allowed_agents } = event.data;
-      
+      const { status, message, current_phase, allowed_agents } = event.data;
+
+      // Update the application state to show the policy guidance UI.
+      setPolicyGuidance({
+        status: status as "denied",
+        message: message,
+        currentPhase: current_phase,
+        allowedAgents: allowed_agents as AgentType[],
+      });
+
       const allowedAgentsString = allowed_agents.join(', ');
       const toastMessage = `
         **Policy Violation**
@@ -124,10 +132,10 @@ export default function CopilotDemoPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Toaster />
       {/* HITLAlertsBar is removed. Toasts will be handled by the Toaster in the root layout. */}
       
         <div className="container mx-auto p-6 flex-1">
+          <Toaster />
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">
               BMAD AI Agent Dashboard

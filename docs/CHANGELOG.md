@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.24.0] - 2025-10-04
 
 ### Added
+- **Phase Policy Enforcement**: Implemented a `PhasePolicyService` to enforce agent access based on the current SDLC phase. This service validates agent usage against a configurable policy (`policy_config.yaml`) and prevents unauthorized agent actions.
 - Drafted agent policy enforcement plan (`docs/policy-agent-policy-plan.md`) and logged implementation roadmap in `docs/PLAN.md`.
 - Shared `policyGuidance` state in the frontend store with Copilot demo UI surfacing allowed agents, chat input gating, and accompanying vitest coverage for policy normalization.
 
