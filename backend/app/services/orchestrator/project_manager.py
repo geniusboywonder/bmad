@@ -118,7 +118,6 @@ class ProjectManager:
 
     def __init__(self, db: Session):
         self.db = db
-        self.current_project_phases = {}  # Track current phase per project
 
     # ========================================================================
     # PROJECT LIFECYCLE MANAGEMENT
@@ -129,17 +128,15 @@ class ProjectManager:
         project = ProjectDB(
             name=name,
             description=description,
-            status="active"
+            status="active",
+            current_phase="discovery"  # Initialize to discovery phase
         )
 
         self.db.add(project)
         self.db.commit()
         self.db.refresh(project)
 
-        # Initialize to discovery phase
-        self.set_current_phase(project.id, "discovery")
-
-        logger.info("Project created", project_id=project.id, name=name)
+        logger.info("Project created", project_id=project.id, name=name, current_phase="discovery")
 
         return project.id
 
@@ -148,14 +145,23 @@ class ProjectManager:
         return self.db.query(ProjectDB).all()
 
     def get_current_phase(self, project_id: UUID) -> str:
-        """Get the current SDLC phase for a project."""
-        return self.current_project_phases.get(str(project_id), "discovery")
+        """Get the current SDLC phase for a project from database."""
+        project = self.db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if project and project.current_phase:
+            return project.current_phase
+        return "discovery"  # Default fallback
 
     def set_current_phase(self, project_id: UUID, phase: str):
-        """Set the current SDLC phase for a project."""
+        """Set the current SDLC phase for a project in database."""
         if phase not in SDLC_PHASES:
             raise ValueError(f"Invalid phase: {phase}")
-        self.current_project_phases[str(project_id)] = phase
+
+        project = self.db.query(ProjectDB).filter(ProjectDB.id == project_id).first()
+        if not project:
+            raise ValueError(f"Project not found: {project_id}")
+
+        project.current_phase = phase
+        self.db.commit()
         logger.info("Project phase updated", project_id=project_id, phase=phase)
 
     def validate_phase_completion(self, project_id: UUID, phase: str) -> Dict[str, Any]:

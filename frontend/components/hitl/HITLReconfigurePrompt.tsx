@@ -5,7 +5,8 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle } from 'lucide-react';
 
 interface HITLReconfigurePromptProps {
   initialLimit: number;
@@ -22,41 +23,117 @@ export const HITLReconfigurePrompt = ({
 }: HITLReconfigurePromptProps) => {
   const [limit, setLimit] = useState(initialLimit);
   const [isEnabled, setIsEnabled] = useState(initialStatus);
+  const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
+  const isLocked = decision !== null;
 
-  const handleContinue = () => {
-    onContinue({ newLimit: limit, newStatus: isEnabled });
+  const handleApprove = async () => {
+    if (isLocked) {
+      return;
+    }
+    setDecision("approved");
+    try {
+      await Promise.resolve(onContinue({ newLimit: limit, newStatus: isEnabled }));
+    } catch (error) {
+      console.error("[HITLReconfigurePrompt] Failed to approve HITL settings", error);
+      setDecision(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (isLocked) {
+      return;
+    }
+    setDecision("rejected");
+    try {
+      await Promise.resolve(onStop());
+    } catch (error) {
+      console.error("[HITLReconfigurePrompt] Failed to reject HITL settings", error);
+      setDecision(null);
+    }
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-muted/50 my-4">
-      <p className="font-semibold text-amber-600">Agent Action Limit Reached</p>
-      <p className="text-sm text-muted-foreground mb-4">
-        The agent has used its allocated actions. Please reconfigure and continue, or stop the current operation.
-      </p>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-y-4">
-        <div className="flex items-center gap-2">
-          <Label htmlFor="hitl-limit">Set Counter:</Label>
+    <div
+      className="border rounded-lg bg-background shadow-sm overflow-hidden max-w-2xl focus:outline-none"
+      data-hitl-prompt="current"
+      tabIndex={-1}
+    >
+      {/* Header with Counter and HITL Toggle */}
+      <div className="flex items-center justify-between gap-4 px-4 py-2 bg-muted/50 border-b">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground">Counter:</span>
           <Input
-            id="hitl-limit"
             type="number"
             value={limit}
             onChange={(e) => setLimit(parseInt(e.target.value, 10) || 0)}
-            className="w-20"
+            disabled={isLocked}
+            className="w-20 h-8"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Label htmlFor="hitl-toggle">Toggle HITL:</Label>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground">Enable HITL:</span>
           <Switch
-            id="hitl-toggle"
             checked={isEnabled}
             onCheckedChange={setIsEnabled}
+            disabled={isLocked}
+            className="data-[state=checked]:bg-primary"
           />
         </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Button onClick={handleContinue}>Continue</Button>
-          <Button onClick={onStop} variant="destructive">
-            Stop
-          </Button>
+      </div>
+
+      {/* Task Heading with Badges */}
+      <div className="px-4 py-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-orchestrator/10 text-orchestrator border-orchestrator/20">
+            Agent
+          </Badge>
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            HITL
+          </Badge>
+        </div>
+
+        {/* Task Description (max 2 lines) */}
+        <p className="text-sm text-foreground line-clamp-2">
+          Agent action limit reached. Reconfigure HITL settings to continue or stop the current operation.
+        </p>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 pt-2">
+          {decision === null ? (
+            <>
+              <Button
+                onClick={handleApprove}
+                size="sm"
+                className="bg-tester text-white hover:bg-tester/90"
+              >
+                Approve
+              </Button>
+              <Button
+                onClick={handleReject}
+                size="sm"
+                variant="destructive"
+              >
+                Reject
+              </Button>
+            </>
+          ) : decision === "approved" ? (
+            <Button
+              size="sm"
+              className="bg-tester text-white"
+              disabled
+            >
+              Approved
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled
+            >
+              Rejected
+            </Button>
+          )}
         </div>
       </div>
     </div>

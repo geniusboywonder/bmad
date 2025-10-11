@@ -47,9 +47,10 @@ class ProjectDB(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     status = Column(String(50), default="active")
+    current_phase = Column(String(50), default="discovery", nullable=False)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
-    
+
     # Relationships
     tasks = relationship("TaskDB", back_populates="project")
     context_artifacts = relationship("ContextArtifactDB", back_populates="project")

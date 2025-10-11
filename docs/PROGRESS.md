@@ -29,3 +29,17 @@
 - Updated `frontend/app/copilot-demo/page.tsx` to surface phase-aware guidance, restrict disallowed agent toggles, and mirror policy toasts.
 - Gated chat submission in `frontend/components/chat/copilot-chat.tsx`, parsing REST errors into guidance and disabling input when agents are off-limits.
 - Introduced `buildPolicyGuidance` helper plus new vitest suites (`policy-utils.test.ts`, `copilot-chat.policy.test.tsx`) covering normalization and UI gating.
+
+## 2025-10-09 14:28 UTC
+
+- Refactored `frontend/app/copilot-demo/page.tsx` to drop the `reconfigureHITL` Copilot action in favor of markdown-driven approvals.
+- Registered a `<hitl-approval>` renderer that persists approvals via the HITL store and shows `InlineHITLApproval` inline cards.
+- Updated agent-facing instructions/status copy and cleaned unused imports to reflect the markdown-based flow.
+- Validation: queued targeted frontend tests; requires environment time to execute.
+
+## 2025-10-09 14:36 UTC
+
+- Introduced `frontend/components/ui/sonner.tsx` and wired the global `Toaster` through `ClientProvider` per shadcn guidance.
+- Replaced `MainLayout`'s `HITLAlertsBar` with toast notifications keyed by approval ID, preventing duplicate banners.
+- Removed the per-page `Toaster` instance from `copilot-demo` so all notifications route through the shared Sonner container.
+- Testing: pending manual verification and Vitest/Playwright smoke runs once the environment is available.

@@ -2,25 +2,25 @@
  * CopilotKit + AG-UI Integration Demo (Refactored)
  *
  * Shows how to connect CopilotKit frontend to a backend that uses a
- * session governor for HITL, with UI interactions handled by native
- * CopilotKit client-side actions.
+ * session governor for HITL, with approvals handled via native
+ * CopilotKit actions that launch interactive prompts.
  */
 
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAgent } from "@/lib/context/agent-context";
-import { useCopilotAction } from "@copilotkit/react-core";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Settings, AlertTriangle, ToggleLeft, ToggleRight } from "lucide-react";
-import { Toaster, toast } from "sonner";
+import { AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { HITLReconfigurePrompt } from "@/components/hitl/HITLReconfigurePrompt";
 import { websocketManager } from "@/lib/services/websocket/enhanced-websocket-client";
 import { PolicyViolationEvent, AgentType } from "@/lib/services/api/types";
 import { useAppStore } from "@/lib/stores/app-store";
+import { useHumanInTheLoop } from "@copilotkit/react-core";
 import "@copilotkit/react-ui/styles.css";
 
 // Dynamically import CopilotSidebar and AgentState
@@ -40,16 +40,17 @@ const CopilotSidebar = dynamic(
 
 export default function CopilotDemoPage() {
   const [isClient, setIsClient] = useState(false);
-  const { selectedAgent, setSelectedAgent } = useAgent();
+  const { selectedAgent, setSelectedAgent, projectId, setProjectId } = useAgent();
   const policyGuidance = useAppStore((state) => state.policyGuidance);
   const setPolicyGuidance = useAppStore((state) => state.setPolicyGuidance);
+  const chatSectionRef = useRef<HTMLDivElement | null>(null);
 
-  // A hardcoded project ID for this demo page.
-  // In a real application, this would come from a project context or URL.
-  const projectId = "018f9fa8-b639-4858-812d-57f592324a35";
+  // Demo project ID - in production, this would come from URL params or project store
+  // This project should exist in your database for policy enforcement to work
+  const DEMO_PROJECT_ID = "018f9fa8-b639-4858-812d-57f592324a35";
 
   // Available agents
-  const availableAgents = [
+  const availableAgents: Array<{ name: AgentType; label: string; description: string }> = [
     { name: "analyst", label: "Analyst", description: "Requirements analysis and documentation" },
     { name: "architect", label: "Architect", description: "System architecture and design" },
     { name: "coder", label: "Coder", description: "Code implementation" },
@@ -60,7 +61,9 @@ export default function CopilotDemoPage() {
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    // Set project ID for policy enforcement
+    setProjectId(DEMO_PROJECT_ID);
+  }, [setProjectId]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -98,44 +101,52 @@ export default function CopilotDemoPage() {
     };
   }, [isClient]);
 
-  // Define the client-side action for HITL reconfiguration
-  const reconfigureHITL = useCopilotAction({
+  const focusHitlPrompt = useCallback(() => {
+    requestAnimationFrame(() => {
+      const promptElement = chatSectionRef.current?.querySelector("[data-hitl-prompt='current']") as HTMLElement | null;
+      if (!promptElement) return;
+      promptElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (typeof promptElement.focus === "function") {
+        promptElement.focus();
+      }
+    });
+  }, []);
+
+  const reconfigureHITL = useHumanInTheLoop({
     name: "reconfigureHITL",
-    description: "Renders a prompt to reconfigure HITL settings when the action limit is reached.",
+    description: "Prompt the user to adjust HITL settings when the auto-approval counter is exhausted.",
     parameters: [
-      { name: "actionLimit", type: "number", description: "The current action limit." },
-      { name: "isHitlEnabled", type: "boolean", description: "The current HITL status." },
+      { name: "actionLimit", type: "number", description: "The current auto-approval limit." },
+      { name: "isHitlEnabled", type: "boolean", description: "Whether HITL is enabled for the project." }
     ],
-    render: (props) => {
-      const { actionLimit, isHitlEnabled } = props.args;
-
-      const handleContinue = (response: { newLimit: number; newStatus: boolean }) => {
-        console.log("Frontend: Continue button clicked. Sending response to backend:", response);
-        props.done(JSON.stringify(response));
-      };
-
-      const handleStop = () => {
-        console.log("Frontend: Stop button clicked. Sending stop signal to backend.");
-        props.done(JSON.stringify({ newStatus: false, stop: true }));
-      };
-
-      return (
-        <HITLReconfigurePrompt
-          initialLimit={actionLimit}
-          initialStatus={isHitlEnabled}
-          onContinue={handleContinue}
-          onStop={handleStop}
-        />
-      );
+    handler: async () => {
+      const agentLabel =
+        availableAgents.find((agent) => agent.name === selectedAgent)?.label ??
+        selectedAgent.charAt(0).toUpperCase() + selectedAgent.slice(1);
+      toast.warning(`${agentLabel} requires your attention for a human-in-the-loop action.`, {
+        duration: 6000,
+        action: {
+          label: "Review",
+          onClick: focusHitlPrompt
+        }
+      });
     },
+    render: ({ args, respond }) => (
+      <HitlPromptRenderer
+        initialLimit={args.actionLimit}
+        initialStatus={args.isHitlEnabled}
+        projectId={projectId ?? DEMO_PROJECT_ID}
+        respond={respond}
+        onFocus={focusHitlPrompt}
+      />
+    )
   });
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* HITLAlertsBar is removed. Toasts will be handled by the Toaster in the root layout. */}
-      
+    <>
+      <Toaster />
+      <div className="min-h-screen flex flex-col">
         <div className="container mx-auto p-6 flex-1">
-          <Toaster />
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">
               BMAD AI Agent Dashboard
@@ -221,8 +232,8 @@ export default function CopilotDemoPage() {
               <li>✅ Selected Agent: {selectedAgent}</li>
               <li>✅ LLM: OpenAI GPT-4 Turbo via LiteLLM</li>
               <li>✅ **NEW**: HITL logic is now backend-driven via Session Governor.</li>
-              <li>✅ **NEW**: Interactive prompts are handled by `useCopilotKitAction`.</li>
-              <li>✅ **DEPRECATED**: Frontend counter, `useHITLStore`, `HITLAlertsBar`.</li>
+              <li>✅ **NEW**: HITL prompts use native CopilotKit actions.</li>
+              <li>✅ **DEPRECATED**: Legacy markdown-based HITL approvals.</li>
             </ul>
           </div>
 
@@ -234,19 +245,69 @@ export default function CopilotDemoPage() {
           )} */}
 
           {isClient && (
-            <div data-testid="chat-section">
+            <div data-testid="chat-section" ref={chatSectionRef}>
               <CopilotSidebar
                 labels={{
                   title: `BMAD ${selectedAgent.charAt(0).toUpperCase() + selectedAgent.slice(1)} Agent`,
                   initial: `I'm your ${selectedAgent} agent. How can I help you today?`
                 }}
-                instructions={`You are the BMAD ${selectedAgent} agent. Your full instructions are loaded from the backend. HITL (Human-in-the-Loop) is managed by the backend. When you reach your action limit, you will be instructed to call the 'reconfigureHITL' function to ask the user for guidance.`}
+                instructions={`You are the BMAD ${selectedAgent} agent. Your full instructions are loaded from the backend. HITL (Human-in-the-Loop) is managed by the backend session governor. Whenever you need human approval—either because the auto-approval counter is exhausted or you judge a step requires sign-off—call the 'reconfigureHITL' tool. Use the current settings you know (default: actionLimit = 10, isHitlEnabled = true) unless the user tells you different values; the UI will let them adjust the exact numbers.`}
                 actions={[reconfigureHITL]}
               />
             </div>
           )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+interface HitlPromptRendererProps {
+  initialLimit: number;
+  initialStatus: boolean;
+  projectId: string;
+  respond: (value: string) => void;
+  onFocus: () => void;
+}
+
+function HitlPromptRenderer({
+  initialLimit,
+  initialStatus,
+  projectId,
+  respond,
+  onFocus,
+}: HitlPromptRendererProps) {
+  useEffect(() => {
+    onFocus();
+  }, [onFocus]);
+
+  return (
+    <HITLReconfigurePrompt
+      initialLimit={initialLimit}
+      initialStatus={initialStatus}
+      onContinue={({ newLimit, newStatus }) => {
+        toast.success("HITL settings updated. Agent can continue.", { duration: 5000 });
+        respond(
+          JSON.stringify({
+            newLimit,
+            newStatus,
+            stop: false,
+            projectId,
+          })
+        );
+      }}
+      onStop={() => {
+        toast.info("Agent paused. Adjust HITL settings before continuing.", { duration: 5000 });
+        respond(
+          JSON.stringify({
+            newLimit: initialLimit,
+            newStatus: false,
+            stop: true,
+            projectId,
+          })
+        );
+      }}
+    />
   );
 }

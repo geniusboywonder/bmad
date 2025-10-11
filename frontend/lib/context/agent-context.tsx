@@ -7,15 +7,18 @@ type AgentName = "analyst" | "architect" | "coder" | "tester" | "deployer" | "or
 interface AgentContextType {
   selectedAgent: AgentName;
   setSelectedAgent: (agent: AgentName) => void;
+  projectId: string | null;
+  setProjectId: (id: string | null) => void;
 }
 
 const AgentContext = createContext<AgentContextType | undefined>(undefined);
 
 export function AgentProvider({ children }: { children: ReactNode }) {
   const [selectedAgent, setSelectedAgent] = useState<AgentName>("analyst");
+  const [projectId, setProjectId] = useState<string | null>(null);
 
   return (
-    <AgentContext.Provider value={{ selectedAgent, setSelectedAgent }}>
+    <AgentContext.Provider value={{ selectedAgent, setSelectedAgent, projectId, setProjectId }}>
       {children}
     </AgentContext.Provider>
   );

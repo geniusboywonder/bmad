@@ -2,6 +2,11 @@
 # This file defines which agents are allowed to be invoked during each phase.
 # The 'orchestrator' is allowed in all phases as it manages the workflow.
 
+discovery:
+  allowed_agents:
+    - "analyst"
+    - "orchestrator"
+
 analyze:
   allowed_agents:
     - "analyst"

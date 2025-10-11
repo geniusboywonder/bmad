@@ -1,0 +1,29 @@
+{
+  "hooks": [
+    {
+      "event": "PostToolUse",
+      "toolPattern": ["Write", "Edit"],
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/typescript-check.js"
+    },
+    {
+      "event": "PostToolUse",
+      "toolPattern": ["Write", "Edit"],
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/prettier-format.js"
+    },
+    {
+      "event": "PostToolUse",
+      "toolPattern": ["Write", "Edit"],
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/eslint-fix.js"
+    },
+    {
+      "event": "PostToolUse",
+      "toolPattern": ["Write", "Edit"],
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/black-format.sh"
+    },
+    {
+      "event": "PostToolUse",
+      "toolPattern": ["Write", "Edit"],
+      "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pytest-check.sh"
+    }
+  ]
+}

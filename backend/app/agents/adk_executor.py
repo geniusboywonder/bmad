@@ -4,10 +4,11 @@ This module provides ADK agent execution for HITL-controlled tasks.
 Replaces the abandoned MAF integration with proven ADK implementation.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import structlog
 import json
 import uuid
+import asyncio
 from google.adk.agents import LlmAgent
 from google.adk.models.lite_llm import LiteLlm
 
@@ -16,6 +17,10 @@ from app.models.handoff import HandoffSchema
 from app.models.context import ContextArtifact
 from app.utils.agent_prompt_loader import agent_prompt_loader
 from app.services.hitl_counter_service import HitlCounterService
+from app.services.orchestrator.phase_policy_service import PhasePolicyService, PolicyDecision
+from app.database.connection import get_session_local
+from app.websocket.events import WebSocketEvent, EventType
+from app.websocket.manager import websocket_manager
 
 logger = structlog.get_logger(__name__)
 
@@ -73,6 +78,24 @@ class ADKAgentExecutor:
             Task execution result with status and output
         """
         try:
+            policy_decision, violation_message = await self._ensure_policy_allowed(task.project_id)
+            if policy_decision and policy_decision.status == "denied":
+                self.logger.warning(
+                    "Policy violation - task blocked",
+                    project_id=str(task.project_id),
+                    agent_type=self.agent_type,
+                    current_phase=policy_decision.current_phase,
+                    allowed_agents=policy_decision.allowed_agents,
+                )
+                return {
+                    "status": "failed",
+                    "success": False,
+                    "error": violation_message,
+                    "policy_violation": True,
+                    "agent_type": self.agent_type,
+                    "project_id": str(task.project_id),
+                }
+
             # Prepare context message from artifacts
             context_messages = []
             for artifact in context_artifacts:
@@ -152,6 +175,58 @@ class ADKAgentExecutor:
                 "agent_type": self.agent_type,
                 "task_id": str(task.id)
             }
+
+    async def _ensure_policy_allowed(self, project_id: uuid.UUID) -> (Optional[PolicyDecision], Optional[str]):
+        SessionLocal = get_session_local()
+        session = SessionLocal()
+        decision: Optional[PolicyDecision] = None
+        try:
+            service = PhasePolicyService(session)
+            decision = service.evaluate(str(project_id), self.agent_type)
+        except Exception as exc:
+            self.logger.error(
+                "Policy evaluation failed; defaulting to allow",
+                project_id=str(project_id),
+                agent_type=self.agent_type,
+                error=str(exc),
+            )
+            return None, None
+        finally:
+            session.close()
+
+        if decision and decision.status == "denied":
+            allowed_text = ", ".join(decision.allowed_agents) or "None"
+            violation_message = (
+                "🚫 **Policy Violation**\n\n"
+                f"{decision.message}\n\n"
+                f"**Current Phase:** {decision.current_phase}\n"
+                f"**Allowed Agents:** {allowed_text}"
+            )
+
+            try:
+                event = WebSocketEvent(
+                    event_type=EventType.POLICY_VIOLATION,
+                    project_id=project_id,
+                    data={
+                        "status": decision.status,
+                        "reason_code": decision.reason_code,
+                        "message": decision.message,
+                        "current_phase": decision.current_phase,
+                        "allowed_agents": decision.allowed_agents,
+                    },
+                )
+                await websocket_manager.broadcast_to_project(project_id, event)
+            except Exception as exc:
+                self.logger.error(
+                    "Failed to broadcast policy violation",
+                    project_id=str(project_id),
+                    agent_type=self.agent_type,
+                    error=str(exc),
+                )
+
+            return decision, violation_message
+
+        return decision, None
 
     def _prepare_task_message(self, task: Task, handoff: HandoffSchema) -> str:
         """Prepare task message for ADK agent.

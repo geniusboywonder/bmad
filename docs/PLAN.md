@@ -36,3 +36,20 @@
 - [x] Parse policy-aware task creation errors in chat, disable input when agents are blocked, and show clarification messaging.
 - [x] Add vitest coverage for policy normalization helper and chat input gating scenarios.
 - [x] Run targeted frontend test suite (`npm run test -- policy-utils.test.ts copilot-chat.policy.test.tsx`) to validate policy gating.
+
+## 2025-10-09 14:26 UTC
+
+- [x] Review `frontend/app/copilot-demo/page.tsx` for lingering `reconfigureHITL` usage and missing `<hitl-approval>` renderer.
+- [x] Cross-check backend agent personas to confirm markdown tag contract for HITL approvals.
+- [x] Implement markdown renderer that registers requests in the HITL store and renders `InlineHITLApproval`.
+- [x] Clean up sidebar instructions/imports to remove `useCopilotAction` tooling and align messaging.
+- [ ] Run targeted frontend validation (Vitest or manual chat flow) once environment access is available.
+
+## 2025-10-09 14:35 UTC
+
+- [x] Inspect `MainLayout` to confirm `HITLAlertsBar` removal aligns with toaster requirement.
+- [x] Verify global layout lacks shadcn `<Toaster />` and outline integration plan.
+- [x] Add Sonner-based `Toaster` component and mount within the client provider.
+- [x] Replace `HITLAlertsBar` logic with toast notifications deduplicated by approval ID.
+- [x] Remove duplicate page-level toaster usage in `copilot-demo` to rely on global instance.
+- [ ] Execute frontend smoke/Toast rendering validation when UI environment is available.
